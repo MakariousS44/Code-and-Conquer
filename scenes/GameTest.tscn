@@ -1,24 +1,33 @@
 [gd_scene format=3 uid="uid://djsg204xq54i8"]
 
 [ext_resource type="Script" uid="uid://f2w63y8b8jur" path="res://scripts/worlds/player.gd" id="1_78x7u"]
-[ext_resource type="Texture2D" uid="uid://clu8us6s6fbbl" path="res://icon.svg" id="2_jj66b"]
+[ext_resource type="Script" uid="uid://bm00goy00ghk" path="res://scenes/game_test.gd" id="1_v8ofy"]
+[ext_resource type="Texture2D" uid="uid://clu8us6s6fbbl" path="res://icon.svg" id="3_v8ofy"]
 
 [node name="GameTest" type="Node2D" unique_id=918532889]
+script = ExtResource("1_v8ofy")
 
-[node name="ColorRect" type="ColorRect" parent="." unique_id=2052619125]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-color = Color(0.36455786, 0.5902611, 0.16321903, 1)
+[node name="WorldRoot" type="Node2D" parent="." unique_id=1548766223]
 
-[node name="Player" type="Node2D" parent="." unique_id=1807080076]
+[node name="Player" type="Node2D" parent="WorldRoot" unique_id=1807080076]
 script = ExtResource("1_78x7u")
 
-[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=853959161]
-texture = ExtResource("2_jj66b")
+[node name="Marker" type="Polygon2D" parent="WorldRoot/Player" unique_id=1094076341]
+color = Color(1, 0, 0, 1)
+texture = ExtResource("3_v8ofy")
+polygon = PackedVector2Array(12, -12, 12, 12, -12, 12, -12, -12)
+uv = PackedVector2Array(12, -12, 12, 12, -12, 12, -12, -12)
+
+[node name="Walls" type="Node2D" parent="WorldRoot" unique_id=1257113904]
+
+[node name="Grid" type="Node2D" parent="WorldRoot" unique_id=1401474488]
+
+[node name="Objects" type="Node2D" parent="WorldRoot" unique_id=1234577301]
+
+[node name="Floor" type="Node2D" parent="WorldRoot" unique_id=951318464]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1239584116]
+limit_left = -869
+limit_top = -498
+limit_right = 1050
+limit_bottom = 583

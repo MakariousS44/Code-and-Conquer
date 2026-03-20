@@ -2,76 +2,142 @@
 
 [ext_resource type="Script" uid="uid://6l50t3qvgpal" path="res://scripts/ui/main_ui.gd" id="1_fnul3"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="2_513t2"]
+[ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://new_theme.tres" id="2_e6fyy"]
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_513t2"]
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_e6fyy"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e6fyy"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j6a7c"]
+bg_color = Color(0.105882354, 0.11764706, 0.14117648, 1)
+border_color = Color(0.20392157, 0.22745098, 0.27450982, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="MainUI" type="Control" unique_id=638120049]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -1280.0
-offset_bottom = -720.0
 grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme = ExtResource("2_e6fyy")
 script = ExtResource("1_fnul3")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=81595970]
+[node name="RootMargin" type="MarginContainer" parent="." unique_id=1846377266]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = 974.0
-offset_bottom = 833.0
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(1.0012864, 0.99810547)
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=833622340]
-custom_minimum_size = Vector2(0, 75)
+[node name="MainColumn" type="VBoxContainer" parent="RootMargin" unique_id=81595970]
 layout_mode = 2
+theme = ExtResource("2_e6fyy")
 
-[node name="ValidateButton" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=92612384]
+[node name="TopBarPanel" type="PanelContainer" parent="RootMargin/MainColumn" unique_id=1876418641]
+layout_mode = 2
+theme = ExtResource("2_e6fyy")
+
+[node name="TopBar" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel" unique_id=833622340]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ValidateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=92612384]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 4
+theme = ExtResource("2_e6fyy")
+theme_override_font_sizes/font_size = 20
 text = "Validate"
 
-[node name="RunButton" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1989659408]
+[node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=1989659408]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
+theme_override_font_sizes/font_size = 20
 text = "Run"
 autowrap_mode = 3
 
-[node name="StatusLabel" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=341284063]
+[node name="StatusLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=341284063]
 layout_mode = 2
+theme = ExtResource("2_e6fyy")
+theme_type_variation = &"TooltipLabel"
+theme_override_styles/normal = SubResource("StyleBoxLine_513t2")
+theme_override_styles/focus = SubResource("StyleBoxLine_e6fyy")
 
-[node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer" unique_id=1965162052]
+[node name="WorkspaceSplit" type="HSplitContainer" parent="RootMargin/MainColumn" unique_id=1965162052]
+layout_mode = 2
+theme = ExtResource("2_e6fyy")
+collapsed = true
+drag_area_highlight_in_editor = true
+
+[node name="EditorOutputSplit" type="VSplitContainer" parent="RootMargin/MainColumn/WorkspaceSplit" unique_id=473240273]
 layout_mode = 2
 size_flags_horizontal = 0
 size_flags_vertical = 3
-split_offsets = PackedInt32Array(8)
-split_offset = 8
+theme = ExtResource("2_e6fyy")
+split_offsets = PackedInt32Array(600)
+split_offset = 600
 
-[node name="Editor" type="CodeEdit" parent="VBoxContainer/HSplitContainer" unique_id=1413483267]
-custom_minimum_size = Vector2(450, 750)
+[node name="EditorPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=670561621]
 layout_mode = 2
+theme = ExtResource("2_e6fyy")
+
+[node name="Editor" type="CodeEdit" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorPanel" unique_id=1413483267]
+custom_minimum_size = Vector2(600, 600)
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.0
+theme = ExtResource("2_e6fyy")
 theme_override_fonts/font = ExtResource("2_513t2")
 theme_override_font_sizes/font_size = 16
+theme_override_styles/panel = SubResource("StyleBoxFlat_e6fyy")
 text = "nnnnnnn"
 gutters_draw_line_numbers = true
 gutters_line_numbers_min_digits = 2
 gutters_draw_fold_gutter = true
 
-[node name="GameView" type="SubViewportContainer" parent="VBoxContainer/HSplitContainer" unique_id=764830458]
+[node name="OutputPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=509212682]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_j6a7c")
+
+[node name="OutputMargin" type="MarginContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputPanel" unique_id=922393522]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="Output" type="RichTextLabel" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputPanel/OutputMargin" unique_id=402483377]
+layout_mode = 2
+theme_override_colors/default_color = Color(0.72156864, 0.7607843, 0.8117647, 1)
+theme_override_font_sizes/normal_font_size = 14
+bbcode_enabled = true
+scroll_following = true
+scroll_following_visible_characters = true
+context_menu_enabled = true
+
+[node name="GameViewPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit" unique_id=1786001261]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.0
 
-[node name="SubViewport" type="SubViewport" parent="VBoxContainer/HSplitContainer/GameView" unique_id=1934654988]
-handle_input_locally = false
-render_target_update_mode = 4
-
-[node name="Output" type="RichTextLabel" parent="VBoxContainer" unique_id=402483377]
+[node name="GameView" type="SubViewportContainer" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel" unique_id=764830458]
 layout_mode = 2
-size_flags_vertical = 3
-theme_override_font_sizes/normal_font_size = 16
+
+[node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
+handle_input_locally = false
+size = Vector2i(1000, 900)
+render_target_update_mode = 4

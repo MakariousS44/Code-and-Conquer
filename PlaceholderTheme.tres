@@ -1,0 +1,8 @@
+[gd_resource type="Theme" format=3 uid="uid://blxu0e52e31yl"]
+
+[resource]
+Button/colors/font_outline_color = Color(0.2901961, 0.3254902, 0.3764706, 1)
+Button/colors/icon_normal_color = Color(0.20392157, 0.23137255, 0.27450982, 1)
+PanelContainer/colors/Background = Color(0.16470589, 0.18431373, 0.21176471, 1)
+PanelContainer/colors/Border = Color(0.2627451, 0.29411766, 0.34117648, 1)
+PanelContainer/styles/MainPanels = null

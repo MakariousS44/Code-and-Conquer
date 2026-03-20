@@ -51,8 +51,8 @@ func _execute_next(player_node: Node) -> void:
 				player_node.move_forward()
 
 	# Wait briefly before executing the next command.
-	# This creates visible step-by-step behavior instead of instant movement.
+	# This creates visible step by step behavior instead of instant movement nice
 	await scene_tree.create_timer(0.3).timeout
 
-	# Continue processing remaining commands.
+	# Continue processing remaining commands
 	_execute_next(player_node)
