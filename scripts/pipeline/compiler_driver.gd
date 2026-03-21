@@ -83,6 +83,11 @@ func _write_robot_files() -> void:
 	_write_file(ROBOT_HPP, """#pragma once
 
 void move();
+void turn_left();
+void turn_right();
+bool front_is_clear();
+void pick_object();
+void put_object();
 """)
 
 	_write_file(ROBOT_CPP, """#include "robot.hpp"
@@ -91,4 +96,28 @@ void move();
 void move() {
 	std::cout << "[CMD] MOVE" << std::endl;
 }
-""") 
+
+void turn_left() {
+	std::cout << "[CMD] TURN_LEFT" << std::endl;
+}
+
+void turn_right() {
+	std::cout << "[CMD] TURN_RIGHT" << std::endl;
+}
+
+bool front_is_clear() {
+	std::cout << "[CMD] FRONT_IS_CLEAR" << std::endl;
+	std::cout.flush();
+	int result = 0;
+	std::cin >> result;
+	return result == 1;
+}
+
+void pick_object() {
+	std::cout << "[CMD] PICK_OBJECT" << std::endl;
+}
+
+void put_object() {
+	std::cout << "[CMD] PUT_OBJECT" << std::endl;
+}
+""")

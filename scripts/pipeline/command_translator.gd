@@ -23,6 +23,16 @@ func translate_runtime_output(raw_output: String) -> Dictionary:
 			match cmd:
 				"MOVE":
 					commands.append({"type": "move"})
+				"TURN_LEFT":
+					commands.append({"type": "turn_left"})
+				"TURN_RIGHT":
+					commands.append({"type": "turn_right"})
+				"FRONT_IS_CLEAR":
+					commands.append({"type": "front_is_clear"})
+				"PICK_OBJECT":
+					commands.append({"type": "pick_object"})
+				"PUT_OBJECT":
+					commands.append({"type": "put_object"})
 
 				# If a command is not recognized yet, record a warning.
 				_:

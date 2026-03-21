@@ -4,15 +4,174 @@
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="2_513t2"]
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://new_theme.tres" id="2_e6fyy"]
 
-[sub_resource type="StyleBoxLine" id="StyleBoxLine_513t2"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
+bg_color = Color(0.098, 0.102, 0.122, 1)
+border_width_bottom = 1
+border_color = Color(0.22, 0.22, 0.28, 1)
+corner_radius_top_left = 0
+corner_radius_top_right = 0
+corner_radius_bottom_right = 0
+corner_radius_bottom_left = 0
 
-[sub_resource type="StyleBoxLine" id="StyleBoxLine_e6fyy"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_editor"]
+bg_color = Color(0.082, 0.086, 0.106, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.20, 0.26, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_e6fyy"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_output"]
+bg_color = Color(0.075, 0.078, 0.094, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.30, 0.42, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j6a7c"]
-bg_color = Color(0.105882354, 0.11764706, 0.14117648, 1)
-border_color = Color(0.20392157, 0.22745098, 0.27450982, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_game"]
+bg_color = Color(0.082, 0.086, 0.106, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.20, 0.20, 0.26, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_validate"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.18, 0.22, 0.35, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.30, 0.45, 0.80, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_validate_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.22, 0.28, 0.45, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.35, 0.55, 0.95, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.13, 0.26, 0.18, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.60, 0.38, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.16, 0.32, 0.22, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.30, 0.75, 0.46, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.22, 0.18, 0.10, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.70, 0.52, 0.18, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.28, 0.22, 0.12, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.88, 0.65, 0.22, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reset"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.22, 0.12, 0.12, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.65, 0.28, 0.28, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_reset_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.28, 0.15, 0.15, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.82, 0.35, 0.35, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -25,8 +184,6 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
 theme = ExtResource("2_e6fyy")
 script = ExtResource("1_fnul3")
 
@@ -37,107 +194,195 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-scale = Vector2(1.0012864, 0.99810547)
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
 [node name="MainColumn" type="VBoxContainer" parent="RootMargin" unique_id=81595970]
 layout_mode = 2
-theme = ExtResource("2_e6fyy")
+theme_override_constants/separation = 0
 
 [node name="TopBarPanel" type="PanelContainer" parent="RootMargin/MainColumn" unique_id=1876418641]
 layout_mode = 2
-theme = ExtResource("2_e6fyy")
+theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
 [node name="TopBar" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel" unique_id=833622340]
 layout_mode = 2
+theme_override_constants/separation = 12
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="TitleLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111111]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.5, 1.0, 1)
+theme_override_font_sizes/font_size = 16
+text = "⛏ Code & Conquer"
+
+[node name="Divider1" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111112]
+layout_mode = 2
+theme_override_colors/separator_color = Color(0.25, 0.25, 0.32, 1)
+
+[node name="LeftButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=222222221]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ValidateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=92612384]
-custom_minimum_size = Vector2(100, 0)
+[node name="ValidateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=92612384]
 layout_mode = 2
-size_flags_horizontal = 4
-theme = ExtResource("2_e6fyy")
-theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_validate")
+theme_override_styles/hover = SubResource("StyleBoxFlat_validate_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_validate")
+theme_override_colors/font_color = Color(0.55, 0.75, 1.0, 1)
+theme_override_font_sizes/font_size = 14
 text = "Validate"
 
-[node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=1989659408]
-custom_minimum_size = Vector2(100, 0)
+[node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=1989659408]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
-text = "Run"
-autowrap_mode = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_run")
+theme_override_styles/hover = SubResource("StyleBoxFlat_run_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_run")
+theme_override_colors/font_color = Color(0.55, 0.95, 0.65, 1)
+theme_override_font_sizes/font_size = 14
+text = "▶  Run"
+
+[node name="StepButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=333333331]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_step")
+theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
+theme_override_colors/font_color = Color(0.95, 0.80, 0.40, 1)
+theme_override_font_sizes/font_size = 14
+text = "⏵  Step"
+
+[node name="ResetButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=444444441]
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_reset")
+theme_override_styles/hover = SubResource("StyleBoxFlat_reset_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_reset")
+theme_override_colors/font_color = Color(1.0, 0.60, 0.60, 1)
+theme_override_font_sizes/font_size = 14
+text = "↺  Reset"
 
 [node name="StatusLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=341284063]
 layout_mode = 2
-theme = ExtResource("2_e6fyy")
-theme_type_variation = &"TooltipLabel"
-theme_override_styles/normal = SubResource("StyleBoxLine_513t2")
-theme_override_styles/focus = SubResource("StyleBoxLine_e6fyy")
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.72, 0.76, 0.81, 1)
+text = "Ready"
+
+[node name="RightButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=555555551]
+layout_mode = 2
+alignment = 2
+
+[node name="LanguageSelector" type="OptionButton" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=666666661]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+custom_minimum_size = Vector2(120, 0)
 
 [node name="WorkspaceSplit" type="HSplitContainer" parent="RootMargin/MainColumn" unique_id=1965162052]
 layout_mode = 2
-theme = ExtResource("2_e6fyy")
-collapsed = true
+size_flags_vertical = 3
+theme_override_constants/separation = 8
 drag_area_highlight_in_editor = true
 
 [node name="EditorOutputSplit" type="VSplitContainer" parent="RootMargin/MainColumn/WorkspaceSplit" unique_id=473240273]
 layout_mode = 2
-size_flags_horizontal = 0
+custom_minimum_size = Vector2(480, 0)
+size_flags_horizontal = 3
 size_flags_vertical = 3
-theme = ExtResource("2_e6fyy")
-split_offsets = PackedInt32Array(600)
-split_offset = 600
+size_flags_stretch_ratio = 0.25
+theme_override_constants/separation = 8
+split_offset = 180
 
-[node name="EditorPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=670561621]
+[node name="EditorSection" type="VBoxContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=670561620]
 layout_mode = 2
-theme = ExtResource("2_e6fyy")
+custom_minimum_size = Vector2(0, 180)
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.60
+theme_override_constants/separation = 4
 
-[node name="Editor" type="CodeEdit" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorPanel" unique_id=1413483267]
-custom_minimum_size = Vector2(600, 600)
+[node name="EditorLabel" type="Label" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection" unique_id=670561619]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.50, 0.50, 0.62, 1)
+theme_override_font_sizes/font_size = 11
+text = "  EDITOR"
+
+[node name="EditorPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection" unique_id=670561621]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_editor")
+
+[node name="EditorMargin" type="MarginContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection/EditorPanel" unique_id=777777771]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="Editor" type="CodeEdit" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection/EditorPanel/EditorMargin" unique_id=1413483267]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.0
-theme = ExtResource("2_e6fyy")
+size_flags_vertical = 3
 theme_override_fonts/font = ExtResource("2_513t2")
-theme_override_font_sizes/font_size = 16
-theme_override_styles/panel = SubResource("StyleBoxFlat_e6fyy")
-text = "nnnnnnn"
+theme_override_font_sizes/font_size = 15
+theme_override_styles/panel = SubResource("StyleBoxFlat_editor")
 gutters_draw_line_numbers = true
 gutters_line_numbers_min_digits = 2
 gutters_draw_fold_gutter = true
+scroll_fit_content_height = false
 
-[node name="OutputPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=509212682]
+[node name="OutputSection" type="VBoxContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=509212681]
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_j6a7c")
+custom_minimum_size = Vector2(0, 120)
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.40
+theme_override_constants/separation = 4
 
-[node name="OutputMargin" type="MarginContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputPanel" unique_id=922393522]
+[node name="OutputLabel" type="Label" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection" unique_id=509212680]
 layout_mode = 2
-theme_override_constants/margin_left = 12
+theme_override_colors/font_color = Color(0.50, 0.50, 0.62, 1)
+theme_override_font_sizes/font_size = 11
+text = "  OUTPUT"
+
+[node name="OutputPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection" unique_id=509212682]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_output")
+
+[node name="OutputMargin" type="MarginContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel" unique_id=922393522]
+layout_mode = 2
+theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 12
+theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="Output" type="RichTextLabel" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputPanel/OutputMargin" unique_id=402483377]
+[node name="Output" type="RichTextLabel" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin" unique_id=402483377]
 layout_mode = 2
-theme_override_colors/default_color = Color(0.72156864, 0.7607843, 0.8117647, 1)
-theme_override_font_sizes/normal_font_size = 14
+theme_override_fonts/normal_font = ExtResource("2_513t2")
+theme_override_colors/default_color = Color(0.72, 0.76, 0.81, 1)
+theme_override_font_sizes/normal_font_size = 13
 bbcode_enabled = true
+fit_content = false
+scroll_active = true
 scroll_following = true
-scroll_following_visible_characters = true
 context_menu_enabled = true
 
 [node name="GameViewPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit" unique_id=1786001261]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 0.0
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.75
+theme_override_styles/panel = SubResource("StyleBoxFlat_game")
 
 [node name="GameView" type="SubViewportContainer" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel" unique_id=764830458]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
 handle_input_locally = false
-size = Vector2i(1000, 900)
+size = Vector2i(1920, 1080)
 render_target_update_mode = 4

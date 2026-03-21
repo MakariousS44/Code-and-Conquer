@@ -6,6 +6,10 @@
 #define ROBOT_H
 
 void move();
-
+void turn_left();
+void turn_right();
+bool front_is_clear();
+void pick_object();
+void put_object();
 
 #endif //ROBOT_H

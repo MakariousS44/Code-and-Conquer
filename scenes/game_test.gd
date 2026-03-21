@@ -241,16 +241,9 @@ func _center_camera() -> void:
 
 	var zoom_x = viewport_size.x / world_width
 	var zoom_y = viewport_size.y / world_height
-	var fit_zoom = min(zoom_x, zoom_y)
+	var fit_zoom = min(zoom_x, zoom_y) * 0.85
 
-	fit_zoom *= 0.75
-	fit_zoom = min(fit_zoom, 1.0)
-
-	camera.zoom = Vector2(1, 1)
-
-	# Slight composition bias so the board feels a little less stiff.
-	camera.position.x += world_width * 0.05
-	camera.position.y -= world_height * 0.03
+	camera.zoom = Vector2(fit_zoom, fit_zoom)
 
 
 func _cell_center(gx: int, gy: int) -> Vector2:
@@ -273,3 +266,6 @@ func _clear_children(node: Node) -> void:
 
 func grid_to_world_position(gx: int, gy: int) -> Vector2:
 	return _cell_center(gx, gy)
+
+func is_in_bounds(gx: int, gy: int) -> bool:
+	return gx >= 1 and gx <= cols and gy >= 1 and gy <= rows

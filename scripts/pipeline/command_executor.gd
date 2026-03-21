@@ -8,20 +8,11 @@ var command_queue: Array = []
 # Prevents multiple execution loops from starting at once.
 var is_executing: bool = false
 
-# Reference to the SceneTree so we can use timers.
-# This is passed in from a Node since RefCounted does not have get_tree().
-var scene_tree: SceneTree
 
-
-func execute(commands: Array, player_node: Node, tree: SceneTree) -> void:
+func execute(commands: Array, player_node: Node) -> void:
 	# Entry point for executing a new set of commands.
-
-	# If there is no player to act on, stop early.
 	if player_node == null:
 		return
-
-	# Store the SceneTree reference for timing.
-	scene_tree = tree
 
 	# Copy commands into the internal queue.
 	command_queue = commands.duplicate()
@@ -33,8 +24,6 @@ func execute(commands: Array, player_node: Node, tree: SceneTree) -> void:
 
 func _execute_next(player_node: Node) -> void:
 	# Processes one command at a time, then schedules the next.
-
-	# If no commands remain, mark execution as finished.
 	if command_queue.is_empty():
 		is_executing = false
 		return
@@ -49,10 +38,23 @@ func _execute_next(player_node: Node) -> void:
 		"move":
 			if player_node.has_method("move_forward"):
 				player_node.move_forward()
+		"turn_left":
+			if player_node.has_method("turn_left"):
+				player_node.turn_left()
+		"turn_right":
+			if player_node.has_method("turn_right"):
+				player_node.turn_right()
+		"front_is_clear":
+			pass
+		"pick_object":
+			if player_node.has_method("pick_object"):
+				player_node.pick_object()
+		"put_object":
+			if player_node.has_method("put_object"):
+				player_node.put_object()
 
-	# Wait briefly before executing the next command.
-	# This creates visible step by step behavior instead of instant movement nice
-	await scene_tree.create_timer(0.3).timeout
+	# Use the player's own tree (inside SubViewport) for the timer.
+	await player_node.get_tree().create_timer(0.5).timeout
 
-	# Continue processing remaining commands
+	# Continue processing remaining commands.
 	_execute_next(player_node)

@@ -42,8 +42,8 @@ func convert(data: Dictionary) -> Dictionary:
 
 func _map_orientation(o: int) -> String:
 	match o:
-		0: return "east"
-		1: return "north"
-		2: return "west"
-		3: return "south"
-		_: return "east"
+		0: return "north"
+		1: return "west"
+		2: return "south"
+		3: return "east"
+		_: return "north"

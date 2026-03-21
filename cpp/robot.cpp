@@ -6,3 +6,29 @@
 void move() {
     std::cout << "[CMD] MOVE\n";
 }
+
+void turn_left() {
+    std::cout << "[CMD] TURN_LEFT\n";
+}
+
+void turn_right() {
+    std::cout << "[CMD] TURN_RIGHT\n";
+}
+
+bool front_is_clear() {
+    std::cout << "[CMD] FRONT_IS_CLEAR\n";
+    // Response is read back from stdin by the game engine.
+    // The game pauses execution, checks the world state, and
+    // writes "1" (clear) or "0" (blocked) back to the process.
+    int result = 0;
+    std::cin >> result;
+    return result == 1;
+}
+
+void pick_object() {
+    std::cout << "[CMD] PICK_OBJECT\n";
+}
+
+void put_object() {
+    std::cout << "[CMD] PUT_OBJECT\n";
+}
