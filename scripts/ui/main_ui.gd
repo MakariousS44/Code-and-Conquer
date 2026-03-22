@@ -18,6 +18,11 @@ var generator = preload("res://scripts/pipeline/source_generator.gd").new()
 var compiler = preload("res://scripts/pipeline/compiler_driver.gd").new()
 var translator = preload("res://scripts/pipeline/command_translator.gd").new()
 var executor = preload("res://scripts/pipeline/command_executor.gd").new()
+var py_pipeline = preload("res://scripts/pipeline/python_pipeline.gd").new()
+
+# Language state
+enum Language { CPP, PYTHON }
+var current_language: Language = Language.CPP
 
 # World loading
 var world_loader = preload("res://scripts/worlds/world_loader.gd").new()
@@ -79,9 +84,28 @@ func _setup_editor() -> void:
 
 func _setup_language_selector() -> void:
 	language_selector.add_item("C++")
-	language_selector.add_item("Python (coming soon)")
+	language_selector.add_item("Python")
 	language_selector.select(0)
-	language_selector.get_popup().set_item_disabled(1, true)
+	language_selector.item_selected.connect(_on_language_changed)
+	
+func _on_language_changed(index: int) -> void:
+	current_language = Language.CPP if index == 0 else Language.PYTHON
+	step_mode = false
+	step_queue = []
+	compiled_ok = false
+	output_box.clear()
+
+	if current_language == Language.CPP:
+		editor.text = "int main() {\n    move();\n}\n"
+		_setup_syntax_highlighting()
+		_set_status("Ready", "")
+	elif current_language == Language.PYTHON:
+		editor.text = "move()\n"
+		_setup_python_highlighting()
+		_set_status("Ready", "")
+		
+
+# Syntax Highlighters
 
 func _setup_syntax_highlighting() -> void:
 	var highlighter := CodeHighlighter.new()
@@ -111,6 +135,34 @@ func _setup_syntax_highlighting() -> void:
 	highlighter.add_color_region("/*", "*/", Color(0.50, 0.50, 0.50), false)
 
 	editor.syntax_highlighter = highlighter
+	
+func _setup_python_highlighting() -> void:
+	var highlighter := CodeHighlighter.new()
+
+	var keywords := [
+		"def", "if", "elif", "else", "while", "for", "in",
+		"return", "True", "False", "None", "and", "or", "not",
+		"pass", "break", "continue"
+	]
+	for word in keywords:
+		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+
+	var robot_funcs := [
+		"move", "turn_left", "turn_right", "front_is_clear",
+		"pick_object", "put_object", "print"
+	]
+	for func_name in robot_funcs:
+		highlighter.add_keyword_color(func_name, Color(0.80, 0.60, 1.00))
+
+	highlighter.number_color = Color(0.95, 0.65, 0.30)
+	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
+	highlighter.function_color = Color(0.95, 0.85, 0.45)
+	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
+	highlighter.add_color_region("'",  "'",  Color(0.60, 0.90, 0.60), false)
+	highlighter.add_color_region("#",  "",   Color(0.50, 0.50, 0.50), true)
+	highlighter.add_color_region("\"\"\"", "\"\"\"", Color(0.60, 0.90, 0.60), false)
+
+	editor.syntax_highlighter = highlighter
 
 # --- Button handlers ---
 
@@ -119,7 +171,21 @@ func _on_validate_button_pressed() -> void:
 	output_box.clear()
 	log_header("validation")
 	await get_tree().process_frame
-
+	
+	# Python
+	if current_language == Language.PYTHON:
+		var validation = py_pipeline.validate(editor.text)
+		if not validation.ok:
+			for err in validation.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Validation failed", "error")
+			return
+	compiled_ok = true
+	log_success("no errors found — ready to run")
+	_set_status("Ready to run", "ok")
+	return
+	
+	# C++
 	var validation: Dictionary = validator.validate(editor.text)
 	if not validation.ok:
 		for err in validation.errors:
@@ -181,6 +247,27 @@ func _run_pipeline(step_only: bool) -> void:
 	log_header("run" if not step_only else "step mode")
 	await get_tree().process_frame
 
+	# Python
+	if current_language == Language.PYTHON:
+		var validation = py_pipeline.validate(editor.text)
+		if not validation.ok:
+			for err in validation.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Validation failed", "error")
+			step_mode = false
+			return
+
+		var run_result = py_pipeline.run(editor.text)
+		if not run_result.ok:
+			log_error(run_result.output)
+			_set_status("Runtime error", "error")
+			step_mode = false
+			return
+
+		_finish_pipeline(run_result.output, step_only)
+		return
+
+	# C++
 	var validation: Dictionary = validator.validate(editor.text)
 	if not validation.ok:
 		for err in validation.errors:
@@ -206,7 +293,11 @@ func _run_pipeline(step_only: bool) -> void:
 		step_mode = false
 		return
 
-	var result: Dictionary = translator.translate_runtime_output(run_result.output)
+	_finish_pipeline(run_result.output, step_only)
+	
+
+func _finish_pipeline(raw_output: String, step_only: bool) -> void:
+	var result: Dictionary = translator.translate_runtime_output(raw_output)
 	var commands: Array = result.commands
 	var normal_lines: Array = result.normal_output_lines
 	var warnings: Array = result.warnings

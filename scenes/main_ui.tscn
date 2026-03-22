@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://ddheufqb82bcu"]
 
-[ext_resource type="Script" uid="uid://6l50t3qvgpal" path="res://scripts/ui/main_ui.gd" id="1_fnul3"]
+[ext_resource type="Script" uid="uid://ql66d3cwpege" path="res://scripts/ui/main_ui.gd" id="1_fnul3"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="2_513t2"]
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://new_theme.tres" id="2_e6fyy"]
 
@@ -8,46 +8,6 @@
 bg_color = Color(0.098, 0.102, 0.122, 1)
 border_width_bottom = 1
 border_color = Color(0.22, 0.22, 0.28, 1)
-corner_radius_top_left = 0
-corner_radius_top_right = 0
-corner_radius_bottom_right = 0
-corner_radius_bottom_left = 0
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_editor"]
-bg_color = Color(0.082, 0.086, 0.106, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.20, 0.20, 0.26, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_output"]
-bg_color = Color(0.075, 0.078, 0.094, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.28, 0.30, 0.42, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_game"]
-bg_color = Color(0.082, 0.086, 0.106, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.20, 0.20, 0.26, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_validate"]
 content_margin_left = 16.0
@@ -59,7 +19,7 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.30, 0.45, 0.80, 1)
+border_color = Color(0.3, 0.45, 0.8, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -91,7 +51,7 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.25, 0.60, 0.38, 1)
+border_color = Color(0.25, 0.6, 0.38, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -107,7 +67,7 @@ border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.30, 0.75, 0.46, 1)
+border_color = Color(0.3, 0.75, 0.46, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -118,12 +78,12 @@ content_margin_left = 16.0
 content_margin_top = 7.0
 content_margin_right = 16.0
 content_margin_bottom = 7.0
-bg_color = Color(0.22, 0.18, 0.10, 1)
+bg_color = Color(0.22, 0.18, 0.1, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.70, 0.52, 0.18, 1)
+border_color = Color(0.7, 0.52, 0.18, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -177,6 +137,42 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_editor"]
+bg_color = Color(0.082, 0.086, 0.106, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.2, 0.26, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_output"]
+bg_color = Color(0.075, 0.078, 0.094, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.3, 0.42, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_game"]
+bg_color = Color(0.082, 0.086, 0.106, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.2, 0.2, 0.26, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [node name="MainUI" type="Control" unique_id=638120049]
 layout_mode = 3
 anchors_preset = 15
@@ -210,20 +206,15 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 [node name="TopBar" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel" unique_id=833622340]
 layout_mode = 2
 theme_override_constants/separation = 12
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_bottom = 8
 
 [node name="TitleLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111111]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.5, 1.0, 1)
+theme_override_colors/font_color = Color(0.6, 0.5, 1, 1)
 theme_override_font_sizes/font_size = 16
 text = "⛏ Code & Conquer"
 
 [node name="Divider1" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111112]
 layout_mode = 2
-theme_override_colors/separator_color = Color(0.25, 0.25, 0.32, 1)
 
 [node name="LeftButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=222222221]
 layout_mode = 2
@@ -231,45 +222,45 @@ theme_override_constants/separation = 6
 
 [node name="ValidateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=92612384]
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_validate")
-theme_override_styles/hover = SubResource("StyleBoxFlat_validate_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_validate")
-theme_override_colors/font_color = Color(0.55, 0.75, 1.0, 1)
+theme_override_colors/font_color = Color(0.55, 0.75, 1, 1)
 theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_validate")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_validate")
+theme_override_styles/hover = SubResource("StyleBoxFlat_validate_hover")
 text = "Validate"
 
 [node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=1989659408]
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_run")
-theme_override_styles/hover = SubResource("StyleBoxFlat_run_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_run")
 theme_override_colors/font_color = Color(0.55, 0.95, 0.65, 1)
 theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_run")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_run")
+theme_override_styles/hover = SubResource("StyleBoxFlat_run_hover")
 text = "▶  Run"
 
 [node name="StepButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=333333331]
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_step")
-theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
-theme_override_colors/font_color = Color(0.95, 0.80, 0.40, 1)
+theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
 theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_step")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
+theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
 text = "⏵  Step"
 
 [node name="ResetButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=444444441]
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_reset")
-theme_override_styles/hover = SubResource("StyleBoxFlat_reset_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_reset")
-theme_override_colors/font_color = Color(1.0, 0.60, 0.60, 1)
+theme_override_colors/font_color = Color(1, 0.6, 0.6, 1)
 theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_reset")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_reset")
+theme_override_styles/hover = SubResource("StyleBoxFlat_reset_hover")
 text = "↺  Reset"
 
 [node name="StatusLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=341284063]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 13
 theme_override_colors/font_color = Color(0.72, 0.76, 0.81, 1)
+theme_override_font_sizes/font_size = 13
 text = "Ready"
 
 [node name="RightButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=555555551]
@@ -277,9 +268,9 @@ layout_mode = 2
 alignment = 2
 
 [node name="LanguageSelector" type="OptionButton" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=666666661]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
-custom_minimum_size = Vector2(120, 0)
 
 [node name="WorkspaceSplit" type="HSplitContainer" parent="RootMargin/MainColumn" unique_id=1965162052]
 layout_mode = 2
@@ -288,24 +279,25 @@ theme_override_constants/separation = 8
 drag_area_highlight_in_editor = true
 
 [node name="EditorOutputSplit" type="VSplitContainer" parent="RootMargin/MainColumn/WorkspaceSplit" unique_id=473240273]
-layout_mode = 2
 custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 0.25
 theme_override_constants/separation = 8
+split_offsets = PackedInt32Array(180)
 split_offset = 180
 
 [node name="EditorSection" type="VBoxContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=670561620]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
 size_flags_vertical = 3
-size_flags_stretch_ratio = 0.60
+size_flags_stretch_ratio = 0.6
 theme_override_constants/separation = 4
 
 [node name="EditorLabel" type="Label" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection" unique_id=670561619]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.50, 0.50, 0.62, 1)
+theme_override_colors/font_color = Color(0.5, 0.5, 0.62, 1)
 theme_override_font_sizes/font_size = 11
 text = "  EDITOR"
 
@@ -331,18 +323,17 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_editor")
 gutters_draw_line_numbers = true
 gutters_line_numbers_min_digits = 2
 gutters_draw_fold_gutter = true
-scroll_fit_content_height = false
 
 [node name="OutputSection" type="VBoxContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit" unique_id=509212681]
-layout_mode = 2
 custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
 size_flags_vertical = 3
-size_flags_stretch_ratio = 0.40
+size_flags_stretch_ratio = 0.4
 theme_override_constants/separation = 4
 
 [node name="OutputLabel" type="Label" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection" unique_id=509212680]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.50, 0.50, 0.62, 1)
+theme_override_colors/font_color = Color(0.5, 0.5, 0.62, 1)
 theme_override_font_sizes/font_size = 11
 text = "  OUTPUT"
 
@@ -360,12 +351,10 @@ theme_override_constants/margin_bottom = 10
 
 [node name="Output" type="RichTextLabel" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin" unique_id=402483377]
 layout_mode = 2
-theme_override_fonts/normal_font = ExtResource("2_513t2")
 theme_override_colors/default_color = Color(0.72, 0.76, 0.81, 1)
+theme_override_fonts/normal_font = ExtResource("2_513t2")
 theme_override_font_sizes/normal_font_size = 13
 bbcode_enabled = true
-fit_content = false
-scroll_active = true
 scroll_following = true
 context_menu_enabled = true
 
@@ -384,5 +373,5 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
 handle_input_locally = false
-size = Vector2i(1920, 1080)
+size = Vector2i(662, 610)
 render_target_update_mode = 4
