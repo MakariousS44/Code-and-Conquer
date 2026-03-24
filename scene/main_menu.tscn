@@ -1,0 +1,145 @@
+[gd_scene format=3 uid="uid://bh2ssfos2apqn"]
+
+[ext_resource type="Script" uid="uid://i5chf06kixey" path="res://scene/main_menu.gd" id="1_3er1b"]
+[ext_resource type="Script" uid="uid://echpyg0bouci" path="res://scene/main_menu_container.gd" id="2_hxu56"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m4svf"]
+bg_color = Color(0.8174837, 0.57837564, 0.24692059, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3er1b"]
+bg_color = Color(0.53968656, 0.3696522, 0.12865505, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hxu56"]
+bg_color = Color(0.6629038, 0.45914102, 0.17205006, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_size = 2
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2fwvj"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_m4svf"]
+
+[node name="MainMenu" type="Control" unique_id=482599145]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_3er1b")
+
+[node name="mainMenuContainer" type="VBoxContainer" parent="." unique_id=8676649 node_paths=PackedStringArray("nodes_to_move")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -122.0
+offset_top = -80.25
+offset_right = 122.0
+offset_bottom = 194.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+script = ExtResource("2_hxu56")
+nodes_to_move = [NodePath("."), NodePath("../Label")]
+
+[node name="startButton" type="Button" parent="mainMenuContainer" unique_id=2028860534]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_m4svf")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_3er1b")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hxu56")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_2fwvj")
+text = "Select Level
+"
+
+[node name="editorButton" type="Button" parent="mainMenuContainer" unique_id=1468894267]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_m4svf")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_3er1b")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hxu56")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_2fwvj")
+text = "Game Editor"
+
+[node name="settingButton" type="Button" parent="mainMenuContainer" unique_id=256387689]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_m4svf")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_3er1b")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hxu56")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_2fwvj")
+text = "Settings"
+
+[node name="exitButton" type="Button" parent="mainMenuContainer" unique_id=203455708]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_focus_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("StyleBoxFlat_m4svf")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_3er1b")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hxu56")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_2fwvj")
+text = "Exit"
+
+[node name="Label" type="Label" parent="." unique_id=381706383]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -352.0
+offset_top = 64.0
+offset_right = 352.0
+offset_bottom = 204.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxEmpty_m4svf")
+text = "Code & Conquer"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1691212955]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = 681.0
+offset_top = -89.0
+offset_right = 1705.0
+offset_bottom = 208.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[connection signal="pressed" from="mainMenuContainer/startButton" to="." method="_on_start_pressed"]
+[connection signal="pressed" from="mainMenuContainer/editorButton" to="mainMenuContainer" method="_on_editor_button_pressed"]
+[connection signal="pressed" from="mainMenuContainer/exitButton" to="." method="_on_exit_pressed"]
