@@ -257,7 +257,6 @@ func _on_player_lose(reason: String) -> void:
 
 	step_mode = false
 	step_queue = []
-	compiled_ok = false
 	if executor.has_method("stop"):
 		executor.stop()
 
