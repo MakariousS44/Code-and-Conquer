@@ -6,6 +6,10 @@ const ROBOT_HPP := "user://build/robot.hpp"
 const ROBOT_CPP := "user://build/robot_runtime.cpp"
 const OUTPUT_EXE := "user://build/student_program"
 
+const Paths = preload("res://execution/shared/paths.gd")
+
+var _commands = preload(Paths.ROBOT_COMMANDS).new()
+
 func prepare_build_files(source: String) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(BUILD_DIR))
 	_write_file(STUDENT_CPP, source)
@@ -56,18 +60,36 @@ func remap_diagnostics(raw_text: String, line_offset: int) -> String:
 		if line.strip_edges() == "":
 			continue
 
+		# Skip compiler context lines not useful to the student
+		if "In function" in line or "In member" in line or "note:" in line:
+			continue
+
+		# Skip g++ code context lines: "6 | move()" / "| ^" / "| ~" / "| ;"
+		var trimmed := line.strip_edges()
+		if trimmed.begins_with("| ") or trimmed == "|":
+			continue
+		if trimmed.length() > 2 and trimmed[0].is_valid_int() and " | " in trimmed:
+			continue
+
 		var parts := line.split(":")
-		if parts.size() >= 4 and parts[1].is_valid_int():
-			var line_num := int(parts[1])
-			var col_num := parts[2]
-			var message := ":".join(parts.slice(3))
+
+		# Determine path offset for Windows drive letters
+		var offset := 0
+		if parts.size() > 1 and parts[0].length() == 1 and parts[0][0].to_upper() == parts[0][0]:
+			offset = 1
+
+		if parts.size() >= (4 + offset) and parts[1 + offset].strip_edges().is_valid_int():
+			var line_num := int(parts[1 + offset].strip_edges())
+			var severity_and_msg := ":".join(parts.slice(3 + offset)).strip_edges()
 
 			var student_line := line_num - line_offset
 			if student_line < 1:
 				student_line = 1
 
-			result.append("Line %d, Col %s:%s" % [student_line, col_num, message])
+			result.append("%s (line %d)" % [severity_and_msg, student_line])
 		else:
+			if trimmed.begins_with("/") or (trimmed.length() > 1 and trimmed[1] == ":"):
+				continue
 			result.append(line)
 
 	return "\n".join(result)
@@ -80,44 +102,5 @@ func _write_file(path: String, text: String) -> void:
 	f.store_string(text)
 
 func _write_robot_files() -> void:
-	_write_file(ROBOT_HPP, """#pragma once
-
-void move();
-void turn_left();
-void turn_right();
-bool front_is_clear();
-void pick_object();
-void put_object();
-""")
-
-	_write_file(ROBOT_CPP, """#include "robot.hpp"
-#include <iostream>
-
-void move() {
-	std::cout << "[CMD] MOVE" << std::endl;
-}
-
-void turn_left() {
-	std::cout << "[CMD] TURN_LEFT" << std::endl;
-}
-
-void turn_right() {
-	std::cout << "[CMD] TURN_RIGHT" << std::endl;
-}
-
-bool front_is_clear() {
-	std::cout << "[CMD] FRONT_IS_CLEAR" << std::endl;
-	std::cout.flush();
-	int result = 0;
-	std::cin >> result;
-	return result == 1;
-}
-
-void pick_object() {
-	std::cout << "[CMD] PICK_OBJECT" << std::endl;
-}
-
-void put_object() {
-	std::cout << "[CMD] PUT_OBJECT" << std::endl;
-}
-""")
+	_write_file(ROBOT_HPP, _commands.get_cpp_header())
+	_write_file(ROBOT_CPP, _commands.get_cpp_source())

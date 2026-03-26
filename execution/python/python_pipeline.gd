@@ -1,28 +1,13 @@
 extends RefCounted
 
-var _compiler = preload("res://execution/python/python_compiler.gd").new()
-var _validator  = preload("res://execution/python/python_validator.gd").new()
+const Paths = preload("res://execution/shared/paths.gd")
 
-# Python API injected into the student's environment.
-const ROBOT_API := """
-def move():
-    print("[CMD] MOVE")
-
-def turn_left():
-    print("[CMD] TURN_LEFT")
-
-def turn_right():
-    print("[CMD] TURN_RIGHT")
-
-def pick_object():
-    print("[CMD] PICK_OBJECT")
-
-def put_object():
-    print("[CMD] PUT_OBJECT")
-"""
+var _compiler  = preload(Paths.PYTHON_COMPILER).new()
+var _validator = preload(Paths.PYTHON_VALIDATOR).new()
+var _commands  = preload(Paths.ROBOT_COMMANDS).new()
 
 func _init() -> void:
-	_compiler.api_source = ROBOT_API
+	_compiler.api_source = _commands.get_python_api()
 
 func validate(source: String) -> Dictionary:
 	return _validator.validate(source)

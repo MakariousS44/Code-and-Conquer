@@ -19,7 +19,7 @@ var facing: String = "north"
 func initialize_from_level(robot_data: Dictionary, world_pos: Vector2) -> void:
 	grid_x = robot_data.get("x", 1)
 	grid_y = robot_data.get("y", 1)
-	facing = robot_data.get("direction", "north")
+	facing = robot_data.get("direction", "south")
 	position = world_pos
 	_rebuild_visuals()
 
@@ -92,9 +92,9 @@ func move_forward() -> void:
 		"west":
 			next_x -= 1
 		"north":
-			next_y += 1
-		"south":
 			next_y -= 1
+		"south":
+			next_y += 1
 
 	# don't move off the board like an idiot
 	if world.has_method("is_in_bounds"):

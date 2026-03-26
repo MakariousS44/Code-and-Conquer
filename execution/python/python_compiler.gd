@@ -81,59 +81,49 @@ func _find_python() -> String:
 
 func _wrap(player_code: String) -> String:
 	var escaped := player_code.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
+	var api := api_source if not api_source.is_empty() else "pass  # no API"
 
-	return """\
-import sys, traceback
+	var lines := [
+		"import sys, traceback",
+		"",
+		"# Game API injected by Godot",
+		api,
+		"",
+		"class _Capture:",
+		"    def __init__(self): self._buf = []",
+		"    def write(self, s): self._buf.append(s)",
+		"    def flush(self): pass",
+		"    def getvalue(self): return ''.join(self._buf)",
+		"",
+		"_stdout_cap = _Capture()",
+		"_stderr_cap = _Capture()",
+		"sys.stdout  = _stdout_cap",
+		"sys.stderr  = _stderr_cap",
+		"",
+		"_player_source = \"\"\"" + escaped + "\"\"\"",
+		"",
+		"try:",
+		"    _compiled = compile(_player_source, '<player_code>', 'exec')",
+		"    exec(_compiled)",
+		"except SyntaxError as _e:",
+		"    sys.stderr.write('SyntaxError: ' + str(_e.msg) + ' (line ' + str(_e.lineno) + ')\\n')",
+		"except Exception as _e:",
+		"    tb = traceback.extract_tb(sys.exc_info()[2])",
+		"    player_frames = [f for f in tb if f.filename == '<player_code>']",
+		"    if player_frames:",
+		"        frame = player_frames[-1]",
+		"        sys.stderr.write(type(_e).__name__ + ': ' + str(_e) + ' (line ' + str(frame.lineno) + ')\\n')",
+		"    else:",
+		"        sys.stderr.write(type(_e).__name__ + ': ' + str(_e) + '\\n')",
+		"",
+		"sys.stdout = sys.__stdout__",
+		"sys.stderr = sys.__stderr__",
+		"print(_stdout_cap.getvalue(), end='')",
+		"print('__STDERR_START__')",
+		"print(_stderr_cap.getvalue(), end='')",
+	]
 
-# Game API injected by Godot
-{api}
-
-class _Capture:
-    def __init__(self): self._buf = []
-    def write(self, s): self._buf.append(s)
-    def flush(self): pass
-    def getvalue(self): return ''.join(self._buf)
-
-_stdout_cap = _Capture()
-_stderr_cap = _Capture()
-sys.stdout  = _stdout_cap
-sys.stderr  = _stderr_cap
-
-_player_source = \"\"\"{player_code}\"\"\"
-
-try:
-    _compiled = compile(_player_source, '<player_code>', 'exec')
-    exec(_compiled)
-except SyntaxError as _e:
-	sys.stderr.write("SyntaxError: {msg} (line {line})\\n".format(
-        msg  = _e.msg,
-        line = _e.lineno
-    ))
-except Exception as _e:
-    tb = traceback.extract_tb(sys.exc_info()[2])
-    player_frames = [f for f in tb if f.filename == '<player_code>']
-    if player_frames:
-        frame = player_frames[-1]
-		sys.stderr.write("{error}: {msg} (line {line})\\n".format(
-            error = type(_e).__name__,
-            msg   = str(_e),
-            line  = frame.lineno
-        ))
-    else:
-		sys.stderr.write("{error}: {msg}\\n".format(
-            error = type(_e).__name__,
-            msg   = str(_e)
-        ))
-
-sys.stdout = sys.__stdout__
-sys.stderr = sys.__stderr__
-print(_stdout_cap.getvalue(), end='')
-print('__STDERR_START__')
-print(_stderr_cap.getvalue(), end='')
-""".format({
-		"api":         api_source if not api_source.is_empty() else "pass  # no API",
-		"player_code": escaped,
-	})
+	return "\n".join(lines)
 
 
 # Output parsing

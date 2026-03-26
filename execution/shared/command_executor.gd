@@ -1,5 +1,7 @@
 extends RefCounted
 
+signal execution_finished
+
 # Queue of commands waiting to be executed.
 # Each command is a small dictionary describing an action.
 var command_queue: Array = []
@@ -8,11 +10,14 @@ var command_queue: Array = []
 # Prevents multiple execution loops from starting at once.
 var is_executing: bool = false
 
+var cancelled: bool = false
+
 
 func execute(commands: Array, player_node: Node) -> void:
 	# Entry point for executing a new set of commands.
 	if player_node == null:
 		return
+	cancelled = false
 
 	# Copy commands into the internal queue.
 	command_queue = commands.duplicate()
@@ -20,12 +25,18 @@ func execute(commands: Array, player_node: Node) -> void:
 	# Start execution if nothing is currently running.
 	if not is_executing:
 		_execute_next(player_node)
-
+		
+func cancel() -> void:
+	cancelled = true
+	command_queue.clear()
+	is_executing = false
 
 func _execute_next(player_node: Node) -> void:
 	# Processes one command at a time, then schedules the next.
-	if command_queue.is_empty():
+	if command_queue.is_empty() or not is_instance_valid(player_node):
 		is_executing = false
+		if not cancelled:
+			execution_finished.emit()
 		return
 
 	is_executing = true
@@ -55,6 +66,12 @@ func _execute_next(player_node: Node) -> void:
 
 	# Use the player's own tree (inside SubViewport) for the timer.
 	await player_node.get_tree().create_timer(0.5).timeout
+	
+	# check again, the player may have reset
+	if not is_instance_valid(player_node) or not is_executing or cancelled:
+		is_executing = false
+		return
 
 	# Continue processing remaining commands.
 	_execute_next(player_node)
+	

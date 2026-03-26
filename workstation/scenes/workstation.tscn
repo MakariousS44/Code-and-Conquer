@@ -9,38 +9,6 @@ bg_color = Color(0.098, 0.102, 0.122, 1)
 border_width_bottom = 1
 border_color = Color(0.22, 0.22, 0.28, 1)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_validate"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.18, 0.22, 0.35, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0.45, 0.8, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_validate_hover"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.22, 0.28, 0.45, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.35, 0.55, 0.95, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
 content_margin_left = 16.0
 content_margin_top = 7.0
@@ -220,15 +188,6 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ValidateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=92612384]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.75, 1, 1)
-theme_override_font_sizes/font_size = 14
-theme_override_styles/normal = SubResource("StyleBoxFlat_validate")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_validate")
-theme_override_styles/hover = SubResource("StyleBoxFlat_validate_hover")
-text = "Validate"
-
 [node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=1989659408]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.95, 0.65, 1)
@@ -373,5 +332,5 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
 handle_input_locally = false
-size = Vector2i(662, 611)
+size = Vector2i(662, 610)
 render_target_update_mode = 4
