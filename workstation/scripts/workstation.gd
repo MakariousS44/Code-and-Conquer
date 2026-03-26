@@ -42,6 +42,7 @@ var step_queue: Array = []
 
 var has_run: bool = false
 var current_line_offset: int = 0
+var _is_handling_lose: bool = false
 
 
 func _ready() -> void:
@@ -91,6 +92,8 @@ func _load_level_scene() -> void:
 		return
 
 	player_node = game_instance.get_node("WorldRoot/Player")
+	if player_node.has_signal("lose_triggered"):
+		player_node.lose_triggered.connect(_on_player_lose)
 
 	# load the level definition from disk
 	var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
@@ -247,6 +250,27 @@ func _on_reset_button_pressed() -> void:
 	_load_level_scene()
 
 
+func _on_player_lose(reason: String) -> void:
+	if _is_handling_lose:
+		return
+	_is_handling_lose = true
+
+	step_mode = false
+	step_queue = []
+	compiled_ok = false
+	if executor.has_method("stop"):
+		executor.stop()
+
+	log_header("lose")
+	log_error(reason)
+	_set_status("You lose", "error")
+
+	await get_tree().create_timer(0.8).timeout
+	_load_level_scene()
+	_set_status("Ready", "")
+	_is_handling_lose = false
+
+
 # === pipeline execution ===
 
 func _run_pipeline(step_only: bool) -> void:
@@ -261,30 +285,30 @@ func _run_pipeline(step_only: bool) -> void:
 
 	# Python path
 	if current_language == Language.PYTHON:
-		var validation = py_pipeline.validate(editor.text)
-		if not validation.ok:
-			for err in validation.errors:
+		var python_validation: Dictionary = py_pipeline.validate(editor.text)
+		if not python_validation.ok:
+			for err in python_validation.errors:
 				log_error("line %d: %s" % [err.line, err.message])
 			_set_status("Validation failed", "error")
 			step_mode = false
 			_re_enable_buttons()
 			return
 
-		var run_result = py_pipeline.run(editor.text)
-		if not run_result.ok:
-			log_error(run_result.output)
+		var python_run_result: Dictionary = py_pipeline.run(editor.text)
+		if not python_run_result.ok:
+			log_error(python_run_result.output)
 			_set_status("Runtime error", "error")
 			step_mode = false
 			_re_enable_buttons()
 			return
 
-		_finish_pipeline(run_result.output, step_only)
+		_finish_pipeline(python_run_result.output, step_only)
 		return
 
 	# C++ path
-	var validation: Dictionary = validator.validate(editor.text)
-	if not validation.ok:
-		for err in validation.errors:
+	var cpp_validation: Dictionary = validator.validate(editor.text)
+	if not cpp_validation.ok:
+		for err in cpp_validation.errors:
 			log_error("line %d: %s" % [err.line, err.message])
 		_set_status("Validation failed", "error")
 		step_mode = false
@@ -303,15 +327,15 @@ func _run_pipeline(step_only: bool) -> void:
 		_re_enable_buttons()
 		return
 
-	var run_result: Dictionary = compiler.run_program()
-	if not run_result.ok:
-		log_error(run_result.output)
+	var cpp_run_result: Dictionary = compiler.run_program()
+	if not cpp_run_result.ok:
+		log_error(cpp_run_result.output)
 		_set_status("Runtime error", "error")
 		step_mode = false
 		_re_enable_buttons()
 		return
 
-	_finish_pipeline(run_result.output, step_only)
+	_finish_pipeline(cpp_run_result.output, step_only)
 
 
 func _finish_pipeline(raw_output: String, step_only: bool) -> void:

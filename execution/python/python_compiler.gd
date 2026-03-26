@@ -35,13 +35,16 @@ const INDENT := "    "
 ## Execute player_code using the system Python interpreter.
 ## Returns a RunResult.
 func run(player_code: String) -> RunResult:
-	var python := _find_python()
-	if python.is_empty():
+	var python_info: Dictionary = _find_python()
+	if python_info.is_empty():
 		return RunResult.new(
 			false, "",
 			"RuntimeError: No Python interpreter found on this system.\n"
 			+ "Please install Python 3 and make sure it is on your PATH.",
 			-1)
+
+	var python_exe: String = str(python_info.get("exe", ""))
+	var python_args: Array = python_info.get("args", [])
 
 	var script   := _wrap(player_code)
 	var tmp_path := OS.get_temp_dir().path_join("_player_code.py")
@@ -55,26 +58,43 @@ func run(player_code: String) -> RunResult:
 	file.store_string(script)
 	file.close()
 
+	var run_args: Array = python_args.duplicate()
+	run_args.append(tmp_path)
+
 	var stdout_lines: Array = []
-	var exit_code := OS.execute(python, [tmp_path], stdout_lines, true)
+	var exit_code := OS.execute(python_exe, run_args, stdout_lines, true)
 
 	var raw_output := ""
 	if stdout_lines.size() > 0:
-		raw_output = stdout_lines[0]
+		for i in range(stdout_lines.size()):
+			raw_output += str(stdout_lines[i])
+			if i < stdout_lines.size() - 1:
+				raw_output += "\n"
 
 	return _parse_output(raw_output, exit_code)
 
 
-## Try common Python executable names and return the first that works.
-## Tries python3 first (Linux/macOS), then python (Windows).
-func _find_python() -> String:
-	var candidates: Array = ["python3", "python"]
+## Try common Python executable commands and return the first that works.
+## Includes Windows launcher support (py, py -3).
+func _find_python() -> Dictionary:
+	var candidates: Array[Dictionary] = [
+		{"exe": "python3", "args": []},
+		{"exe": "python", "args": []},
+		{"exe": "py", "args": ["-3"]},
+		{"exe": "py", "args": []}
+	]
+
 	for candidate in candidates:
+		var exe: String = str(candidate.get("exe", ""))
+		var args: Array = candidate.get("args", []).duplicate()
+		args.append("--version")
+
 		var out: Array = []
-		var code := OS.execute(candidate, ["--version"], out, true)
+		var code := OS.execute(exe, args, out, true)
 		if code == 0:
 			return candidate
-	return ""
+
+	return {}
 
 
 # Code Wrapping
@@ -140,6 +160,9 @@ func _parse_output(raw: String, exit_code: int) -> RunResult:
 	# Strip \r\n so Windows line endings don't cause a false error
 	stderr_text = stderr_text.strip_edges()
 	stdout_text = stdout_text.replace("\r\n", "\n").strip_edges()
+
+	if exit_code != 0 and stderr_text.is_empty():
+		stderr_text = "Python process failed with exit code %d." % exit_code
 
 	var ok := exit_code == 0 and stderr_text.is_empty()
 	return RunResult.new(ok, stdout_text, stderr_text, exit_code)

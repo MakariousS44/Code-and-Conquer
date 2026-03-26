@@ -1,9 +1,14 @@
 [gd_scene format=3 uid="uid://cti0jnjiirxsp"]
 
-[node name="Player" type="Control" unique_id=1489264355]
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+[ext_resource type="Texture2D" uid="uid://ch0x2mhf2mug0" path="res://assets/textures/kenney_isometric-miniature-prototype/Characters/Human/Human_0_Idle0.png" id="1_oul6g"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_rkbax"]
+
+[node name="Player" type="CharacterBody2D" unique_id=631264519]
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1894381091]
+texture = ExtResource("1_oul6g")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1353409317]
+position = Vector2(0, 192)
+shape = SubResource("RectangleShape2D_rkbax")

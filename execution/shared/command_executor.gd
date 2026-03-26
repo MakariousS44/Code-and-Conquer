@@ -13,6 +13,12 @@ var is_executing: bool = false
 var cancelled: bool = false
 
 
+func stop() -> void:
+	# Hard-stop any pending execution sequence.
+	command_queue.clear()
+	is_executing = false
+
+
 func execute(commands: Array, player_node: Node) -> void:
 	# Entry point for executing a new set of commands.
 	if player_node == null:
@@ -70,6 +76,9 @@ func _execute_next(player_node: Node) -> void:
 	# check again, the player may have reset
 	if not is_instance_valid(player_node) or not is_executing or cancelled:
 		is_executing = false
+		return
+
+	if not is_executing:
 		return
 
 	# Continue processing remaining commands.
