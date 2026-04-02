@@ -112,15 +112,15 @@ func _load_level_scene() -> void:
 	if game_instance.has_signal("level_complete"):
 		game_instance.level_complete.connect(_on_level_complete)
 
-	# load the level definition from disk
-	var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
-	if not raw.ok:
-		push_error("Level load failed: %s" % raw.error)
+	# load the level resource from disk
+	var result: Dictionary = level_definition.load_json_as_level_data(CampaignLevels.TEST_LEVEL)
+	if not result.ok:
+		push_error("Level load failed: %s" % result.error)
 		return
 
-	# hand the definition to the level scene so it can build itself
+	# hand the native LevelData resource to the level scene
 	if game_instance.has_method("build_level"):
-		game_instance.build_level(raw.definition)
+		game_instance.build_level(result.level_data)
 
 
 # === editor setup ===

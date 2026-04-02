@@ -4,7 +4,6 @@ signal level_complete
 
 
 # === visual config ===
-# tweakables so we're not hardcoding mystery numbers all over the place
 @export var tile_width: int = 64
 @export var tile_height: int = 32
 
@@ -16,8 +15,8 @@ signal level_complete
 @export var floor_primary_atlas: Vector2i = Vector2i(0, 7)
 @export var floor_alt_atlas: Vector2i = Vector2i(1, 7)
 @export var floor_use_checker_alt: bool = true
-@export var floor_use_json_tiles: bool = true
-@export var floor_json_marked_atlas: Vector2i = Vector2i(3, 7)
+@export var floor_use_marked_tiles: bool = true
+@export var floor_marked_atlas: Vector2i = Vector2i(3, 7)
 @export var floor_goal_atlas: Vector2i = Vector2i(2, 7)
 @export var floor_goal_color: Color = Color(0.95, 0.80, 0.20, 1)
 @export var floor_bottom_offset: float = 0.0
@@ -30,8 +29,7 @@ signal level_complete
 @export var wall_west_atlas: Vector2i = Vector2i(7, 1)
 @export var wall_bottom_offset: float = 0.0
 
-# Optional wall mode: render one solid block sprite per wall cell.
-@export var use_block_wall_png: bool = false
+@export var use_block_wall_png: bool = true
 @export var wall_block_texture: Texture2D = preload("res://assets/textures/kenney_isometric-miniature-prototype/Isometric/block_N.png")
 @export var wall_block_scale: Vector2 = Vector2(0.25, 0.25)
 @export var wall_block_offset: Vector2 = Vector2(0, -26)
@@ -45,7 +43,6 @@ signal level_complete
 
 
 # === scene references ===
-# all the visual level layers live under WorldRoot
 @onready var world_root: Node2D = $WorldRoot
 @onready var floor_node: Node2D = $WorldRoot/Floor
 @onready var grid_node: Node2D = $WorldRoot/Grid
@@ -56,31 +53,27 @@ signal level_complete
 
 
 # === loaded level state ===
-# this is already-usable level data, not raw JSON
-var level_data: Dictionary = {}
+var level_data: LevelData = null
 var rows: int = 0
 var cols: int = 0
 var wall_cells: Dictionary = {}
 var goal_cells: Dictionary = {}
 
 
-# === scene lifecycle ===
-# runs when this scene is instantiated into the tree
-# this scene owns the camera, so it configures it here
 func _ready() -> void:
 	camera.enabled = true
 	camera.make_current()
 
 
-# === main entry point ===
-# outside code gives this scene a level definition dictionary
-# this file then builds the full playable board from it
-func build_level(data: Dictionary) -> void:
-	level_data = data
-	rows = data.get("rows", 10)
-	cols = data.get("cols", 10)
+func build_level(data: LevelData) -> void:
+	if data == null:
+		push_error("build_level called with null LevelData")
+		return
 
-	# wipe old visuals so we don't stack levels on top of each other
+	level_data = data
+	rows = data.rows
+	cols = data.cols
+
 	_clear_children(floor_node)
 	_clear_children(grid_node)
 	_clear_children(walls_node)
@@ -89,7 +82,6 @@ func build_level(data: Dictionary) -> void:
 	goal_cells.clear()
 	_build_goal_cells()
 
-	# enforce consistent draw order
 	floor_node.z_index = 0
 	grid_node.z_index = 1
 	walls_node.z_index = 2
@@ -105,8 +97,6 @@ func build_level(data: Dictionary) -> void:
 	_center_camera()
 
 
-# === board shadow ===
-# purely visual polish so the board doesn't feel like it’s floating in void
 func _build_board_shadow() -> void:
 	var shadow := Polygon2D.new()
 
@@ -127,8 +117,6 @@ func _build_board_shadow() -> void:
 	floor_node.add_child(shadow)
 
 
-# === floor tiles ===
-# builds the base surface of the level using isometric diamonds
 func _build_floor() -> void:
 	if use_tilesheet_floor and floor_texture != null:
 		_build_floor_tiles()
@@ -138,17 +126,16 @@ func _build_floor() -> void:
 
 
 func _build_goal_cells() -> void:
-	if not level_data.has("goal"):
+	if level_data == null or level_data.goal == null:
 		return
-	var goal = level_data["goal"]
-	if goal.has("possible_final_positions"):
-		for pos in goal["possible_final_positions"]:
-			if typeof(pos) == TYPE_ARRAY and pos.size() >= 2:
-				goal_cells["%d,%d" % [int(pos[0]), int(pos[1])]] = true
-	if goal.has("position"):
-		var pos = goal["position"]
-		if typeof(pos) == TYPE_DICTIONARY:
-			goal_cells["%d,%d" % [int(pos.get("x", -1)), int(pos.get("y", -1))]] = true
+
+	var goal: GoalData = level_data.goal
+
+	for pos in goal.possible_final_positions:
+		goal_cells["%d,%d" % [pos.x, pos.y]] = true
+
+	if goal.position.x >= 1 and goal.position.y >= 1:
+		goal_cells["%d,%d" % [goal.position.x, goal.position.y]] = true
 
 
 func _is_goal_tile(gx: int, gy: int) -> bool:
@@ -164,11 +151,10 @@ func _build_floor_tiles() -> void:
 			var atlas := floor_primary_atlas
 
 			if _is_goal_tile(gx, gy):
-				# render goal tile with a color overlay instead of atlas swap
 				_build_goal_tile_visual(gx, gy)
 				continue
-			elif floor_use_json_tiles and _is_json_marked_tile(gx, gy):
-				atlas = floor_json_marked_atlas
+			elif floor_use_marked_tiles and _is_marked_tile(gx, gy):
+				atlas = floor_marked_atlas
 			elif floor_use_checker_alt and (gx + gy) % 2 != 0:
 				atlas = floor_alt_atlas
 
@@ -191,7 +177,6 @@ func _build_goal_tile_visual(gx: int, gy: int) -> void:
 	var scale_x := float(tile_width) / float(floor_tile_pixel_size.x)
 	var scale_y := float(tile_height) / float(floor_tile_pixel_size.y)
 
-	# Base tile using primary atlas
 	var sprite := Sprite2D.new()
 	sprite.texture = floor_texture
 	sprite.region_enabled = true
@@ -205,7 +190,6 @@ func _build_goal_tile_visual(gx: int, gy: int) -> void:
 	sprite.position = _cell_center(gx, gy) + Vector2(0, floor_bottom_offset)
 	floor_node.add_child(sprite)
 
-	# Yellow color overlay on top
 	var overlay := Polygon2D.new()
 	overlay.polygon = PackedVector2Array([
 		Vector2(0, -tile_height / 2.0),
@@ -219,15 +203,15 @@ func _build_goal_tile_visual(gx: int, gy: int) -> void:
 	floor_node.add_child(overlay)
 
 
-func _is_json_marked_tile(gx: int, gy: int) -> bool:
-	if not level_data.has("tiles"):
+func _is_marked_tile(gx: int, gy: int) -> bool:
+	if level_data == null:
 		return false
 
-	if typeof(level_data["tiles"]) != TYPE_DICTIONARY:
-		return false
+	for tile in level_data.marked_tiles:
+		if tile is MarkedTileData and tile.x == gx and tile.y == gy:
+			return true
 
-	var key := "%d,%d" % [gx, gy]
-	return level_data["tiles"].has(key)
+	return false
 
 
 func _build_floor_legacy() -> void:
@@ -242,15 +226,12 @@ func _build_floor_legacy() -> void:
 				Vector2(-tile_width / 2.0, 0)
 			])
 
-			# alternating colors so the board doesn't look dead
 			tile.color = floor_color if (gx + gy) % 2 == 0 else floor_color_alt
 			tile.position = _cell_center(gx, gy)
 
 			floor_node.add_child(tile)
 
 
-# === grid overlay ===
-# visual helper for readability and debugging (not gameplay logic)
 func _build_grid() -> void:
 	for gx in range(1, cols + 1):
 		for gy in range(1, rows + 1):
@@ -273,60 +254,58 @@ func _build_grid() -> void:
 			grid_node.add_child(diamond)
 
 
-# === player placement ===
-# decides WHERE the player goes
-# the player script decides how it behaves and looks
 func _place_player() -> void:
-	if not level_data.has("robots"):
+	if level_data == null or level_data.player_spawn == null:
 		return
 
-	var robots = level_data["robots"]
-	if robots.is_empty():
-		return
-
-	var robot = robots[0]
-	var gx: int = robot.get("x", 1)
-	var gy: int = robot.get("y", 1)
+	var spawn: PlayerSpawnData = level_data.player_spawn
+	var gx: int = spawn.x
+	var gy: int = spawn.y
 	var world_pos := _cell_center(gx, gy)
 
-	# pass this level_scene into the player so it can query bounds and positions cleanly
 	if player.has_method("initialize_from_level"):
-		player.initialize_from_level(robot, world_pos)
+		player.initialize_from_level(
+			{
+				"x": spawn.x,
+				"y": spawn.y,
+				"direction": spawn.facing
+			},
+			world_pos
+		)
 
 
-# === walls ===
-# reads wall data and draws directional wall segments
 func _build_walls() -> void:
-	if not level_data.has("walls"):
+	if level_data == null:
 		return
 
 	if use_block_wall_png and wall_block_texture != null:
 		_build_walls_block_cells()
 		return
 
-	for key in level_data["walls"].keys():
-		var parts: PackedStringArray = key.split(",")
-		if parts.size() != 2:
+	for wall_data in level_data.wall_cells:
+		if not (wall_data is WallCellData):
 			continue
 
-		var gx := int(parts[0])
-		var gy := int(parts[1])
+		var gx: int = wall_data.x
+		var gy: int = wall_data.y
 		wall_cells[_cell_key(gx, gy)] = true
-		var directions = level_data["walls"][key]
 
-		for dir in directions:
-			_add_wall_segment(gx, gy, dir)
+		for dir in wall_data.directions:
+			_add_wall_segment(gx, gy, str(dir).to_lower())
 
 
 func _build_walls_block_cells() -> void:
-	for key in level_data["walls"].keys():
-		var parts: PackedStringArray = key.split(",")
-		if parts.size() != 2:
+	if level_data == null:
+		return
+
+	for wall_data in level_data.wall_cells:
+		if not (wall_data is WallCellData):
 			continue
 
-		var gx := int(parts[0])
-		var gy := int(parts[1])
+		var gx : int = wall_data.x
+		var gy : int = wall_data.y
 		var k := _cell_key(gx, gy)
+
 		if wall_cells.has(k):
 			continue
 
@@ -434,8 +413,6 @@ func _add_wall_segment_legacy(gx: int, gy: int, dir: String) -> void:
 	walls_node.add_child(wall)
 
 
-# === camera framing ===
-# centers and zooms the camera so the entire board fits on screen
 func _center_camera() -> void:
 	camera.enabled = true
 	camera.make_current()
@@ -470,8 +447,6 @@ func _center_camera() -> void:
 	camera.zoom = Vector2(fit_zoom, fit_zoom)
 
 
-# === coordinate system ===
-# converts grid coordinates into isometric world positions
 func _cell_center(gx: int, gy: int) -> Vector2:
 	var grid_x := float(cols - gx)
 	var grid_y := float(rows - gy)
@@ -485,21 +460,15 @@ func _cell_center(gx: int, gy: int) -> Vector2:
 	return Vector2(iso_x + offset_x, iso_y + offset_y)
 
 
-# === helpers ===
-# removes all children from a node (used for rebuilding levels)
 func _clear_children(node: Node) -> void:
 	for child in node.get_children():
 		child.queue_free()
 
 
-# === public helpers ===
-# these are used by runtime systems like the player
-
-# converts grid coordinates into world space position
 func grid_to_world_position(gx: int, gy: int) -> Vector2:
 	return _cell_center(gx, gy)
 
-# simple bounds check so the player doesn't walk off the map like a clown
+
 func is_in_bounds(gx: int, gy: int) -> bool:
 	return gx >= 1 and gx <= cols and gy >= 1 and gy <= rows
 
@@ -516,20 +485,18 @@ func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
 		"west":
 			nx -= 1
 		"north":
-			ny += 1
-		"south":
 			ny -= 1
+		"south":
+			ny += 1
 		_:
 			return true
 
 	if not is_in_bounds(nx, ny):
 		return true
 
-	# Block-wall mode: entering a wall cell is always blocked.
 	if _is_wall_cell(nx, ny):
 		return true
 
-	# Edge-wall mode fallback: blocked by wall edge on current cell.
 	if _cell_has_wall_edge(gx, gy, dir):
 		return true
 
@@ -552,12 +519,14 @@ func _is_wall_cell(gx: int, gy: int) -> bool:
 	if wall_cells.has(k):
 		return true
 
-	if not level_data.has("walls"):
-		return false
-	if typeof(level_data["walls"]) != TYPE_DICTIONARY:
+	if level_data == null:
 		return false
 
-	return level_data["walls"].has(k)
+	for wall_data in level_data.wall_cells:
+		if wall_data is WallCellData and wall_data.x == gx and wall_data.y == gy:
+			return true
+
+	return false
 
 
 func _cell_key(gx: int, gy: int) -> String:
@@ -565,42 +534,32 @@ func _cell_key(gx: int, gy: int) -> String:
 
 
 func _cell_has_wall_edge(gx: int, gy: int, dir: String) -> bool:
-	if not level_data.has("walls"):
+	if level_data == null:
 		return false
 
-	if typeof(level_data["walls"]) != TYPE_DICTIONARY:
-		return false
+	for wall_data in level_data.wall_cells:
+		if not (wall_data is WallCellData):
+			continue
+		if wall_data.x != gx or wall_data.y != gy:
+			continue
 
-	var key := "%d,%d" % [gx, gy]
-	if not level_data["walls"].has(key):
-		return false
-
-	var directions = level_data["walls"][key]
-	if typeof(directions) != TYPE_ARRAY:
-		return false
-
-	for d in directions:
-		if str(d).to_lower() == dir:
-			return true
+		for d in wall_data.directions:
+			if str(d).to_lower() == dir:
+				return true
 
 	return false
 
-# === win condition ===
+
 func check_win_condition(gx: int, gy: int) -> void:
-	if not level_data.has("goal"):
+	if level_data == null or level_data.goal == null:
 		return
 
-	var goal = level_data["goal"]
+	var goal: GoalData = level_data.goal
 
-	if goal.has("possible_final_positions"):
-		for pos in goal["possible_final_positions"]:
-			if typeof(pos) == TYPE_ARRAY and pos.size() >= 2:
-				if int(pos[0]) == gx and int(pos[1]) == gy:
-					level_complete.emit()
-					return
+	for pos in goal.possible_final_positions:
+		if pos.x == gx and pos.y == gy:
+			level_complete.emit()
+			return
 
-	if goal.has("position"):
-		var pos = goal["position"]
-		if typeof(pos) == TYPE_DICTIONARY:
-			if int(pos.get("x", -1)) == gx and int(pos.get("y", -1)) == gy:
-				level_complete.emit()
+	if goal.position.x == gx and goal.position.y == gy:
+		level_complete.emit()
