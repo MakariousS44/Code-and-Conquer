@@ -9,6 +9,9 @@
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=1894381091]
 texture = ExtResource("1_oul6g")
 
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+visible = false
+
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1353409317]
 position = Vector2(0, 192)
 shape = SubResource("RectangleShape2D_rkbax")
