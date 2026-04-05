@@ -7,6 +7,7 @@
 script = ExtResource("1_wg7h1")
 
 [node name="WorldRoot" type="Node2D" parent="." unique_id=1548766223]
+y_sort_enabled = true
 
 [node name="Player" type="Node2D" parent="WorldRoot" unique_id=1807080076]
 script = ExtResource("2_3whwa")

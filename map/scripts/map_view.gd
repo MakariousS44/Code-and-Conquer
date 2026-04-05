@@ -13,8 +13,8 @@ signal level_complete
 
 @export var floor_texture: Texture2D = preload("res://assets/tilesheets/ground.png")
 @export var floor_tile_pixel_size: Vector2i = Vector2i(256, 128)
-@export var floor_primary_atlas: Vector2i = Vector2i(0, 7)
-@export var floor_alt_atlas: Vector2i = Vector2i(1, 7)
+@export var floor_primary_atlas: Vector2i = Vector2i(0, 3)
+@export var floor_alt_atlas: Vector2i = Vector2i(0, 3)
 @export var floor_use_checker_alt: bool = true
 @export var floor_use_json_tiles: bool = true
 @export var floor_json_marked_atlas: Vector2i = Vector2i(3, 7)
@@ -52,6 +52,7 @@ var rows: int = 0
 var cols: int = 0
 var wall_cells: Dictionary = {}
 var goal_cells: Dictionary = {}
+var _wall_trim_cache: Dictionary = {}
 
 
 # === scene lifecycle ===
@@ -77,6 +78,7 @@ func build_level(data: Dictionary) -> void:
 	_clear_children(objects_node)
 	wall_cells.clear()
 	goal_cells.clear()
+	_wall_trim_cache.clear()
 	_build_goal_cells()
 
 	# enforce consistent draw order
@@ -84,8 +86,7 @@ func build_level(data: Dictionary) -> void:
 	grid_node.z_index = 1
 	walls_node.z_index = 2
 	objects_node.z_index = 3
-	player.z_index = 4
-	
+	player.z_index = 10
 	walls_node.y_sort_enabled = true
 
 	_build_board_shadow()
@@ -299,7 +300,6 @@ func _build_walls() -> void:
 
 		var gx := int(parts[0])
 		var gy := int(parts[1])
-		wall_cells[_cell_key(gx, gy)] = true
 		var directions = level_data["walls"][key]
 
 		for dir in directions:
@@ -331,16 +331,16 @@ func _add_wall_segment_tiles(gx: int, gy: int, dir: String) -> void:
 			end   = right
 			tex   = wall_north_atlas
 		"east":
-			start = right
-			end   = bottom
+			start = left
+			end   = top
 			tex   = wall_east_atlas
 		"south":
 			start = bottom
 			end   = left
 			tex   = wall_north_atlas
 		"west":
-			start = left
-			end   = top
+			start = right
+			end   = bottom
 			tex   = wall_east_atlas
 		_:
 			return
@@ -348,21 +348,27 @@ func _add_wall_segment_tiles(gx: int, gy: int, dir: String) -> void:
 	if tex == null:
 		return
 
-	# trim transparent padding
-	var image := tex.get_image()
-	var min_x := image.get_width();  var max_x := -1
-	var min_y := image.get_height(); var max_y := -1
-	for y in range(image.get_height()):
-		for x in range(image.get_width()):
-			if image.get_pixel(x, y).a > 0.01:
-				if x < min_x: min_x = x
-				if y < min_y: min_y = y
-				if x > max_x: max_x = x
-				if y > max_y: max_y = y
-	if max_x < 0:
-		return
+	# use cached trim to avoid re-scanning pixels on every wall
+	var tex_path := tex.resource_path
+	var region: Rect2
+	if _wall_trim_cache.has(tex_path):
+		region = _wall_trim_cache[tex_path]
+	else:
+		var image := tex.get_image()
+		var min_x := image.get_width();  var max_x := -1
+		var min_y := image.get_height(); var max_y := -1
+		for y in range(image.get_height()):
+			for x in range(image.get_width()):
+				if image.get_pixel(x, y).a > 0.01:
+					if x < min_x: min_x = x
+					if y < min_y: min_y = y
+					if x > max_x: max_x = x
+					if y > max_y: max_y = y
+		if max_x < 0:
+			return
+		region = Rect2(Vector2(min_x, min_y), Vector2(max_x - min_x + 1, max_y - min_y + 1))
+		_wall_trim_cache[tex_path] = region
 
-	var region   := Rect2(Vector2(min_x, min_y), Vector2(max_x - min_x + 1, max_y - min_y + 1))
 	var edge_len := (end - start).length()
 	var anchor   := (start + end) * 0.5
 	var scale_x  := edge_len / region.size.x
@@ -376,7 +382,7 @@ func _add_wall_segment_tiles(gx: int, gy: int, dir: String) -> void:
 	sprite.centered = true
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.scale = Vector2(scale_x, scale_y)
-	sprite.position = anchor + Vector2(0, -scaled_h * 0.5) + wall_position_offset 
+	sprite.position = anchor + Vector2(0, -scaled_h * 0.5) + wall_position_offset
 	walls_node.add_child(sprite)
 
 
@@ -397,14 +403,14 @@ func _add_wall_segment_legacy(gx: int, gy: int, dir: String) -> void:
 			wall.add_point(top)
 			wall.add_point(right)
 		"east":
-			wall.add_point(right)
-			wall.add_point(bottom)
+			wall.add_point(left)
+			wall.add_point(top)
 		"south":
 			wall.add_point(bottom)
 			wall.add_point(left)
 		"west":
-			wall.add_point(left)
-			wall.add_point(top)
+			wall.add_point(right)
+			wall.add_point(bottom)
 		_:
 			return
 
@@ -499,38 +505,30 @@ func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
 		_:
 			return true
 
+	var exit_wall := ""
+	var entry_wall := ""
+	match dir:
+		"east":
+			exit_wall = "west"
+			entry_wall = "east"
+		"west":
+			exit_wall = "east"
+			entry_wall = "west"
+		"north":
+			exit_wall = "north"
+			entry_wall = "south"
+		"south":
+			exit_wall = "south"
+			entry_wall = "north"
+
 	if not is_in_bounds(nx, ny):
 		return true
 
 	# Edge-wall mode fallback: blocked by wall edge on current cell.
-	if _cell_has_wall_edge(gx, gy, dir):
+	if _cell_has_wall_edge(gx, gy, exit_wall):
 		return true
 
-	var opposite := ""
-	match dir:
-		"east":
-			opposite = "west"
-		"west":
-			opposite = "east"
-		"north":
-			opposite = "south"
-		"south":
-			opposite = "north"
-
-	return _cell_has_wall_edge(nx, ny, opposite)
-
-
-func _is_wall_cell(gx: int, gy: int) -> bool:
-	var k := _cell_key(gx, gy)
-	if wall_cells.has(k):
-		return true
-
-	if not level_data.has("walls"):
-		return false
-	if typeof(level_data["walls"]) != TYPE_DICTIONARY:
-		return false
-
-	return level_data["walls"].has(k)
+	return _cell_has_wall_edge(nx, ny, entry_wall)
 
 
 func _cell_key(gx: int, gy: int) -> String:
