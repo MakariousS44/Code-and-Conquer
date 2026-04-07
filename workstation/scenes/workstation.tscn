@@ -404,7 +404,7 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
 handle_input_locally = false
-size = Vector2i(662, 611)
+size = Vector2i(790, 683)
 render_target_update_mode = 4
 
 [node name="LoseOverlay" type="Control" parent="." unique_id=800000001]
