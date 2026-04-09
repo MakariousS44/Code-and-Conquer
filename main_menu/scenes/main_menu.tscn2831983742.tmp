@@ -1,0 +1,193 @@
+[gd_scene format=3 uid="uid://bjd1nmwoya47g"]
+
+[ext_resource type="Texture2D" uid="uid://cmlu85wwfd4ph" path="res://main_menu/scenes/logo.png" id="2_mkuju"]
+[ext_resource type="VideoStream" uid="uid://cybkjg56q828f" path="res://main_menu/scenes/bgvideo.ogv" id="2_nu78t"]
+[ext_resource type="AudioStream" uid="uid://76wvxkahxvx" path="res://main_menu/scenes/start.mp3" id="2_suspn"]
+[ext_resource type="Script" uid="uid://ku1jvvw0a25w" path="res://main_menu/scenes/main_menu.gd" id="3_qe063"]
+[ext_resource type="Texture2D" uid="uid://c2btflbpcxxp4" path="res://main_menu/scenes/bgtemplate.png" id="4_nu78t"]
+[ext_resource type="AudioStream" uid="uid://c54t0khjgkxeg" path="res://main_menu/scenes/menumove.mp3" id="5_6hyfw"]
+[ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://main_menu/scenes/quitsound.mp3" id="7_nu78t"]
+
+[node name="main_menu" type="Control" unique_id=1538571169]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_qe063")
+
+[node name="AspectRatioContainer" type="AspectRatioContainer" parent="." unique_id=1843367750]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 1.5258789e-05
+offset_right = 768.0
+offset_bottom = 432.0
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.6, 0.6)
+mouse_filter = 2
+
+[node name="VideoBG" type="VideoStreamPlayer" parent="AspectRatioContainer" unique_id=1733741840]
+layout_mode = 2
+mouse_filter = 2
+stream = ExtResource("2_nu78t")
+autoplay = true
+loop = true
+
+[node name="MenuBG" type="TextureRect" parent="." unique_id=1857734009]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("3_qe063")
+
+[node name="Logo" type="MarginContainer" parent="MenuBG" unique_id=706626020]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -339.5
+offset_top = 41.0
+offset_right = 339.5
+offset_bottom = 260.0
+grow_horizontal = 2
+
+[node name="TextureRect" type="TextureRect" parent="MenuBG/Logo" unique_id=629447021]
+layout_mode = 2
+texture = ExtResource("2_mkuju")
+
+[node name="StartMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=49013344]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -45.0
+offset_top = -15.5
+offset_right = 45.0
+offset_bottom = 15.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/StartMarginContainer" unique_id=1656775911]
+layout_mode = 2
+
+[node name="StartButton" type="Button" parent="MenuBG/StartMarginContainer/VBoxContainer" unique_id=1499396833]
+layout_mode = 2
+text = "Select Level"
+script = ExtResource("3_qe063")
+
+[node name="OptionsMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1557115278]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -35.0
+offset_top = 17.0
+offset_right = 35.0
+offset_bottom = 57.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/OptionsMarginContainer" unique_id=516003802]
+layout_mode = 2
+
+[node name="OptionsButton" type="Button" parent="MenuBG/OptionsMarginContainer/VBoxContainer" unique_id=2013621979]
+layout_mode = 2
+text = "Options"
+script = ExtResource("3_qe063")
+
+[node name="QuitMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1129521710]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = 49.0
+offset_right = 20.0
+offset_bottom = 89.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/QuitMarginContainer" unique_id=141939731]
+layout_mode = 2
+
+[node name="QuitButton" type="Button" parent="MenuBG/QuitMarginContainer/VBoxContainer" unique_id=1837881485]
+layout_mode = 2
+text = "Exit Game
+"
+script = ExtResource("3_qe063")
+
+[node name="OptionsTab" type="TextureRect" parent="MenuBG" unique_id=1632772630]
+layout_mode = 0
+offset_left = 1152.0
+offset_right = 1752.0
+offset_bottom = 649.0
+texture = ExtResource("4_nu78t")
+
+[node name="LevelsTab" type="TextureRect" parent="MenuBG" unique_id=2029502849]
+layout_mode = 0
+offset_left = -600.0
+offset_bottom = 649.0
+texture = ExtResource("4_nu78t")
+
+[node name="MarginContainer" type="MarginContainer" parent="MenuBG/LevelsTab" unique_id=227244431]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -252.0
+offset_top = -20.0
+offset_right = -90.0
+offset_bottom = 20.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="PlayButton" type="Button" parent="MenuBG/LevelsTab/MarginContainer" unique_id=1443204992]
+layout_mode = 2
+text = "Play
+"
+
+[node name="StartSound" type="AudioStreamPlayer" parent="." unique_id=398680422]
+stream = ExtResource("2_suspn")
+script = ExtResource("3_qe063")
+
+[node name="TabMoveSound" type="AudioStreamPlayer" parent="." unique_id=142174545]
+stream = ExtResource("5_6hyfw")
+script = ExtResource("3_qe063")
+
+[node name="QuitSound" type="AudioStreamPlayer" parent="." unique_id=872956816]
+stream = ExtResource("7_nu78t")
+script = ExtResource("3_qe063")
+
+[node name="Mask" type="ColorRect" parent="." unique_id=1348239614]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -22.0
+offset_top = -83.0
+offset_right = 26.0
+offset_bottom = 69.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.003921569)
+script = ExtResource("3_qe063")
+
+[connection signal="pressed" from="MenuBG/StartMarginContainer/VBoxContainer/StartButton" to="." method="_on_button_start_pressed"]
+[connection signal="pressed" from="MenuBG/OptionsMarginContainer/VBoxContainer/OptionsButton" to="." method="_on_options_button_pressed"]
+[connection signal="pressed" from="MenuBG/QuitMarginContainer/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
+[connection signal="pressed" from="MenuBG/LevelsTab/MarginContainer/PlayButton" to="." method="_on_play_button_pressed"]
