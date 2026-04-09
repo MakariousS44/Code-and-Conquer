@@ -113,7 +113,10 @@ func _load_level_scene() -> void:
 		game_instance.level_complete.connect(_on_level_complete)
 
 	# load the level definition from disk
-	var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
+	# Grabs level filename from main menu, "LevelLoader" is defined in Project Settings > Global
+	var raw: Dictionary = level_definition.load(LevelToLoad.level)
+	# Old level loader line for testing
+	# var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
 	if not raw.ok:
 		push_error("Level load failed: %s" % raw.error)
 		return

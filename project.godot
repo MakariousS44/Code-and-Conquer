@@ -11,11 +11,15 @@ config_version=5
 [application]
 
 config/name="buildup"
-run/main_scene="uid://ddheufqb82bcu"
+run/main_scene="uid://bjd1nmwoya47g"
 config/features=PackedStringArray("4.6", "Forward Plus")
 boot_splash/bg_color=Color(0.97055286, 0.75035083, 0.88283765, 1)
 boot_splash/stretch_mode=0
 config/icon="res://assets/icon.svg"
+
+[autoload]
+
+LevelToLoad="*uid://dc3jimritl1hh"
 
 [display]
 

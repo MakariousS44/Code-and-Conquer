@@ -4,6 +4,9 @@ signal lose_triggered(reason: String)
 
 # === player config ===
 # movement timing + visual tuning
+@export var use_animated_sprite: bool = true
+@export var player_sprite_frames: SpriteFrames
+@export var idle_animation_name: String = "idle"
 @export var move_duration: float = 0.3
 @export var use_sprite_visual: bool = true
 @export var player_texture: Texture2D = preload("res://assets/textures/kenney_isometric-miniature-prototype/Characters/Human/Human_0_Idle0.png")
@@ -68,35 +71,18 @@ func _rebuild_visuals() -> void:
 	for child in get_children():
 		child.queue_free()
 
-	if use_sprite_visual and player_texture != null:
-		if show_player_shadow:
-			var shadow := Polygon2D.new()
-			shadow.name = "Shadow"
-			shadow.polygon = PackedVector2Array([
-				Vector2(0, -6),
-				Vector2(16, 0),
-				Vector2(0, 6),
-				Vector2(-16, 0)
-			])
-			shadow.color = player_shadow_color
-			shadow.position = Vector2(0, 10)
-			shadow.z_index = 99
-			add_child(shadow)
-
-		var sprite := Sprite2D.new()
-		sprite.name = "Body"
-		sprite.texture = player_texture
-		sprite.centered = true
-		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		if auto_trim_player_region:
-			_apply_trimmed_region(sprite)
-		sprite.scale = sprite_scale
-		var tex_height: float = sprite.region_rect.size.y if sprite.region_enabled else float(sprite.texture.get_height())
-		var scaled_half_h := tex_height * sprite.scale.y * 0.5
-		var base_pos := Vector2(0.0, -scaled_half_h)
-		sprite.position = (base_pos + sprite_offset).round() if snap_sprite_to_pixels else (base_pos + sprite_offset)
-		sprite.z_index = 100
-		add_child(sprite)
+	if use_animated_sprite and player_sprite_frames != null:
+		var anim := AnimatedSprite2D.new()
+		anim.name = "Body"
+		anim.sprite_frames = player_sprite_frames
+		anim.animation = idle_animation_name
+		anim.centered = true
+		anim.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		anim.scale = sprite_scale
+		anim.position = sprite_offset
+		anim.z_index = 100
+		add_child(anim)
+		anim.play()
 
 		_update_facing_visual()
 		return
@@ -212,14 +198,12 @@ func _update_facing_visual() -> void:
 				marker.rotation_degrees = _facing_angle_deg()
 		return
 
-	var body: Sprite2D = get_node("Body") as Sprite2D
+	var body := get_node("Body") as Node2D
 	if body == null:
 		return
 
 	if rotate_sprite_with_facing:
 		body.rotation_degrees = _facing_angle_deg()
-	else:
-		body.rotation_degrees = 0.0
 
 
 func _facing_angle_deg() -> float:
