@@ -259,9 +259,9 @@ func move_forward() -> void:
 
 	match facing:
 		"east":
-			next_x -= 1
-		"west":
 			next_x += 1
+		"west":
+			next_x -= 1
 		"north":
 			next_y += 1  
 		"south":

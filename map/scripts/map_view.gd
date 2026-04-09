@@ -331,16 +331,16 @@ func _add_wall_segment_tiles(gx: int, gy: int, dir: String) -> void:
 			end   = right
 			tex   = wall_north_atlas
 		"east":
-			start = left
-			end   = top
+			start = right
+			end   = bottom
 			tex   = wall_east_atlas
 		"south":
 			start = bottom
 			end   = left
 			tex   = wall_north_atlas
 		"west":
-			start = right
-			end   = bottom
+			start = left
+			end   = top
 			tex   = wall_east_atlas
 		_:
 			return
@@ -403,14 +403,14 @@ func _add_wall_segment_legacy(gx: int, gy: int, dir: String) -> void:
 			wall.add_point(top)
 			wall.add_point(right)
 		"east":
-			wall.add_point(left)
-			wall.add_point(top)
+			wall.add_point(right)
+			wall.add_point(bottom)
 		"south":
 			wall.add_point(bottom)
 			wall.add_point(left)
 		"west":
-			wall.add_point(right)
-			wall.add_point(bottom)
+			wall.add_point(left)
+			wall.add_point(top)
 		_:
 			return
 
@@ -456,7 +456,7 @@ func _center_camera() -> void:
 # === coordinate system ===
 # converts grid coordinates into isometric world positions
 func _cell_center(gx: int, gy: int) -> Vector2:
-	var grid_x := float(cols - gx)
+	var grid_x := float(gx - 1)
 	var grid_y := float(rows - gy)
 
 	var iso_x := (grid_x - grid_y) * (tile_width / 2.0)
@@ -495,9 +495,9 @@ func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
 	var ny := gy
 	match dir:
 		"east":
-			nx -= 1
-		"west":
 			nx += 1
+		"west":
+			nx -= 1
 		"north":
 			ny += 1
 		"south":
@@ -509,11 +509,11 @@ func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
 	var entry_wall := ""
 	match dir:
 		"east":
-			exit_wall = "west"
-			entry_wall = "east"
-		"west":
 			exit_wall = "east"
 			entry_wall = "west"
+		"west":
+			exit_wall = "west"
+			entry_wall = "east"
 		"north":
 			exit_wall = "north"
 			entry_wall = "south"
