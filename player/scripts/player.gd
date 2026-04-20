@@ -7,6 +7,7 @@ signal lose_triggered(reason: String)
 var grid_x: int = 1
 var grid_y: int = 1
 var facing: String = "north"
+var carried_object: String = "" 
 var _has_lost: bool = false
 
 func _ready() -> void:
@@ -16,6 +17,7 @@ func _ready() -> void:
 ## Initialize player at proper location and face direction
 func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, has_moved: bool) -> void:
 	_has_lost = false
+	carried_object = ""
 	
 	if not has_moved:
 		grid_x = robot_data.get("x", 1)
@@ -23,7 +25,6 @@ func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, has_moved
 	
 	# Starting numerical player facing
 	var start_face: int = robot_data.get("_orientation", 1)
-	print("Direction: ", start_face)
 	match start_face:
 		0:
 			facing = "east"
@@ -55,7 +56,6 @@ func move_forward() -> void:
 	var next_y = grid_y
 	
 	# Dermine its next grid position depending on where its facing
-	print("Move to:", facing)
 	match facing:
 		"east":
 			next_x += 1
@@ -124,17 +124,16 @@ func turn_left() -> void:
 	match facing:
 		"east":
 			facing = "north"
-			$AnimatedSprite2D.play("Idle_E")
+			$AnimatedSprite2D.play("Idle_N")
 		"north":
 			facing = "west"
-			$AnimatedSprite2D.play("Idle_N")
+			$AnimatedSprite2D.play("Idle_W")
 		"west":
 			facing = "south"
-			$AnimatedSprite2D.play("Idle_W")
+			$AnimatedSprite2D.play("Idle_S")
 		"south":
 			facing = "east"
-			$AnimatedSprite2D.play("Idle_S")
-	print(facing)
+			$AnimatedSprite2D.play("Idle_E")
 
 # IMPORTANT: No turn right functions
 
@@ -142,28 +141,28 @@ func turn_left() -> void:
 # === object interaction stubs ===
 # world behavior for objects is still placeholder-ish,
 # so for now the robot just asks the world if it knows how to handle it
-#func pick_object() -> void:
-	#var world = _get_world()
-	#if world == null:
-		#return
-#
-	#if carried_object != "":
-		#return
-#
-	#if world.has_method("remove_object_at"):
-		#var obj = world.remove_object_at(grid_x, grid_y)
-		#if obj != "":
-			#carried_object = obj
-#
-#
-#func put_object() -> void:
-	#var world = _get_world()
-	#if world == null:
-		#return
-#
-	#if carried_object == "":
-		#return
-#
-	#if world.has_method("place_object_at"):
-		#world.place_object_at(grid_x, grid_y, carried_object)
-		#carried_object = ""
+func pick_object() -> void:
+	var world = _get_world()
+	if world == null:
+		return
+
+	if carried_object != "":
+		return
+
+	if world.has_method("remove_object_at"):
+		var obj = world.remove_object_at(grid_x, grid_y)
+		if obj != "":
+			carried_object = obj
+
+
+func put_object() -> void:
+	var world = _get_world()
+	if world == null:
+		return
+
+	if carried_object == "":
+		return
+
+	if world.has_method("place_object_at"):
+		world.place_object_at(grid_x, grid_y, carried_object)
+		carried_object = ""

@@ -399,43 +399,68 @@ func grid_position(x_pos: int, y_pos: int) -> Vector2:
 	print("New Position: ", x_pos, ",", y_pos, " Grid Postion: ", grid_pos, " Pixel Position: ", pixel_pos)
 	return pixel_pos
 
+
 ## simple bounds check so the player doesn't walk off the map like a clown
 func is_in_bounds(gx: int, gy: int) -> bool:
 	return gx >= 1 and gx <= world_x_size and gy >= 1 and gy <= world_y_size
 
-## Not so simple bound check so the player doesn't go through walls
+
+## Check if movement in dir from (gx,gy) is blocked by a wall.
+## Walls are stored as "east" and "north" only (Reborg format).
+## Moving west/south requires checking the adjacent cell's east/north wall.
 func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
 	# Check if wall even exist
-	if level_data.has("walls"):
-		# Check the a wall withing a given cell
-		var key := "%d,%d" % [gx, gy]
-		print(key)
-		if level_data["walls"].has(key):
-			# Find if at least one wall face the player
-			var direction = level_data["walls"][key]
-			for d in direction:
-				if str(d).to_lower() == dir:
-					return true
+	if not level_data.has("walls"):
+		return false
+	
+	# Direct check: does this cell have a wall on this face?
+	# Covers "east" and "north" moves.
+	var key := "%d,%d" % [gx, gy]
+	if level_data["walls"].has(key):
+		for d in level_data["walls"][key]:
+			if str(d).to_lower() == dir:
+				return true
+	
+	# Indirect check: moving west/south means checking the neighbour's east/north wall.
+	# A "west" wall on (gx,gy) is stored as an "east" wall on (gx-1,gy).
+	# A "south" wall on (gx,gy) is stored as a "north" wall on (gx,gy-1).
+	match dir:
+		"west":
+			var adj := "%d,%d" % [gx - 1, gy]
+			if level_data["walls"].has(adj):
+				for d in level_data["walls"][adj]:
+					if str(d).to_lower() == "east":
+						return true
+		"south":
+			var adj := "%d,%d" % [gx, gy - 1]
+			if level_data["walls"].has(adj):
+				for d in level_data["walls"][adj]:
+					if str(d).to_lower() == "north":
+						return true
+						
 	return false
 
 
 func _cell_key(gx: int, gy: int) -> String:
 	return "%d,%d" % [gx, gy]
 
-## Check is there any wall facing the player
-## Input: current position and direction
-## Output: True(player face wall), False(player does not face wall)
-func _check_wall(gx: int, gy: int, dir: String) -> bool:
-	# Check if wall even exist
-	if level_data.has("walls"):
-		# Check the a wall withing a given cell
-		var key := "%d,%d" % [gx, gy]
-		if level_data["walls"].has(key):
-			# Find if at least one wall face the player
-			var direction = level_data["walls"][key]
-			for d in direction:
-				if str(d).to_lower() == dir:
+
+# Returns true if the given grid position satisfies the goal condition.
+# Used by the IPC query system without emitting the win signal.
+func is_at_goal(gx: int, gy: int) -> bool:
+	if not level_data.has("goal"):
+		return false
+	var goal = level_data["goal"]
+	if goal.has("possible_final_positions"):
+		for pos in goal["possible_final_positions"]:
+			if typeof(pos) == TYPE_ARRAY and pos.size() >= 2:
+				if int(pos[0]) == gx and int(pos[1]) == gy:
 					return true
+	if goal.has("position"):
+		var pos = goal["position"]
+		if typeof(pos) == TYPE_DICTIONARY:
+			if int(pos.get("x", -1)) == gx and int(pos.get("y", -1)) == gy:
+				return true
 	return false
 
 

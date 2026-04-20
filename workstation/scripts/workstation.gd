@@ -28,8 +28,6 @@ const Paths = preload("res://execution/shared/paths.gd")
 var validator  = preload(Paths.CPP_VALIDATOR).new()
 var generator  = preload(Paths.CPP_GENERATOR).new()
 var compiler   = preload(Paths.CPP_DRIVER).new()
-var translator = preload(Paths.COMMAND_TRANSLATOR).new()
-var executor   = preload(Paths.COMMAND_EXECUTOR).new()
 var py_pipeline = preload(Paths.PYTHON_PIPELINE).new()
 var _commands  = preload(Paths.ROBOT_COMMANDS).new()
 
@@ -46,11 +44,16 @@ var level_scene_resource = preload(Paths.MAP_VIEW_SCENE)
 var game_instance: Node = null
 var player_node: Node = null
 
+# === IPC state ===
+var _ipc_server       = null
+var _subprocess_pid: int = -1
+var _ipc_active: bool = false
+var _ipc_loop_running: bool = false
+
 # === step mode state ===
 var step_mode: bool = false
-var step_queue: Array = []
+signal _step_continue
 
-var has_run: bool = false
 var current_line_offset: int = 0
 var _is_handling_lose: bool = false
 
@@ -67,7 +70,6 @@ func _ready() -> void:
 	run_button.pressed.connect(_on_run_button_pressed)
 	step_button.pressed.connect(_on_step_button_pressed)
 	reset_button.pressed.connect(_on_reset_button_pressed)
-	executor.execution_finished.connect(_on_execution_finished)
 	lose_retry_button.pressed.connect(_on_lose_retry)
 	win_retry_button.pressed.connect(_on_win_retry)
 	win_next_button.pressed.connect(_on_win_next)
@@ -77,18 +79,6 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_load_level_scene()
 
-# only enable reset button after execution
-func _on_execution_finished() -> void:
-	reset_button.disabled = false
-	_clear_editor_highlights()
-	if step_mode and step_queue.size() > 0:
-		step_button.disabled = false
-		return
-	
-	run_button.disabled = true
-	step_button.disabled = true
-	has_run = true
-	_set_status("Done", "ok")
 
 # === level loading ===
 # creates the playable level scene, loads the level definition, and asks the scene to build itself
@@ -144,9 +134,9 @@ func _setup_language_selector() -> void:
 
 
 func _on_language_changed(index: int) -> void:
+	_stop_execution()
 	current_language = Language.CPP if index == 0 else Language.PYTHON
 	step_mode = false
-	step_queue = []
 	output_box.clear()
 	_clear_editor_highlights()
 
@@ -176,6 +166,9 @@ func _setup_syntax_highlighting() -> void:
 	for command in _commands.COMMANDS:
 		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
 
+	for sensor in _commands.SENSORS:
+		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+
 	highlighter.number_color = Color(0.95, 0.65, 0.30)
 	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
 	highlighter.function_color = Color(0.95, 0.85, 0.45)
@@ -202,6 +195,9 @@ func _setup_python_highlighting() -> void:
 	for command in _commands.COMMANDS:
 		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
 
+	for sensor in _commands.SENSORS:
+		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+
 	highlighter.number_color = Color(0.95, 0.65, 0.30)
 	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
 	highlighter.function_color = Color(0.95, 0.85, 0.45)
@@ -221,33 +217,27 @@ func _on_run_button_pressed() -> void:
 
 
 func _on_step_button_pressed() -> void:
-	if step_mode and step_queue.size() > 0:
-		step_button.disabled = true
-		_clear_editor_highlights()
-		# execute one command at a time
-		var next = step_queue.slice(0, 1)
-		step_queue = step_queue.slice(1)
-		executor.execute(next, player_node)
-		log_line("▶ step: %s" % next[0].get("type", "?"))
-		_highlight_editor_line(next[0].get("source_line", -1))
-		
-		if step_queue.is_empty():
-			_set_status("Done", "ok")
-			step_mode = false
+	if _ipc_active and step_mode:
+		if not _ipc_loop_running:
+			# Second click: begin executing
+			_ipc_loop_running = true
 			step_button.disabled = true
+			_run_ipc_loop()
 		else:
-			_set_status("Step mode — %d left" % step_queue.size(), "")
+			# Subsequent clicks: advance one step
+			step_button.disabled = true
+			_step_continue.emit()
 		return
-
-	# first press compiles/runs and fills the queue
 	step_mode = true
 	_run_pipeline(true)
 
+
 func _highlight_editor_line(line: int) -> void:
-	var adjusted := line
+	_clear_editor_highlights()
+	var adjusted := line - 1
 	if current_language == Language.CPP:
 		adjusted = line - current_line_offset - 1
-	if adjusted >= 0:
+	if adjusted >= 0 and adjusted < editor.get_line_count():
 		editor.set_line_background_color(adjusted, Color(0.30, 0.60, 0.30, 0.25))
 
 func _clear_editor_highlights() -> void:
@@ -255,14 +245,12 @@ func _clear_editor_highlights() -> void:
 		editor.set_line_background_color(i, Color(0, 0, 0, 0))
 
 func _on_reset_button_pressed() -> void:
-	executor.cancel()
+	_stop_execution()
 	_clear_editor_highlights()
-	has_run = false
 	run_button.disabled = false
 	step_button.disabled = false
 	reset_button.disabled = false
 	step_mode = false
-	step_queue = []
 	output_box.clear()
 	log_header("reset")
 	log_line("Level reloaded.")
@@ -305,10 +293,7 @@ func _on_player_lose(reason: String) -> void:
 	if _is_handling_lose:
 		return
 	_is_handling_lose = true
-
-	executor.cancel()
-	step_mode = false
-	step_queue = []
+	_stop_execution()
 
 	log_header("lose")
 	log_error(reason)
@@ -320,9 +305,8 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
-	executor.cancel()
+	_stop_execution()
 	step_mode = false
-	step_queue = []
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
@@ -358,6 +342,21 @@ func _on_go_to_menu() -> void:
 
 # === pipeline execution ===
 
+func _stop_execution() -> void:
+	_ipc_active = false
+	_ipc_loop_running = false
+
+	if _ipc_server != null:
+		_ipc_server.stop()
+		_ipc_server = null
+	if _subprocess_pid != -1:
+		OS.kill(_subprocess_pid)
+		_subprocess_pid = -1
+
+	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
+	_step_continue.emit()
+
+
 func _run_pipeline(step_only: bool) -> void:
 	reset_button.disabled = false
 	run_button.disabled = true
@@ -370,99 +369,221 @@ func _run_pipeline(step_only: bool) -> void:
 
 	# Python path
 	if current_language == Language.PYTHON:
-		var python_validation: Dictionary = py_pipeline.validate(editor.text)
-		if not python_validation.ok:
-			for err in python_validation.errors:
+		var v: Dictionary = py_pipeline.validate(editor.text)
+		if not v.ok:
+			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
 			_set_status("Validation failed", "error")
 			step_mode = false
 			_re_enable_buttons()
 			return
-
-		var python_run_result: Dictionary = py_pipeline.run(editor.text)
-		if not python_run_result.ok:
-			log_error(python_run_result.output)
-			_set_status("Runtime error", "error")
+	else:
+		var v: Dictionary = validator.validate(editor.text)
+		if not v.ok:
+			for err in v.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Validation failed", "error")
 			step_mode = false
 			_re_enable_buttons()
 			return
-
-		_finish_pipeline(python_run_result.output, step_only)
+		
+	# start IPC server
+	var IPCServer = preload(Paths.IPC_SERVER)
+	_ipc_server = IPCServer.new()
+	if not _ipc_server.start():
+		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
+		_set_status("IPC failed", "error")
+		step_mode = false
+		_re_enable_buttons()
 		return
 
 	# C++ path
-	var cpp_validation: Dictionary = validator.validate(editor.text)
-	if not cpp_validation.ok:
-		for err in cpp_validation.errors:
-			log_error("line %d: %s" % [err.line, err.message])
-		_set_status("Validation failed", "error")
-		step_mode = false
-		_re_enable_buttons()
-		return
+	if current_language == Language.CPP:
+		var generated: Dictionary = generator.generate(editor.text)
+		current_line_offset = generated.line_offset
+		compiler.prepare_build_files(generated.generated_source, _ipc_server.port)
 
-	var generated: Dictionary = generator.generate(editor.text)
-	current_line_offset = generated.line_offset
-	compiler.prepare_build_files(generated.generated_source)
-
-	var build: Dictionary = compiler.compile_program()
-	if not build.ok:
-		log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
-		_set_status("Compile failed", "error")
-		step_mode = false
-		_re_enable_buttons()
-		return
-
-	var cpp_run_result: Dictionary = compiler.run_program()
-	if not cpp_run_result.ok:
-		log_error(cpp_run_result.output)
-		_set_status("Runtime error", "error")
-		step_mode = false
-		_re_enable_buttons()
-		return
-
-	_finish_pipeline(cpp_run_result.output, step_only)
-
-
-func _finish_pipeline(raw_output: String, step_only: bool) -> void:
-	var result: Dictionary = translator.translate_runtime_output(raw_output)
-	var commands: Array = result.commands
-	var normal_lines: Array = result.normal_output_lines
-	var warnings: Array = result.warnings
-
-	if normal_lines.size() > 0:
-		log_header("console output")
-		for line in normal_lines:
-			log_line(line)
-
-	if warnings.size() > 0:
-		log_header("warnings")
-		for w in warnings:
-			log_warning(w)
-
-	if step_only:
-		step_queue = commands
-		run_button.disabled = true
-		step_button.disabled = false
-		log_success("%d commands loaded — press Step to execute one at a time" % commands.size())
-		_set_status("Step mode — %d commands" % commands.size(), "")
+		var build: Dictionary = compiler.compile_program()
+		if not build.ok:
+			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
+			_set_status("Compile failed", "error")
+			step_mode = false
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+		_set_status("Compiled — launching...", "")
+		_subprocess_pid = compiler.start_program()
 	else:
-		log_header("executing")
-		for cmd in commands:
-			log_line("▶ %s" % cmd.get("type", "?"))
-		executor.execute(commands, player_node)
+		current_line_offset = 0
+		_subprocess_pid = py_pipeline.start(editor.text, _ipc_server.port)
+
+	if _subprocess_pid == -1:
+		log_error("Failed to launch subprocess.")
+		_set_status("Launch failed", "error")
+		step_mode = false
+		_ipc_server.stop()
+		_ipc_server = null
+		_re_enable_buttons()
+		return
+		
+	_set_status("Running...", "")
+	if not await _ipc_server.wait_for_connection(get_tree()):
+		log_error("Subprocess did not connect within 5 seconds.")
+		_set_status("Timeout", "error")
+		_stop_execution()
+		_re_enable_buttons()
+		return
+		
+	_ipc_active = true
+	log_header("executing")
+	
+	if step_mode:
+		_set_status("Step mode — press Step to begin", "")
+		step_button.disabled = false
+	else:
+		await _run_ipc_loop()
 
 
-# === status helper ===
+func _run_ipc_loop() -> void:
+	while _ipc_active:
+		var line: String = await _ipc_server.read_line(get_tree())
+
+		if not _ipc_active:
+			break
+
+		if line == "[CANCELLED]" or line == "[DISCONNECT]":
+			break
+
+		if line.begins_with("[CMD]"):
+			var cmd := line.trim_prefix("[CMD] ")
+			var src_line := -1
+			if " [LINE] " in cmd:
+				var parts := cmd.split(" [LINE] ")
+				cmd = parts[0].strip_edges()
+				src_line = int(parts[1].strip_edges())
+
+			await _execute_cmd(cmd, src_line)
+
+			if not _ipc_active:
+				break
+
+			_ipc_server.send("OK")
+
+			if step_mode:
+				log_line("✓ %s" % cmd.to_lower())
+				_set_status("Step mode — press Step", "")
+				step_button.disabled = false
+				await _step_continue
+				if not _ipc_active:
+					break
+
+		elif line.begins_with("[QUERY]"):
+			var query := line.trim_prefix("[QUERY] ")
+			if " [LINE] " in query:
+				query = query.split(" [LINE] ")[0].strip_edges()
+			var answer := _answer_query(query)
+			_ipc_server.send(answer)
+
+		elif line.begins_with("[PRINT]"):
+			log_line(line.trim_prefix("[PRINT] "))
+
+		elif line.begins_with("[ERROR]"):
+			log_error(line.trim_prefix("[ERROR] "))
+
+		elif line == "[DONE]":
+			break
+	
+	_ipc_loop_running = false
+	if _ipc_active:
+		_stop_execution()
+
+		run_button.disabled = true
+		step_button.disabled = true
+		_set_status("Done", "ok")
+
+
+func _execute_cmd(cmd: String, src_line: int) -> void:
+	_highlight_editor_line(src_line)
+	if not step_mode:
+		log_line("▶ %s" % cmd.to_lower())
+	if player_node == null:
+		return
+	match cmd:
+		"MOVE":
+			await player_node.move_forward()
+		"TURN_LEFT":
+			player_node.turn_left()
+			await get_tree().create_timer(0.1).timeout
+		"PICK_OBJECT":
+			player_node.pick_object()
+		"PUT_OBJECT":
+			player_node.put_object()
+
+
+func _answer_query(query: String) -> String:
+	if player_node == null or game_instance == null:
+		return "false"
+	var facing : String = player_node.facing
+	match query:
+		"FRONT_IS_CLEAR":  return _bool(_is_clear(facing))
+		"RIGHT_IS_CLEAR":  return _bool(_is_clear(_right_of(facing)))
+		"LEFT_IS_CLEAR":   return _bool(_is_clear(_left_of(facing)))
+		"WALL_IN_FRONT":   return _bool(not _is_clear(facing))
+		"WALL_ON_RIGHT":   return _bool(not _is_clear(_right_of(facing)))
+		"WALL_ON_LEFT":    return _bool(not _is_clear(_left_of(facing)))
+		"IS_FACING_NORTH": return _bool(facing == "north")
+		"AT_GOAL":         return _bool(game_instance.is_at_goal(player_node.grid_x, player_node.grid_y))
+		"OBJECT_HERE":     return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
+		"CARRIES_OBJECT":  return _bool(player_node.carried_object != "")
+	return "false"
+
+
+func _bool(value: bool) -> String:
+	return "true" if value else "false"
+
+func _is_clear(dir: String) -> bool:
+	var gx : int = player_node.grid_x
+	var gy : int = player_node.grid_y
+	var next := _next_pos(gx, gy, dir)
+	var wall_blocked: bool = game_instance.is_move_blocked(gx, gy, dir)
+	var in_bounds: bool    = game_instance.is_in_bounds(next.x, next.y)
+	return not wall_blocked and in_bounds
+
+func _next_pos(gx: int, gy: int, dir: String) -> Vector2i:
+	match dir:
+		"north": return Vector2i(gx,     gy + 1)
+		"south": return Vector2i(gx,     gy - 1)
+		"east":  return Vector2i(gx + 1, gy)
+		"west":  return Vector2i(gx - 1, gy)
+	return Vector2i(gx, gy)
+
+
+func _right_of(facing: String) -> String:
+	match facing:
+		"north": return "east"
+		"east":  return "south"
+		"south": return "west"
+		"west":  return "north"
+	return facing
+
+
+func _left_of(facing: String) -> String:
+	match facing:
+		"north": return "west"
+		"west":  return "south"
+		"south": return "east"
+		"east":  return "north"
+	return facing
+
 
 func _set_status(text: String, state: String) -> void:
 	status_label.text = text
 	match state:
-		"ok":
-			status_label.add_theme_color_override("font_color", Color(0.47, 0.87, 0.58))
-		"error":
-			status_label.add_theme_color_override("font_color", Color(0.88, 0.47, 0.47))
-		_:
-			status_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.81))
+		"ok":    status_label.add_theme_color_override("font_color", Color(0.47, 0.87, 0.58))
+		"error": status_label.add_theme_color_override("font_color", Color(0.88, 0.47, 0.47))
+		_:       status_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.81))
+
 
 func _re_enable_buttons() -> void:
 	run_button.disabled = false
