@@ -601,24 +601,54 @@ func is_at_goal(gx: int, gy: int) -> bool:
 	return false
 
 # === win condition ===
+# Returns true when every required object is present at its goal cell
+# Returns true if there are no object goals
+func are_goal_objects_satisfied() -> bool:
+	if not level_data.has("goal") or not level_data["goal"].has("objects"):
+		return true
+	var goal_objs: Dictionary = level_data["goal"]["objects"]
+	for key in goal_objs:
+		var required: Dictionary = goal_objs[key]
+		var placed: Dictionary = object_data.get(key, {})
+		for obj_name in required:
+			if int(placed.get(obj_name, 0)) < int(required[obj_name]):
+				return false
+	return true
+
+# Emits level_complete signal if player reached goal position
+# and are_goal_objects_satisfied is true
 func check_win_condition(gx: int, gy: int) -> void:
 	if not level_data.has("goal"):
 		return
 
 	var goal = level_data["goal"]
-
+	var at_position := false
+	
 	if goal.has("possible_final_positions"):
 		for pos in goal["possible_final_positions"]:
 			if typeof(pos) == TYPE_ARRAY and pos.size() >= 2:
 				if int(pos[0]) == gx and int(pos[1]) == gy:
-					level_complete.emit()
-					return
+					at_position = true
+					break
 
-	if goal.has("position"):
+	if not at_position and goal.has("position"):
 		var pos = goal["position"]
 		if typeof(pos) == TYPE_DICTIONARY:
 			if int(pos.get("x", -1)) == gx and int(pos.get("y", -1)) == gy:
-				level_complete.emit()
+				at_position = true
+	
+	# If no position requirement is defined, treat position as satisfied
+	if not goal.has("possible_final_positions") and not goal.has("position"):
+		at_position = true
+
+	if not at_position:
+		return
+
+	# --- object goal check ---
+	if not are_goal_objects_satisfied():
+		return
+
+	level_complete.emit()
 
 
 # === objects ===
@@ -660,7 +690,10 @@ func object_grid_position(x_pos: int, y_pos: int) -> Vector2:
 
 func _build_objects() -> void:
 	_clear_children(objects_node)
-
+	
+	# Render goal-object outlines first so actual objects draw on top
+	_build_goal_object_markers()
+	
 	for key in object_data.keys():
 		var parts = key.split(",")
 		if parts.size() != 2:
@@ -696,6 +729,58 @@ func _spawn_object(object_name: String, gx: int, gy: int, index: int) -> void:
 
 	objects_node.add_child(marker)
 
+
+## Renders outlined diamond markers for every object required by the level goal.
+## Unsatisfied slots show in the object's colour; satisfied slots turn green.
+## Called before actual objects so markers sit visually behind them.
+func _build_goal_object_markers() -> void:
+	if not level_data.has("goal") or not level_data["goal"].has("objects"):
+		return
+	var goal_objs: Dictionary = level_data["goal"]["objects"]
+	for key in goal_objs:
+		var parts = key.split(",")
+		if parts.size() != 2:
+			continue
+		var gx := int(parts[0])
+		var gy := int(parts[1])
+		var required: Dictionary = goal_objs[key]
+		var placed: Dictionary = object_data.get(key, {})
+		for obj_name in required:
+			var needed := int(required[obj_name])
+			var have  := int(placed.get(obj_name, 0))
+			for i in range(needed):
+				_spawn_goal_marker(obj_name, gx, gy, i, i < have)
+
+
+## Spawns a single outlined diamond at a goal cell.
+## satisfied = the matching object has already been placed here.
+func _spawn_goal_marker(object_name: String, gx: int, gy: int, index: int, satisfied: bool) -> void:
+	var size := 70.0
+	var outline := Line2D.new()
+	outline.points = PackedVector2Array([
+		Vector2(0, -size),
+		Vector2(size, 0),
+		Vector2(0, size),
+		Vector2(-size, 0),
+		Vector2(0, -size),
+	])
+	outline.width = 6.0
+
+	var col: Color
+	if satisfied:
+		col = Color(0.35, 0.9, 0.45, 0.55)  # dim green when slot is filled
+	else:
+		col = _get_object_color(object_name)
+		col.a = 0.75                          # object colour while slot is empty
+
+	outline.default_color = col
+
+	var grid_pos = object_grid_position(gx, gy + 1)
+	outline.position = Vector2i(grid_pos[0] + offset_x, grid_pos[1] + offset_y)
+	outline.z_index = 0
+	objects_node.add_child(outline)
+
+
 func _get_object_color(object_name: String) -> Color:
 	match object_name:
 		"apple":
@@ -705,7 +790,7 @@ func _get_object_color(object_name: String) -> Color:
 		"carrot":
 			return Color(1.0, 0.5, 0.1)
 		"star":
-			return Color(1.0, 1.0, 0.3)
+			return Color(0.922, 1.0, 0.698, 1.0)
 		"token":
 			return Color(0.3, 0.8, 1.0)
 		_:
