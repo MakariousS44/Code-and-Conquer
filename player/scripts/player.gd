@@ -3,43 +3,72 @@ extends Node2D
 signal lose_triggered(reason: String)
 
 # === player state ===
+# Array ordered to exactly match your rotation_step integers
+# 0 = East, 1 = South, 2 = West, 3 = North
+const DIRS = ["east", "south", "west", "north"]
 # logical grid position + facing direction
 var grid_x: int = 1
 var grid_y: int = 1
 var facing: String = "north"
 var carried_object: String = "" 
 var _has_lost: bool = false
+var current_tween: Tween
 
 func _ready() -> void:
 	pass
 	
 
+func update_animation(is_running: bool = false) -> void:
+	var world = _get_world()
+	var camera_offset = 0
+	
+	# Fetch the current rotation step from the world
+	if world != null and world.has_method("get_rotation_step"):
+		camera_offset = world.get_rotation_step()
+		
+	# 1. Find the player's logical direction index (0 to 3)
+	var current_idx = DIRS.find(facing)
+	
+	# 2. Apply the camera offset. Modulo (%) 4 safely wraps it around.
+	var visual_idx = (current_idx + camera_offset) % 4
+	var visual_facing = DIRS[visual_idx]
+	
+	# 3. Construct and play the animation
+	var prefix = "Run_" if is_running else "Idle_"
+	var suffix = ""
+	
+	match visual_facing:
+		"north": suffix = "N"
+		"east":  suffix = "E"
+		"south": suffix = "S"
+		"west":  suffix = "W"
+		
+	$AnimatedSprite2D.play(prefix + suffix)
+	
 ## Initialize player at proper location and face direction
-func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, has_moved: bool) -> void:
+func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, is_rotating: bool) -> void:
 	_has_lost = false
 	carried_object = ""
 	
-	if not has_moved:
+	# Prevent the tween from fighting the sudden camera snap
+	if current_tween and current_tween.is_running():
+		current_tween.kill()
+		
+	# Snap to the rotated coordinates instantly
+	position = world_pos
+	
+	if not is_rotating:
+		# BRAND NEW LEVEL: Reset logical variables
+		_has_lost = false
+		carried_object = ""
 		grid_x = robot_data.get("x", 1)
 		grid_y = robot_data.get("y", 1)
+		
+		var start_face: int = robot_data.get("_orientation", 1)
+		facing = DIRS[start_face] 
 	
-	# Starting numerical player facing
-	var start_face: int = robot_data.get("_orientation", 1)
-	match start_face:
-		0:
-			facing = "east"
-			$AnimatedSprite2D.play("Idle_E")
-		1:
-			facing = "north"
-			$AnimatedSprite2D.play("Idle_N")
-		2:
-			facing = "west"
-			$AnimatedSprite2D.play("Idle_W")
-		3:
-			facing = "east"
-			$AnimatedSprite2D.play("Idle_E")
-
-	position = world_pos
+	# Whether brand new or just rotating, update the visual sprite
+	update_animation(false)
 
 ## Check if we are inside a parent and gives node acces
 func _get_world() -> Node:
@@ -55,20 +84,12 @@ func move_forward() -> void:
 	var next_x = grid_x
 	var next_y = grid_y
 	
-	# Dermine its next grid position depending on where its facing
+	# Determine its next grid position logically
 	match facing:
-		"east":
-			next_x += 1
-			$AnimatedSprite2D.play("Run_E")
-		"west":
-			next_x -= 1
-			$AnimatedSprite2D.play("Run_W")
-		"north":
-			next_y += 1  
-			$AnimatedSprite2D.play("Run_N")
-		"south":
-			next_y -= 1  
-			$AnimatedSprite2D.play("Run_S")
+		"east": next_x += 1
+		"west": next_x -= 1
+		"north": next_y += 1
+		"south": next_y -= 1
 
 	# Lose Condition ----------------------------------------
 	# LOSE: if the player attempts to leave the playable floor
@@ -87,24 +108,20 @@ func move_forward() -> void:
 	grid_x = next_x
 	grid_y = next_y
 
-	# Obtains its next logical coordinate position and moves
-	if world.has_method("grid_position"):
-		var target_pos: Vector2 = world.grid_position(grid_x, grid_y)
-		var tween = create_tween()
+	# Play running animation
+	update_animation(true)
+
+	# Obtain next logical coordinate position and move
+	if world.has_method("player_grid_position"):
+		var target_pos: Vector2 = world.player_grid_position(grid_x, grid_y)
 		
-		tween.tween_property(self, "position", target_pos, 0.5)
-		await tween.finished
+		# Assign it to the class variable so initialize_from_level can stop it if needed
+		current_tween = create_tween()
+		current_tween.tween_property(self, "position", target_pos, 0.5)
+		await current_tween.finished
 	
 	# Stop running animation
-	match facing:
-		"east":
-			$AnimatedSprite2D.play("Idle_E")
-		"west":
-			$AnimatedSprite2D.play("Idle_W")
-		"north":
-			$AnimatedSprite2D.play("Idle_N")
-		"south":
-			$AnimatedSprite2D.play("Idle_S")
+	update_animation(false)
 
 	if world.has_method("check_win_condition"):
 		world.check_win_condition(grid_x, grid_y)
@@ -121,21 +138,12 @@ func _trigger_lose(reason: String) -> void:
 # just changes facing for now
 # later could also rotate sprite/marker visually if desired
 func turn_left() -> void:
-	match facing:
-		"east":
-			facing = "north"
-			$AnimatedSprite2D.play("Idle_N")
-		"north":
-			facing = "west"
-			$AnimatedSprite2D.play("Idle_W")
-		"west":
-			facing = "south"
-			$AnimatedSprite2D.play("Idle_S")
-		"south":
-			facing = "east"
-			$AnimatedSprite2D.play("Idle_E")
-
-# IMPORTANT: No turn right functions
+	var current_idx = DIRS.find(facing)
+	# -1 goes counter-clockwise. Add 4 before modulo to prevent negative indexes.
+	var new_idx = (current_idx - 1 + 4) % 4 
+	facing = DIRS[new_idx]
+	
+	update_animation() # Updates the Idle animation automatically
 
 
 # === object interaction stubs ===

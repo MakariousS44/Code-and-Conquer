@@ -298,6 +298,14 @@ text = "Ready"
 layout_mode = 2
 alignment = 2
 
+[node name="LeftRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1748109493]
+layout_mode = 2
+text = "Turn Left"
+
+[node name="RightRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=408807103]
+layout_mode = 2
+text = "Turn Right"
+
 [node name="LanguageSelector" type="OptionButton" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=666666661]
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
@@ -350,7 +358,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_fonts/font = ExtResource("3_hu8hj")
 theme_override_font_sizes/font_size = 15
-theme_override_styles/panel = SubResource("StyleBoxFlat_editor")
 gutters_draw_line_numbers = true
 gutters_line_numbers_min_digits = 2
 gutters_draw_fold_gutter = true
@@ -404,7 +411,7 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
 handle_input_locally = false
-size = Vector2i(790, 683)
+size = Vector2i(790, 679)
 render_target_update_mode = 4
 
 [node name="LoseOverlay" type="Control" parent="." unique_id=800000001]
@@ -538,3 +545,6 @@ theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton" to="." method="l_rotate_button_up"]
+[connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton" to="." method="r_rotate_button_up"]
