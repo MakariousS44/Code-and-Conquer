@@ -2,6 +2,7 @@
 
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://assets/new_theme.tres" id="1_lbqgw"]
 [ext_resource type="Script" uid="uid://ql66d3cwpege" path="res://workstation/scripts/workstation.gd" id="2_0u7pg"]
+[ext_resource type="StyleBox" uid="uid://dblkeatk0cpe6" path="res://assets/simple_btn.tres" id="3_0u7pg"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
@@ -253,7 +254,7 @@ theme_override_colors/font_color = Color(0.6, 0.5, 1, 1)
 theme_override_font_sizes/font_size = 16
 text = "Code & Conquer"
 
-[node name="Divider1" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111112]
+[node name="Divider2" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=676676868]
 layout_mode = 2
 
 [node name="LeftButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=222222221]
@@ -296,24 +297,37 @@ text = "Ready"
 
 [node name="RightButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=555555551]
 layout_mode = 2
+theme_override_constants/separation = 4
 alignment = 2
 
 [node name="LeftRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1748109493]
 layout_mode = 2
+theme_override_styles/normal = ExtResource("3_0u7pg")
 text = "Turn Left"
 
 [node name="RightRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=408807103]
 layout_mode = 2
+theme_override_styles/normal = ExtResource("3_0u7pg")
 text = "Turn Right"
 
 [node name="LibraryButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1410462227]
 layout_mode = 2
+theme_override_styles/normal = ExtResource("3_0u7pg")
 text = "Library"
 
 [node name="LanguageSelector" type="OptionButton" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=666666661]
 custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = ExtResource("3_0u7pg")
+
+[node name="Divider1" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111112]
+layout_mode = 2
+
+[node name="MainMenuButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=383666023]
+layout_mode = 2
+theme_override_styles/normal = ExtResource("3_0u7pg")
+text = "Main Menu"
 
 [node name="WorkspaceSplit" type="HSplitContainer" parent="RootMargin/MainColumn" unique_id=1965162052]
 layout_mode = 2
@@ -608,3 +622,4 @@ text = "Main Menu"
 [connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton" to="." method="l_rotate_button_up"]
 [connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton" to="." method="r_rotate_button_up"]
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LibraryButton" to="." method="_on_library_button_pressed"]
+[connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton" to="." method="_on_main_menu_button_pressed"]

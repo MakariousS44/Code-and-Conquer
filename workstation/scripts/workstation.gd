@@ -12,7 +12,7 @@ extends Control
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
-
+@onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
 # === popups ===
 @onready var lose_overlay: Control = $LoseOverlay
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
@@ -639,3 +639,7 @@ func _on_library_button_pressed() -> void:
 		library_overlay.visible = false
 	else:
 		library_overlay.visible = true
+
+
+func _on_main_menu_button_pressed() -> void:
+	_on_go_to_menu()
