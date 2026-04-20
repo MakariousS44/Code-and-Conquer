@@ -7,22 +7,22 @@ signal lose_triggered(reason: String)
 var grid_x: int = 1
 var grid_y: int = 1
 var facing: String = "north"
-var carried_object: String = "" 
+var carried_object: String = ""
 var _has_lost: bool = false
 
 func _ready() -> void:
 	pass
-	
+
 
 ## Initialize player at proper location and face direction
 func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, has_moved: bool) -> void:
 	_has_lost = false
 	carried_object = ""
-	
+
 	if not has_moved:
 		grid_x = robot_data.get("x", 1)
 		grid_y = robot_data.get("y", 1)
-	
+
 	# Starting numerical player facing
 	var start_face: int = robot_data.get("_orientation", 1)
 	match start_face:
@@ -36,10 +36,11 @@ func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, has_moved
 			facing = "west"
 			$AnimatedSprite2D.play("Idle_W")
 		3:
-			facing = "east"
-			$AnimatedSprite2D.play("Idle_E")
+			facing = "south"
+			$AnimatedSprite2D.play("Idle_S")
 
 	position = world_pos
+
 
 ## Check if we are inside a parent and gives node acces
 func _get_world() -> Node:
@@ -48,14 +49,15 @@ func _get_world() -> Node:
 		return null
 	return world_root.get_parent()
 
+
 # ========= Movement =========
 ## Advances the player one step to where its facing
 func move_forward() -> void:
 	var world = _get_world()
 	var next_x = grid_x
 	var next_y = grid_y
-	
-	# Dermine its next grid position depending on where its facing
+
+	# Determine its next grid position depending on where its facing
 	match facing:
 		"east":
 			next_x += 1
@@ -64,10 +66,10 @@ func move_forward() -> void:
 			next_x -= 1
 			$AnimatedSprite2D.play("Run_W")
 		"north":
-			next_y += 1  
+			next_y += 1
 			$AnimatedSprite2D.play("Run_N")
 		"south":
-			next_y -= 1  
+			next_y -= 1
 			$AnimatedSprite2D.play("Run_S")
 
 	# Lose Condition ----------------------------------------
@@ -91,10 +93,9 @@ func move_forward() -> void:
 	if world.has_method("grid_position"):
 		var target_pos: Vector2 = world.grid_position(grid_x, grid_y)
 		var tween = create_tween()
-		
 		tween.tween_property(self, "position", target_pos, 0.5)
 		await tween.finished
-	
+
 	# Stop running animation
 	match facing:
 		"east":
@@ -105,6 +106,9 @@ func move_forward() -> void:
 			$AnimatedSprite2D.play("Idle_N")
 		"south":
 			$AnimatedSprite2D.play("Idle_S")
+
+	if world.has_method("handle_player_enter_tile"):
+		world.handle_player_enter_tile(grid_x, grid_y, self)
 
 	if world.has_method("check_win_condition"):
 		world.check_win_condition(grid_x, grid_y)
@@ -164,5 +168,6 @@ func put_object() -> void:
 		return
 
 	if world.has_method("place_object_at"):
-		world.place_object_at(grid_x, grid_y, carried_object)
-		carried_object = ""
+		var placed = world.place_object_at(grid_x, grid_y, carried_object)
+		if placed:
+			carried_object = ""
