@@ -16,6 +16,8 @@ var LevelsOpen := false
 
 var selected_level_path: String = \"\"
 
+const CUSTOM_LEVELS_DIR := \"user://custom_levels/\"
+
 @onready var level_file_dialog: FileDialog = $UploadMarginContainer/VBoxContainer/FileDialog
 
 func _ready() -> void:
@@ -75,8 +77,34 @@ func _on_upload_level_button_pressed() -> void:
 	level_file_dialog.popup_centered_ratio(0.75)
 
 func _on_level_file_selected(path: String) -> void:
-	selected_level_path = path
-	print(\"Selected level file: \", selected_level_path)
+	print(\"Selected level file: \", path)
+
+	DirAccess.make_dir_recursive_absolute(CUSTOM_LEVELS_DIR)
+
+	var file_name := path.get_file()
+	var dest_path := CUSTOM_LEVELS_DIR.path_join(file_name)
+
+	var source_file := FileAccess.open(path, FileAccess.READ)
+	if source_file == null:
+		push_error(\"Could not open selected file: \" + path)
+		return
+
+	var contents := source_file.get_as_text()
+	source_file.close()
+
+	var dest_file := FileAccess.open(dest_path, FileAccess.WRITE)
+	if dest_file == null:
+		push_error(\"Could not save imported level to: \" + dest_path)
+		return
+
+	dest_file.store_string(contents)
+	dest_file.close()
+
+	selected_level_path = dest_path
+	SelectedLevel.path = dest_path
+
+	print(\"Imported level saved to: \", dest_path)
+	print(\"Real OS path: \", ProjectSettings.globalize_path(dest_path))
 
 func _on_play_button_pressed() -> void:
 	$StartSound.play()
@@ -105,10 +133,25 @@ func _on_play_button_pressed() -> void:
 
 	get_tree().change_scene_to_file(\"res://workstation/scenes/workstation.tscn\")
 
-
 func _on_upload_pressed() -> void:
-	pass # Replace with function body.
+	pass
 "
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nu78t"]
+bg_color = Color(0.03, 0.05, 0.12, 0.78)
+border_width_left = 8
+border_width_top = 8
+border_width_right = 8
+border_width_bottom = 8
+border_color = Color(0.21883148, 1.3877112, 1.478941, 1)
+border_blend = true
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+corner_detail = 20
+shadow_color = Color(0.544, 1.387, 1.479, 1)
+anti_aliasing_size = 4.9
 
 [node name="main_menu" type="Control" unique_id=1538571169]
 layout_mode = 3
@@ -126,6 +169,67 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="PopupMenu" type="Popup" parent="MenuBG" unique_id=1886837316]
+oversampling_override = 1.0
+initial_position = 2
+size = Vector2i(500, 300)
+visible = true
+
+[node name="Control" type="Control" parent="MenuBG/PopupMenu" unique_id=1475509610]
+light_mask = 0
+custom_minimum_size = Vector2(300, 190)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ColorRect" type="Panel" parent="MenuBG/PopupMenu/Control" unique_id=2038610881]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_nu78t")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/PopupMenu/Control" unique_id=324351412]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=704104408]
+top_level = true
+custom_minimum_size = Vector2(220, 40)
+layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 1
+
+[node name="PlayButton" type="Button" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=1443204992]
+top_level = true
+custom_minimum_size = Vector2(0, 40)
+layout_direction = 3
+layout_mode = 2
+text = "Play
+"
+
+[node name="MenuButton" type="OptionButton" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=1253441802]
+top_level = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_vertical = 4
+size_flags_stretch_ratio = 0.0
+script = ExtResource("5_1iqtg")
+
+[node name="CloseButton" type="Button" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=1554100481]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
 
 [node name="TextureRect" type="TextureRect" parent="MenuBG" unique_id=1629830998]
 layout_mode = 0
@@ -174,6 +278,7 @@ layout_mode = 2
 texture = ExtResource("2_mkuju")
 
 [node name="StartMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=49013344]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -188,14 +293,17 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/StartMarginContainer" unique_id=1656775911]
+visible = false
 layout_mode = 2
 
 [node name="StartButton" type="Button" parent="MenuBG/StartMarginContainer/VBoxContainer" unique_id=1499396833]
+visible = false
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"FlatButton"
 
 [node name="OptionsMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1557115278]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -210,14 +318,17 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/OptionsMarginContainer" unique_id=516003802]
+visible = false
 layout_mode = 2
 
 [node name="OptionsButton" type="Button" parent="MenuBG/OptionsMarginContainer/VBoxContainer" unique_id=2013621979]
+visible = false
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"FlatButton"
 
 [node name="QuitMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1129521710]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -242,36 +353,42 @@ text = "
 "
 
 [node name="OptionsTab" type="TextureRect" parent="MenuBG" unique_id=1632772630]
+visible = false
 layout_mode = 0
 offset_left = 1280.0
 offset_right = 1880.0
 offset_bottom = 720.0
 
 [node name="LevelsTab" type="TextureRect" parent="MenuBG" unique_id=2029502849]
-layout_mode = 0
-offset_left = -600.0
+visible = false
+visibility_layer = 751
+z_as_relative = false
+layout_mode = 1
+anchors_preset = -1
+anchor_left = -0.469
+anchor_right = -0.469
+offset_left = 0.32000732
+offset_right = 600.32
 offset_bottom = 720.0
 
-[node name="MarginContainer" type="MarginContainer" parent="MenuBG/LevelsTab" unique_id=227244431]
+[node name="PanelContainer" type="PanelContainer" parent="MenuBG/LevelsTab" unique_id=1366467947]
+visible = false
+clip_children = 2
 layout_mode = 1
-anchors_preset = 6
-anchor_left = 1.0
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = -252.0
-offset_top = -20.0
-offset_right = -90.0
-offset_bottom = 20.0
-grow_horizontal = 0
-grow_vertical = 2
+offset_right = 591.0
+offset_bottom = 716.0
 
-[node name="PlayButton" type="Button" parent="MenuBG/LevelsTab/MarginContainer" unique_id=1443204992]
+[node name="MarginContainer" type="MarginContainer" parent="MenuBG/LevelsTab/PanelContainer" unique_id=227244431]
+visible = false
+clip_children = 2
 layout_mode = 2
-text = "Play
-"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/LevelsTab/PanelContainer/MarginContainer" unique_id=1382655629]
+visible = false
+layout_mode = 2
 
 [node name="MarginContainer2" type="MarginContainer" parent="MenuBG/LevelsTab" unique_id=1928199729]
+visible = false
 layout_mode = 1
 anchors_preset = -1
 anchor_right = 0.093
@@ -280,10 +397,6 @@ offset_left = 344.0
 offset_top = 392.0
 offset_right = 463.2
 offset_bottom = 392.36
-
-[node name="MenuButton" type="OptionButton" parent="MenuBG/LevelsTab/MarginContainer2" unique_id=1253441802]
-layout_mode = 2
-script = ExtResource("5_1iqtg")
 
 [node name="StartSound" type="AudioStreamPlayer" parent="." unique_id=398680422]
 stream = ExtResource("2_suspn")
@@ -310,6 +423,7 @@ mouse_filter = 2
 color = Color(0, 0, 0, 0.003921569)
 
 [node name="UploadMarginContainer" type="MarginContainer" parent="." unique_id=1445314058]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -324,18 +438,20 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="UploadMarginContainer" unique_id=1383072699]
+visible = false
 layout_mode = 2
 
 [node name="Upload" type="Button" parent="UploadMarginContainer/VBoxContainer" unique_id=2111853005]
+visible = false
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"FlatButton"
 
 [node name="FileDialog" type="FileDialog" parent="UploadMarginContainer/VBoxContainer" unique_id=2018251452]
 
+[connection signal="pressed" from="MenuBG/PopupMenu/Control/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
+[connection signal="item_selected" from="MenuBG/PopupMenu/Control/VBoxContainer/MenuButton" to="MenuBG/PopupMenu/Control/VBoxContainer/MenuButton" method="_on_item_selected"]
 [connection signal="pressed" from="MenuBG/StartMarginContainer/VBoxContainer/StartButton" to="." method="_on_button_start_pressed"]
 [connection signal="pressed" from="MenuBG/OptionsMarginContainer/VBoxContainer/OptionsButton" to="." method="_on_options_button_pressed"]
 [connection signal="pressed" from="MenuBG/QuitMarginContainer/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
-[connection signal="pressed" from="MenuBG/LevelsTab/MarginContainer/PlayButton" to="." method="_on_play_button_pressed"]
-[connection signal="item_selected" from="MenuBG/LevelsTab/MarginContainer2/MenuButton" to="MenuBG/LevelsTab/MarginContainer2/MenuButton" method="_on_item_selected"]
 [connection signal="pressed" from="UploadMarginContainer/VBoxContainer/Upload" to="." method="_on_upload_level_button_pressed"]
