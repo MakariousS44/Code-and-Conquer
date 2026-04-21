@@ -292,7 +292,9 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 				for cell in all_floor_cells:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]-1,cell[1]+1))
 					if other_wall == Vector2i(6,1):
-						WallTiles.set_cell(Vector2i(cell[0]-1,cell[1]), 44, Vector2i(3,2))
+						var corner_pos = Vector2i(cell[0]-1,cell[1])
+						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(7,1):
+							WallTiles.set_cell(corner_pos, 44, Vector2i(3,2))
 			elif rotation_state == 2:
 				#find all cell that id
 				var all_floor_cells: Array[Vector2i] = WallTiles.get_used_cells_by_id(44, Vector2i(7,1))
@@ -301,7 +303,9 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 				for cell in all_floor_cells:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]+1,cell[1]+1))
 					if other_wall == Vector2i(5,1):
-						WallTiles.set_cell(Vector2i(cell[0]+1,cell[1]), 44, Vector2i(1,2))
+						var corner_pos = Vector2i(cell[0]+1,cell[1])
+						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(7,1):
+							WallTiles.set_cell(corner_pos, 44, Vector2i(1,2))
 			elif rotation_state == 3:
 				#find all cell that id
 				var all_floor_cells: Array[Vector2i] = WallTiles.get_used_cells_by_id(44, Vector2i(4,1))
@@ -310,7 +314,9 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 				for cell in all_floor_cells:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]+1,cell[1]-1))
 					if other_wall == Vector2i(5,1):
-						WallTiles.set_cell(Vector2i(cell[0]+1,cell[1]), 44, Vector2i(0,2))
+						var corner_pos = Vector2i(cell[0]+1,cell[1])
+						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(4,1):
+							WallTiles.set_cell(corner_pos, 44, Vector2i(0,2))
 			else:
 				#find all cell that id
 				var all_floor_cells: Array[Vector2i] = WallTiles.get_used_cells_by_id(44, Vector2i(4,1))
@@ -319,7 +325,9 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 				for cell in all_floor_cells:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]-1,cell[1]-1))
 					if other_wall == Vector2i(6,1):
-						WallTiles.set_cell(Vector2i(cell[0]-1,cell[1]), 44, Vector2i(2,2))
+						var corner_pos = Vector2i(cell[0]-1,cell[1])
+						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(4,1):
+							WallTiles.set_cell(corner_pos, 44, Vector2i(2,2))
 
 	else:
 		push_warning("JSON loaded, but 'walls' keys were missing!")
