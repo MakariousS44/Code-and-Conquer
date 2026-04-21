@@ -402,6 +402,7 @@ texture = ExtResource("2_6hyfw")
 expand_mode = 1
 
 [node name="CloseButton" type="Button" parent="MenuBG/TextureRect" unique_id=1730237620]
+visible = false
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 0
 offset_right = 69.0
