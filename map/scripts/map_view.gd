@@ -719,7 +719,7 @@ func _build_objects() -> void:
 
 			for i in range(count):
 				print(object_name, ", ", gx, ", ", gy, ", ", i)
-				_spawn_object(object_name, gx, gy, i)
+				_spawn_object(object_name, gx, gy)
 
 		var is_goal_tile : bool = level_data.has("goal") \
 			and level_data["goal"].has("objects") \
@@ -727,7 +727,7 @@ func _build_objects() -> void:
 		if not is_goal_tile:
 			_add_object_count_label(gx, gy, tile_objects)
 
-func _spawn_object(object_name: String, gx: int, gy: int, index: int) -> void:
+func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 	var marker := Polygon2D.new()
 
 	marker.polygon = PackedVector2Array([
@@ -739,7 +739,7 @@ func _spawn_object(object_name: String, gx: int, gy: int, index: int) -> void:
 
 	marker.color = _get_object_color(object_name)
 	var grid_pos = object_grid_position(gx, gy+1)
-	marker.position = Vector2i(grid_pos[0] + offset_x, grid_pos[1] + offset_y)
+	marker.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
 	marker.z_index = 0
 	marker.y_sort_enabled = true
 
@@ -766,14 +766,14 @@ func _build_goal_object_markers() -> void:
 			if object_data.has(key) and object_data[key].has(obj_name):
 				have = int(object_data[key][obj_name])
 			for i in range(needed):
-				_spawn_goal_marker(obj_name, gx, gy, i, i < have)
+				_spawn_goal_marker(obj_name, gx, gy, i < have)
 			
 			_add_goal_count_label(gx, gy, have, needed)
 
 
 ## Spawns a single outlined diamond at a goal cell.
 ## satisfied = the matching object has already been placed here.
-func _spawn_goal_marker(object_name: String, gx: int, gy: int, index: int, satisfied: bool) -> void:
+func _spawn_goal_marker(object_name: String, gx: int, gy: int, satisfied: bool) -> void:
 	var size := 70.0
 	var outline := Line2D.new()
 	outline.points = PackedVector2Array([
@@ -795,7 +795,7 @@ func _spawn_goal_marker(object_name: String, gx: int, gy: int, index: int, satis
 	outline.default_color = col
 
 	var grid_pos = object_grid_position(gx, gy + 1)
-	outline.position = Vector2i(grid_pos[0] + offset_x, grid_pos[1] + offset_y)
+	outline.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
 	outline.z_index = 0
 	objects_node.add_child(outline)
 
@@ -902,41 +902,6 @@ func place_object_at(gx: int, gy: int, object_name: String) -> void:
 	object_data[key][object_name] += 1
 	_build_objects()
 
-func handle_player_enter_tile(gx: int, gy: int, player) -> void:
-	var tile_objects: Dictionary = get_objects_at(gx, gy)
-
-	for object_name in tile_objects.keys():
-		match object_name:
-			"spike":
-				if player.has_method("_trigger_lose"):
-					player._trigger_lose("You lose: stepped on spikes.")
-			"banana":
-				# probably nothing on enter
-				pass
-			_:
-				pass
-
-func handle_pick_attempt(gx: int, gy: int, player) -> bool:
-	var tile_objects: Dictionary = get_objects_at(gx, gy)
-
-	if tile_objects.is_empty():
-		return false  # nothing to pick
-
-	for object_name in tile_objects.keys():
-		if object_name == "rock":
-			return false  # blocked
-
-	return true  # otherwise allowed
-
-func handle_place_attempt(gx: int, gy: int, object_name: String, player) -> bool:
-	# return false if placing should be blocked
-	match object_name:
-		"banana":
-			return true
-		"apple":
-			return true
-		_:
-			return true
 
 func tile_has_any_object(gx: int, gy: int) -> bool:
 	var tile_objects: Dictionary = get_objects_at(gx, gy)
