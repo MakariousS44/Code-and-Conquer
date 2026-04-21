@@ -600,13 +600,12 @@ text = "Your robot reached the goal!"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="WinButtons" type="HBoxContainer" parent="WinOverlay/WinCard/WinContent" unique_id=900000006]
+[node name="WinButtons" type="VBoxContainer" parent="WinOverlay/WinCard/WinContent" unique_id=742020946]
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
 
 [node name="WinRetryButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000007]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.6, 1, 0.7, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_green")
@@ -614,10 +613,30 @@ text = "Play Again"
 
 [node name="WinMenuButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000009]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[node name="ReportButtons" type="HBoxContainer" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="PrintButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=1841593373]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Print Report"
+
+[node name="CopyButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=852844279]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Clipboard"
+
+[node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
 
 [connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton" to="." method="l_rotate_button_up"]
 [connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton" to="." method="r_rotate_button_up"]

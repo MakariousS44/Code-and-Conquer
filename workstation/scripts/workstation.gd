@@ -14,14 +14,24 @@ extends Control
 @onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
 @onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
 
-# === popups ===
+# Popups -------------------------------------------+
+# Lose overlay
 @onready var lose_overlay: Control = $LoseOverlay
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
+@onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
+
+# Win overlay
 @onready var win_overlay: Control = $WinOverlay
 @onready var win_retry_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinRetryButton
-@onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
 @onready var win_menu_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinMenuButton
+@onready var win_report_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/PrintButton
+@onready var win_clipboard_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/CopyButton
+@onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
+var pending_report_text: String = ""
+
+
+# Library overlay
 @onready var library_overlay: Control = $LibraryOverlay
 
 # === execution components ===
@@ -60,6 +70,7 @@ signal _step_continue
 var current_line_offset: int = 0
 var _is_handling_lose: bool = false
 
+var global_level_name := ""
 
 func _ready() -> void:
 	_set_status("Ready", "")
@@ -69,7 +80,7 @@ func _ready() -> void:
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
-
+		
 	run_button.pressed.connect(_on_run_button_pressed)
 	step_button.pressed.connect(_on_step_button_pressed)
 	reset_button.pressed.connect(_on_reset_button_pressed)
@@ -77,6 +88,16 @@ func _ready() -> void:
 	win_retry_button.pressed.connect(_on_win_retry)
 	lose_menu_button.pressed.connect(_on_go_to_menu)
 	win_menu_button.pressed.connect(_on_go_to_menu)
+	win_report_button.pressed.connect(_on_win_report_save)
+	win_clipboard_button.pressed.connect(_on_win_report_copy)
+	
+	report_save_dialog.hide()
+	report_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	report_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	report_save_dialog.clear_filters()
+	report_save_dialog.add_filter("*.txt ; Text Report")
+	if not report_save_dialog.file_selected.is_connected(_on_report_save_selected):
+		report_save_dialog.file_selected.connect(_on_report_save_selected)
 
 	if rotate_left_btn != null and not rotate_left_btn.pressed.is_connected(l_rotate_button_up):
 		rotate_left_btn.pressed.connect(l_rotate_button_up)
@@ -118,6 +139,7 @@ func _load_level_scene() -> void:
 	# load the level definition from disk
 	var level_path := ""
 
+
 	if SelectedLevel.path.strip_edges() != "":
 		level_path = SelectedLevel.path
 		print("Using SelectedLevel.path: ", level_path)
@@ -132,6 +154,7 @@ func _load_level_scene() -> void:
 		push_error("Level file does not exist: " + level_path)
 		return
 
+	global_level_name = level_path
 	var raw: Dictionary = level_definition.load(level_path)
 
 	# Old level loader line for testing
@@ -702,3 +725,35 @@ func _on_library_button_pressed() -> void:
 
 func _on_main_menu_button_pressed() -> void:
 	_on_go_to_menu()
+
+func _build_win_report() -> String:
+	var lang_name := "C++" if current_language == Language.CPP else "Python"
+	var level_name := global_level_name
+	var report := ""
+	report += "Code & Conquer - Win Report\n"
+	report += "Language: %s\n" % lang_name
+	report += "Level: %s\n" % level_name
+	report += "Time: %s\n\n" % Time.get_datetime_string_from_system()
+	report += "Player Code:\n"
+	report += editor.text
+	return report
+	
+func _on_win_report_copy() -> void:
+	var report := _build_win_report()
+	DisplayServer.clipboard_set(report)
+	log_success("Report copied to clipboard.")
+	
+func _on_win_report_save() -> void:
+	pending_report_text = _build_win_report()
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace(" ", "")
+	report_save_dialog.current_file = "report%s.txt" % stamp
+	report_save_dialog.popup_centered_ratio(0.75)
+	
+func _on_report_save_selected(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		log_error("Could not save report to: " + path)
+		return
+	file.store_string(pending_report_text)
+	file.close()
+	log_success("Report saved to: " + path)
