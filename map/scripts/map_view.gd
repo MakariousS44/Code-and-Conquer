@@ -10,6 +10,8 @@ signal level_complete
 @onready var WallTiles: TileMapLayer = $WorldRoot/WallMapLayer
 
 # ============ Global Values ============
+const LABEL_FONT_PATH := "res://assets/fonts/ttf/FiraCode-Bold.ttf"
+
 var level_data: Dictionary = {}
 var object_data: Dictionary = {}
 var world_x_size : int = 10
@@ -29,14 +31,8 @@ const chunk_size = 2
 # runs when this scene is instantiated into the tree
 # this scene owns the camera, so it configures it here
 func _ready() -> void:
-	if EventManager != null:
-		if not EventManager.rotate_camera_left.is_connected(rotate_world_left):
-			EventManager.rotate_camera_left.connect(rotate_world_left)
-
-		if not EventManager.rotate_camera_right.is_connected(rotate_world_right):
-			EventManager.rotate_camera_right.connect(rotate_world_right)
-	else:
-		push_error("EventManager is null in map_view")
+	EventManager.rotate_camera_left.connect(rotate_world_left)
+	EventManager.rotate_camera_right.connect(rotate_world_right)
 
 
 # ======= MAIN POINT: Build Rendition =======
@@ -299,6 +295,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]-1,cell[1]+1))
 					if other_wall == Vector2i(6,1):
 						var corner_pos = Vector2i(cell[0]-1,cell[1])
+						# T-intersection: skip corner if a straight wall already occupies this cell
 						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(7,1):
 							WallTiles.set_cell(corner_pos, 44, Vector2i(3,2))
 			elif rotation_state == 2:
@@ -310,6 +307,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]+1,cell[1]+1))
 					if other_wall == Vector2i(5,1):
 						var corner_pos = Vector2i(cell[0]+1,cell[1])
+						# T-intersection: skip corner if a straight wall already occupies this cell
 						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(7,1):
 							WallTiles.set_cell(corner_pos, 44, Vector2i(1,2))
 			elif rotation_state == 3:
@@ -321,6 +319,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]+1,cell[1]-1))
 					if other_wall == Vector2i(5,1):
 						var corner_pos = Vector2i(cell[0]+1,cell[1])
+						# T-intersection: skip corner if a straight wall already occupies this cell
 						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(4,1):
 							WallTiles.set_cell(corner_pos, 44, Vector2i(0,2))
 			else:
@@ -332,6 +331,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					var other_wall = WallTiles.get_cell_atlas_coords(Vector2i(cell[0]-1,cell[1]-1))
 					if other_wall == Vector2i(6,1):
 						var corner_pos = Vector2i(cell[0]-1,cell[1])
+						# T-intersection: skip corner if a straight wall already occupies this cell
 						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(4,1):
 							WallTiles.set_cell(corner_pos, 44, Vector2i(2,2))
 
@@ -373,23 +373,19 @@ func _build_goal_cells(data: Dictionary, cols: int, rows: int) -> void:
 				
 				# Swap the coordinates based on the current angle!
 				if rotation_state == 1: # 90 Degrees
-					draw_x =  (int(pos.get("x", -1))) - 1
-					draw_y = (int(pos.get("y", -1))) - 1
+					draw_x =  (int(pos.get("y", -1))) - 1
+					draw_y = (int(pos.get("x", -1))) - 1
 				elif rotation_state == 2: # 180 Degrees
-					draw_x = (max_grid) - (int(pos.get("y", -1)))
-					draw_y =  (int(pos.get("x", -1))) - 1
+					draw_x = (max_grid) - (int(pos.get("x", -1)))
+					draw_y =  (int(pos.get("y", -1))) - 1
 				elif rotation_state == 3: # 270 Degrees
-					draw_x = (max_grid) -  (int(pos.get("x", -1)))
-					draw_y = (max_grid) - (int(pos.get("y", -1)))
+					draw_x = (max_grid) -  (int(pos.get("y", -1)))
+					draw_y = (max_grid) - (int(pos.get("x", -1)))
 				var grid_pos = Vector2i(draw_x, draw_y)
 				print(grid_pos)
 				
 				# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
 				FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 0))
-
-func _is_goal_tile(gx: int, gy: int) -> void:
-	pass
-	#return goal_cells.has("%d,%d" % [gx, gy])
 
 ## Define and places the player at starting position
 func _place_player(data: Dictionary, cols: int, rows: int) -> void:
@@ -725,6 +721,12 @@ func _build_objects() -> void:
 				print(object_name, ", ", gx, ", ", gy, ", ", i)
 				_spawn_object(object_name, gx, gy, i)
 
+		var is_goal_tile : bool = level_data.has("goal") \
+			and level_data["goal"].has("objects") \
+			and level_data["goal"]["objects"].has(key)
+		if not is_goal_tile:
+			_add_object_count_label(gx, gy, tile_objects)
+
 func _spawn_object(object_name: String, gx: int, gy: int, index: int) -> void:
 	var marker := Polygon2D.new()
 
@@ -758,12 +760,15 @@ func _build_goal_object_markers() -> void:
 		var gx := int(parts[0])
 		var gy := int(parts[1])
 		var required: Dictionary = goal_objs[key]
-		var placed: Dictionary = object_data.get(key, {})
 		for obj_name in required:
 			var needed := int(required[obj_name])
-			var have  := int(placed.get(obj_name, 0))
+			var have  := 0
+			if object_data.has(key) and object_data[key].has(obj_name):
+				have = int(object_data[key][obj_name])
 			for i in range(needed):
 				_spawn_goal_marker(obj_name, gx, gy, i, i < have)
+			
+			_add_goal_count_label(gx, gy, have, needed)
 
 
 ## Spawns a single outlined diamond at a goal cell.
@@ -778,7 +783,7 @@ func _spawn_goal_marker(object_name: String, gx: int, gy: int, index: int, satis
 		Vector2(-size, 0),
 		Vector2(0, -size),
 	])
-	outline.width = 6.0
+	outline.width = 15.0
 
 	var col: Color
 	if satisfied:
@@ -794,6 +799,53 @@ func _spawn_goal_marker(object_name: String, gx: int, gy: int, index: int, satis
 	outline.z_index = 0
 	objects_node.add_child(outline)
 
+
+## Adds a count label to a regular object tile.
+## Shows total count if all objects are the same type, "?" if mixed.
+func _add_object_count_label(gx: int, gy: int, tile_objects: Dictionary) -> void:
+	var center: Vector2 = object_grid_position(gx, gy + 1)
+	center = Vector2(center.x + offset_x, center.y + offset_y)
+
+	var is_mixed := tile_objects.size() > 1
+	var total := 0
+	for obj_name in tile_objects:
+		total += int(tile_objects[obj_name])
+
+	var text := "?" if is_mixed else str(total)
+	var label := _make_count_label(text, center + Vector2(18, 28), Color(0.0, 0.0, 0.0, 1.0))
+	objects_node.add_child(label)
+
+
+## Adds have/needed labels to a goal marker tile.
+## "have" sits at the bottom-left corner, "needed" at the bottom-right.
+func _add_goal_count_label(gx: int, gy: int, have: int, needed: int) -> void:
+	print("\n[goal label] (%d,%d) have=%d needed=%d   object_data=%s\n" % [gx, gy, have, needed, object_data])
+	var center: Vector2 = object_grid_position(gx, gy + 1)
+	center = Vector2(center.x + offset_x, center.y + offset_y)
+
+	var have_label := _make_count_label(str(have), center + Vector2(-72, 28), Color(0.0, 0.0, 0.0, 1.0))
+	var needed_label := _make_count_label(str(needed), center + Vector2(18, 28), Color(0.046, 0.649, 0.924, 1.0))
+	objects_node.add_child(have_label)
+	objects_node.add_child(needed_label)
+
+
+## Creates a styled Label at world_pos with the given text and colour.
+func _make_count_label(text: String, world_pos: Vector2, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.position = world_pos
+
+	var font = load(LABEL_FONT_PATH)
+	if font:
+		label.add_theme_font_override("font", font)
+
+	label.add_theme_font_size_override("font_size", 100)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0.378, 0.378, 0.378, 1.0))
+	label.add_theme_constant_override("outline_size", 5)
+	label.z_index = 10
+	return label
+	
 
 func _get_object_color(object_name: String) -> Color:
 	match object_name:
