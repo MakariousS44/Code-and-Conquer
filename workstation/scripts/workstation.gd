@@ -13,25 +13,36 @@ extends Control
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
 @onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
-# === popups ===
+
+# Popups -------------------------------------------+
+# Lose overlay
 @onready var lose_overlay: Control = $LoseOverlay
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
+@onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
+
+# Win overlay
 @onready var win_overlay: Control = $WinOverlay
 @onready var win_retry_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinRetryButton
-@onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
 @onready var win_menu_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinMenuButton
+@onready var win_report_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/PrintButton
+@onready var win_clipboard_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/CopyButton
+@onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
+var pending_report_text: String = ""
+
+
+# Library overlay
 @onready var library_overlay: Control = $LibraryOverlay
 
 # === execution components ===
 # these turn student code into command output the game can actually use
 const Paths = preload("res://execution/shared/paths.gd")
 
-var validator  = preload(Paths.CPP_VALIDATOR).new()
-var generator  = preload(Paths.CPP_GENERATOR).new()
-var compiler   = preload(Paths.CPP_DRIVER).new()
+var validator = preload(Paths.CPP_VALIDATOR).new()
+var generator = preload(Paths.CPP_GENERATOR).new()
+var compiler = preload(Paths.CPP_DRIVER).new()
 var py_pipeline = preload(Paths.PYTHON_PIPELINE).new()
-var _commands  = preload(Paths.ROBOT_COMMANDS).new()
+var _commands = preload(Paths.ROBOT_COMMANDS).new()
 
 # === language state ===
 enum Language { CPP, PYTHON }
@@ -39,15 +50,16 @@ var current_language: Language = Language.CPP
 
 # === level bootstrap ===
 # this screen now loads the level definition and instantiates the playable level scene directly
-var level_definition   = preload(Paths.MAP_LOADER).new()
+var level_definition = preload(Paths.MAP_LOADER).new()
 var level_scene_resource = preload(Paths.MAP_VIEW_SCENE)
+var current_level_definition: Dictionary = {}
 
 # cached runtime refs so this screen can hand commands to the live player
 var game_instance: Node = null
 var player_node: Node = null
 
 # === IPC state ===
-var _ipc_server       = null
+var _ipc_server = null
 var _subprocess_pid: int = -1
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
@@ -59,6 +71,7 @@ signal _step_continue
 var current_line_offset: int = 0
 var _is_handling_lose: bool = false
 
+var global_level_name := ""
 
 func _ready() -> void:
 	_set_status("Ready", "")
@@ -68,7 +81,7 @@ func _ready() -> void:
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
-
+		
 	run_button.pressed.connect(_on_run_button_pressed)
 	step_button.pressed.connect(_on_step_button_pressed)
 	reset_button.pressed.connect(_on_reset_button_pressed)
@@ -76,14 +89,33 @@ func _ready() -> void:
 	win_retry_button.pressed.connect(_on_win_retry)
 	lose_menu_button.pressed.connect(_on_go_to_menu)
 	win_menu_button.pressed.connect(_on_go_to_menu)
+	win_report_button.pressed.connect(_on_win_report_save)
+	win_clipboard_button.pressed.connect(_on_win_report_copy)
+	
+	report_save_dialog.hide()
+	report_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	report_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	report_save_dialog.clear_filters()
+	report_save_dialog.add_filter("*.txt ; Text Report")
+	if not report_save_dialog.file_selected.is_connected(_on_report_save_selected):
+		report_save_dialog.file_selected.connect(_on_report_save_selected)
+
+	if rotate_left_btn != null and not rotate_left_btn.pressed.is_connected(l_rotate_button_up):
+		rotate_left_btn.pressed.connect(l_rotate_button_up)
+
+	if rotate_right_btn != null and not rotate_right_btn.pressed.is_connected(r_rotate_button_up):
+		rotate_right_btn.pressed.connect(r_rotate_button_up)
+
+	if menu_button != null and not menu_button.pressed.is_connected(_on_main_menu_button_pressed):
+		menu_button.pressed.connect(_on_main_menu_button_pressed)
+
+	library_overlay.visible = false
 
 	await get_tree().process_frame
-	_load_level_scene()
+	_load_level_scene(true)
 
 
-# === level loading ===
-# creates the playable level scene, loads the level definition, and asks the scene to build itself
-func _load_level_scene() -> void:
+func _load_level_scene(load_editor_text: bool = true) -> void:
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
@@ -98,23 +130,97 @@ func _load_level_scene() -> void:
 		return
 
 	player_node = game_instance.get_node("WorldRoot/Player")
-	if player_node.has_signal("lose_triggered"):
+	if player_node.has_signal("lose_triggered") and not player_node.lose_triggered.is_connected(_on_player_lose):
 		player_node.lose_triggered.connect(_on_player_lose)
-	if game_instance.has_signal("level_complete"):
+	if game_instance.has_signal("level_complete") and not game_instance.level_complete.is_connected(_on_level_complete):
 		game_instance.level_complete.connect(_on_level_complete)
 
-	# load the level definition from disk
-	# Grabs level filename from main menu, "LevelLoader" is defined in Project Settings > Global
-	var raw: Dictionary = level_definition.load(LevelToLoad.level)
-	# Old level loader line for testing
-	# var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
-	if not raw.ok:
-		push_error("Level load failed: %s" % raw.error)
+	# === LOAD PATH ===
+	var level_path := ""
+
+
+	if SelectedLevel.path.strip_edges() != "":
+		level_path = SelectedLevel.path
+	elif SelectedLevel.level.strip_edges() != "":
+		level_path = SelectedLevel.level
+	else:
+		push_error("No level path available.")
+		log_error("NO LEVEL PATH FOUND")
 		return
 
-	# hand the definition to the level scene so it can build itself
+	if not FileAccess.file_exists(level_path):
+		push_error("Level file does not exist: " + level_path)
+		log_error("FILE NOT FOUND")
+		return
+
+	global_level_name = level_path
+	var raw: Dictionary = level_definition.load(level_path)
+
+	if not raw.ok:
+		push_error("Level load failed: %s" % raw.error)
+		log_error("LOAD FAILED: " + raw.error)
+		return
+
+	current_level_definition = raw.definition
+
+	# preload starter code into editor only when requested
+	if load_editor_text:
+		_load_editor_template_for_current_language()
+
+	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
+
+
+func _load_editor_template_for_current_language() -> void:
+	if current_level_definition.is_empty():
+		_load_default_editor_template()
+		return
+
+	if not current_level_definition.has("editor"):
+		_load_default_editor_template()
+		return
+
+	var editor_data = current_level_definition["editor"]
+
+	# === OLD FORMAT SUPPORT ===
+	if editor_data is String:
+		editor.text = editor_data
+		return
+
+	if editor_data is Array:
+		var old_lines: PackedStringArray = []
+		for line in editor_data:
+			old_lines.append(str(line))
+		editor.text = "\n".join(old_lines)
+		return
+
+	# === NEW FORMAT SUPPORT ===
+	if editor_data is Dictionary:
+		var key := "cpp" if current_language == Language.CPP else "python"
+
+		if editor_data.has(key):
+			var starter = editor_data[key]
+
+			if starter is String:
+				editor.text = starter
+				return
+
+			if starter is Array:
+				var lines: PackedStringArray = []
+				for line in starter:
+					lines.append(str(line))
+				editor.text = "\n".join(lines)
+				return
+
+	_load_default_editor_template()
+
+
+func _load_default_editor_template() -> void:
+	if current_language == Language.CPP:
+		editor.text = "int main() {\n    move();\n}\n"
+	else:
+		editor.text = "move()\n"
 
 
 # === editor setup ===
@@ -128,10 +234,13 @@ func _setup_editor() -> void:
 
 # === language selector ===
 func _setup_language_selector() -> void:
+	language_selector.clear()
 	language_selector.add_item("C++")
 	language_selector.add_item("Python")
 	language_selector.select(0)
-	language_selector.item_selected.connect(_on_language_changed)
+
+	if not language_selector.item_selected.is_connected(_on_language_changed):
+		language_selector.item_selected.connect(_on_language_changed)
 
 
 func _on_language_changed(index: int) -> void:
@@ -142,12 +251,12 @@ func _on_language_changed(index: int) -> void:
 	_clear_editor_highlights()
 
 	if current_language == Language.CPP:
-		editor.text = "int main() {\n    move();\n}\n"
 		_setup_syntax_highlighting()
+		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
 	elif current_language == Language.PYTHON:
-		editor.text = "move()\n"
 		_setup_python_highlighting()
+		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
 
 
@@ -203,8 +312,8 @@ func _setup_python_highlighting() -> void:
 	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
 	highlighter.function_color = Color(0.95, 0.85, 0.45)
 	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'",  "'",  Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("#",  "",   Color(0.50, 0.50, 0.50), true)
+	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
+	highlighter.add_color_region("#", "", Color(0.50, 0.50, 0.50), true)
 	highlighter.add_color_region("\"\"\"", "\"\"\"", Color(0.60, 0.90, 0.60), false)
 
 	editor.syntax_highlighter = highlighter
@@ -235,15 +344,21 @@ func _on_step_button_pressed() -> void:
 
 func _highlight_editor_line(line: int) -> void:
 	_clear_editor_highlights()
+
 	var adjusted := line - 1
 	if current_language == Language.CPP:
 		adjusted = line - current_line_offset - 1
+
 	if adjusted >= 0 and adjusted < editor.get_line_count():
 		editor.set_line_background_color(adjusted, Color(0.30, 0.60, 0.30, 0.25))
+		editor.set_caret_line(adjusted)
+		editor.center_viewport_to_caret()
+
 
 func _clear_editor_highlights() -> void:
 	for i in range(editor.get_line_count()):
 		editor.set_line_background_color(i, Color(0, 0, 0, 0))
+
 
 func _on_reset_button_pressed() -> void:
 	_stop_execution()
@@ -253,13 +368,13 @@ func _on_reset_button_pressed() -> void:
 	reset_button.disabled = false
 	rotate_left_btn.disabled = false
 	rotate_right_btn.disabled = false
-	
+
 	step_mode = false
 	output_box.clear()
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene()
+	_load_level_scene(false)
 
 
 # === funny lose messages ===
@@ -367,11 +482,11 @@ func _run_pipeline(step_only: bool) -> void:
 	reset_button.disabled = false
 	run_button.disabled = true
 	step_button.disabled = true
-	
+
 	if not step_only:
 		rotate_left_btn.disabled = true
 		rotate_right_btn.disabled = true
-	
+
 	_set_status("Running..." if not step_only else "Compiling...", "")
 	output_box.clear()
 	log_header("run" if not step_only else "step mode")
@@ -396,7 +511,7 @@ func _run_pipeline(step_only: bool) -> void:
 			step_mode = false
 			_re_enable_buttons()
 			return
-		
+
 	# start IPC server
 	var IPCServer = preload(Paths.IPC_SERVER)
 	_ipc_server = IPCServer.new()
@@ -422,7 +537,7 @@ func _run_pipeline(step_only: bool) -> void:
 			_ipc_server = null
 			_re_enable_buttons()
 			return
-		_set_status("Compiled — launching...", "")
+		_set_status("Compiled - launching...", "")
 		_subprocess_pid = compiler.start_program()
 	else:
 		current_line_offset = 0
@@ -436,7 +551,7 @@ func _run_pipeline(step_only: bool) -> void:
 		_ipc_server = null
 		_re_enable_buttons()
 		return
-		
+
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
 		log_error("Subprocess did not connect within 5 seconds.")
@@ -444,12 +559,12 @@ func _run_pipeline(step_only: bool) -> void:
 		_stop_execution()
 		_re_enable_buttons()
 		return
-		
+
 	_ipc_active = true
 	log_header("executing")
-	
+
 	if step_mode:
-		_set_status("Step mode — press Step to begin", "")
+		_set_status("Step mode - press Step to begin", "")
 		step_button.disabled = false
 	else:
 		await _run_ipc_loop()
@@ -482,7 +597,7 @@ func _run_ipc_loop() -> void:
 
 			if step_mode:
 				log_line("✓ %s" % cmd.to_lower())
-				_set_status("Step mode — press Step", "")
+				_set_status("Step mode - press Step", "")
 				step_button.disabled = false
 				await _step_continue
 				if not _ipc_active:
@@ -503,7 +618,7 @@ func _run_ipc_loop() -> void:
 
 		elif line == "[DONE]":
 			break
-	
+
 	_ipc_loop_running = false
 	if _ipc_active:
 		_stop_execution()
@@ -525,6 +640,9 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		"TURN_LEFT":
 			player_node.turn_left()
 			await get_tree().create_timer(0.1).timeout
+		"TURN_RIGHT":
+			player_node.turn_right()
+			await get_tree().create_timer(0.1).timeout
 		"PICK_OBJECT":
 			player_node.pick_object()
 		"PUT_OBJECT":
@@ -534,65 +652,92 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 func _answer_query(query: String) -> String:
 	if player_node == null or game_instance == null:
 		return "false"
-	var facing : String = player_node.facing
+	var facing: String = player_node.facing
 	match query:
-		"FRONT_IS_CLEAR":  return _bool(_is_clear(facing))
-		"RIGHT_IS_CLEAR":  return _bool(_is_clear(_right_of(facing)))
-		"LEFT_IS_CLEAR":   return _bool(_is_clear(_left_of(facing)))
-		"WALL_IN_FRONT":   return _bool(not _is_clear(facing))
-		"WALL_ON_RIGHT":   return _bool(not _is_clear(_right_of(facing)))
-		"WALL_ON_LEFT":    return _bool(not _is_clear(_left_of(facing)))
-		"IS_FACING_NORTH": return _bool(facing == "north")
-		"AT_GOAL":         return _bool(game_instance.is_at_goal(player_node.grid_x, player_node.grid_y))
-		"OBJECT_HERE":     return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
-		"CARRIES_OBJECT":  return _bool(player_node.carried_object != "")
+		"FRONT_IS_CLEAR":
+			return _bool(_is_clear(facing))
+		"RIGHT_IS_CLEAR":
+			return _bool(_is_clear(_right_of(facing)))
+		"LEFT_IS_CLEAR":
+			return _bool(_is_clear(_left_of(facing)))
+		"WALL_IN_FRONT":
+			return _bool(not _is_clear(facing))
+		"WALL_ON_RIGHT":
+			return _bool(not _is_clear(_right_of(facing)))
+		"WALL_ON_LEFT":
+			return _bool(not _is_clear(_left_of(facing)))
+		"IS_FACING_NORTH":
+			return _bool(facing == "north")
+		"AT_GOAL":
+			return _bool(game_instance.is_at_goal(player_node.grid_x, player_node.grid_y))
+		"OBJECT_HERE":
+			return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
+		"CARRIES_OBJECT":
+			return _bool(player_node.carried_object != "")
 	return "false"
 
 
 func _bool(value: bool) -> String:
 	return "true" if value else "false"
 
+
 func _is_clear(dir: String) -> bool:
-	var gx : int = player_node.grid_x
-	var gy : int = player_node.grid_y
+	var gx: int = player_node.grid_x
+	var gy: int = player_node.grid_y
 	var next := _next_pos(gx, gy, dir)
 	var wall_blocked: bool = game_instance.is_move_blocked(gx, gy, dir)
-	var in_bounds: bool    = game_instance.is_in_bounds(next.x, next.y)
+	var in_bounds: bool = game_instance.is_in_bounds(next.x, next.y)
 	return not wall_blocked and in_bounds
+
 
 func _next_pos(gx: int, gy: int, dir: String) -> Vector2i:
 	match dir:
-		"north": return Vector2i(gx,     gy + 1)
-		"south": return Vector2i(gx,     gy - 1)
-		"east":  return Vector2i(gx + 1, gy)
-		"west":  return Vector2i(gx - 1, gy)
+		"north":
+			return Vector2i(gx, gy + 1)
+		"south":
+			return Vector2i(gx, gy - 1)
+		"east":
+			return Vector2i(gx + 1, gy)
+		"west":
+			return Vector2i(gx - 1, gy)
 	return Vector2i(gx, gy)
 
 
 func _right_of(facing: String) -> String:
 	match facing:
-		"north": return "east"
-		"east":  return "south"
-		"south": return "west"
-		"west":  return "north"
+		"north":
+			return "east"
+		"east":
+			return "south"
+		"south":
+			return "west"
+		"west":
+			return "north"
 	return facing
 
 
 func _left_of(facing: String) -> String:
 	match facing:
-		"north": return "west"
-		"west":  return "south"
-		"south": return "east"
-		"east":  return "north"
+		"north":
+			return "west"
+		"west":
+			return "south"
+		"south":
+			return "east"
+		"east":
+			return "north"
 	return facing
 
 
 func _set_status(text: String, state: String) -> void:
 	status_label.text = text
 	match state:
-		"ok":    status_label.add_theme_color_override("font_color", Color(0.47, 0.87, 0.58))
-		"error": status_label.add_theme_color_override("font_color", Color(0.88, 0.47, 0.47))
-		_:       status_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.81))
+		"ok":
+			status_label.add_theme_color_override("font_color", Color(0.47, 0.87, 0.58))
+		"error":
+			status_label.add_theme_color_override("font_color", Color(0.88, 0.47, 0.47))
+		_:
+			status_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.81))
 
 
 func _re_enable_buttons() -> void:
@@ -601,6 +746,7 @@ func _re_enable_buttons() -> void:
 	reset_button.disabled = false
 	rotate_left_btn.disabled = false
 	rotate_right_btn.disabled = false
+
 
 # === logging ===
 
@@ -625,21 +771,48 @@ func log_error(text: String) -> void:
 
 
 func l_rotate_button_up() -> void:
-	# Utilize Global events to communicate to the level scene
 	EventManager.rotate_camera_right.emit()
 
 
 func r_rotate_button_up() -> void:
-	# Utilize Global events to communicate to the level scene
 	EventManager.rotate_camera_left.emit()
 
 
 func _on_library_button_pressed() -> void:
-	if library_overlay.is_visible_in_tree():
-		library_overlay.visible = false
-	else:
-		library_overlay.visible = true
+	library_overlay.visible = not library_overlay.visible
 
 
 func _on_main_menu_button_pressed() -> void:
 	_on_go_to_menu()
+
+func _build_win_report() -> String:
+	var lang_name := "C++" if current_language == Language.CPP else "Python"
+	var level_name := global_level_name
+	var report := ""
+	report += "Code & Conquer - Win Report\n"
+	report += "Language: %s\n" % lang_name
+	report += "Level: %s\n" % level_name
+	report += "Time: %s\n\n" % Time.get_datetime_string_from_system()
+	report += "Player Code:\n"
+	report += editor.text
+	return report
+	
+func _on_win_report_copy() -> void:
+	var report := _build_win_report()
+	DisplayServer.clipboard_set(report)
+	log_success("Report copied to clipboard.")
+	
+func _on_win_report_save() -> void:
+	pending_report_text = _build_win_report()
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace(" ", "")
+	report_save_dialog.current_file = "report%s.txt" % stamp
+	report_save_dialog.popup_centered_ratio(0.75)
+	
+func _on_report_save_selected(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		log_error("Could not save report to: " + path)
+		return
+	file.store_string(pending_report_text)
+	file.close()
+	log_success("Report saved to: " + path)

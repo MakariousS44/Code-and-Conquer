@@ -3,10 +3,11 @@
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://assets/new_theme.tres" id="1_lbqgw"]
 [ext_resource type="Script" uid="uid://ql66d3cwpege" path="res://workstation/scripts/workstation.gd" id="2_0u7pg"]
 [ext_resource type="StyleBox" uid="uid://dblkeatk0cpe6" path="res://assets/simple_btn.tres" id="3_0u7pg"]
+[ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
-bg_color = Color(0.098, 0.102, 0.122, 1)
+bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
 border_width_bottom = 1
 border_color = Color(0.22, 0.22, 0.28, 1)
 
@@ -248,13 +249,15 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111111]
+[node name="TitleLabel" type="TextureRect" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=1833800164]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.5, 1, 1)
-theme_override_font_sizes/font_size = 16
-text = "Code & Conquer"
+size_flags_horizontal = 0
+size_flags_stretch_ratio = 0.35
+texture = ExtResource("3_1bmh4")
+expand_mode = 3
 
 [node name="Divider2" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=676676868]
+visible = false
 layout_mode = 2
 
 [node name="LeftButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=222222221]
@@ -600,13 +603,12 @@ text = "Your robot reached the goal!"
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="WinButtons" type="HBoxContainer" parent="WinOverlay/WinCard/WinContent" unique_id=900000006]
+[node name="WinButtons" type="VBoxContainer" parent="WinOverlay/WinCard/WinContent" unique_id=742020946]
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
 
 [node name="WinRetryButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000007]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.6, 1, 0.7, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_green")
@@ -614,10 +616,30 @@ text = "Play Again"
 
 [node name="WinMenuButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000009]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[node name="ReportButtons" type="HBoxContainer" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="PrintButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=1841593373]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Print Report"
+
+[node name="CopyButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=852844279]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Clipboard"
+
+[node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
 
 [connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton" to="." method="l_rotate_button_up"]
 [connection signal="button_up" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton" to="." method="r_rotate_button_up"]

@@ -31,8 +31,14 @@ const chunk_size = 2
 # runs when this scene is instantiated into the tree
 # this scene owns the camera, so it configures it here
 func _ready() -> void:
-	EventManager.rotate_camera_left.connect(rotate_world_left)
-	EventManager.rotate_camera_right.connect(rotate_world_right)
+	if EventManager != null:
+		if not EventManager.rotate_camera_left.is_connected(rotate_world_left):
+			EventManager.rotate_camera_left.connect(rotate_world_left)
+
+		if not EventManager.rotate_camera_right.is_connected(rotate_world_right):
+			EventManager.rotate_camera_right.connect(rotate_world_right)
+	else:
+		push_error("EventManager is null in map_view")
 
 
 # ======= MAIN POINT: Build Rendition =======

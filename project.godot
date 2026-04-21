@@ -19,7 +19,7 @@ config/icon="res://assets/icon.svg"
 
 [autoload]
 
-LevelToLoad="*uid://dc3jimritl1hh"
+SelectedLevel="*uid://dc3jimritl1hh"
 EventManager="*uid://cl00riv6kfaao"
 
 [display]

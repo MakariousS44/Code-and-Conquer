@@ -70,7 +70,7 @@
     ]
   },
   "description": [
-    "A simple, empty world, ready for Reeborg to explore."
+    "Navigate the maze and reach the goal tile."
   ],
   "small_tiles": false,
   "rows": 6,
@@ -87,5 +87,25 @@
       "x": 6,
       "y": 4
     }
-  }
+  },
+  "editor": [
+    "void turn_right() {",
+    "    turn_left();",
+    "    turn_left();",
+    "    turn_left();",
+    "}",
+    "",
+    "int main() {",
+    "    while (!at_goal()) {",
+    "        if (right_is_clear()) {",
+    "            turn_right();",
+    "            move();",
+    "        } else if (front_is_clear()) {",
+    "            move();",
+    "        } else {",
+    "            turn_left();",
+    "        }",
+    "    }",
+    "}"
+  ]
 }
