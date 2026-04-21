@@ -103,8 +103,20 @@ func _load_level_scene() -> void:
 		game_instance.level_complete.connect(_on_level_complete)
 
 	# load the level definition from disk
-	# Grabs level filename from main menu, "LevelLoader" is defined in Project Settings > Global
-	var raw: Dictionary = level_definition.load(LevelToLoad.level)
+	var level_path: String
+	if SelectedLevel.path != "":
+		level_path = SelectedLevel.path
+		print("Loading custom level: ", level_path)
+	else:
+		level_path = LevelToLoad.level
+		print("Loading default level: ", level_path)
+
+	var raw: Dictionary = level_definition.load(level_path)
+
+	# optional: clear selected custom path after one use
+	if SelectedLevel.path != "":
+		SelectedLevel.path = ""
+
 	# Old level loader line for testing
 	# var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
 	if not raw.ok:

@@ -19,7 +19,7 @@ config/icon="res://assets/icon.svg"
 
 [autoload]
 
-LevelToLoad="*uid://dc3jimritl1hh"
+SelectedLevel="*uid://csj6mxve4jr6h"
 
 [display]
 
