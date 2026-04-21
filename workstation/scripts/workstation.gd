@@ -90,12 +90,10 @@ func _ready() -> void:
 	library_overlay.visible = false
 
 	await get_tree().process_frame
-	_load_level_scene()
+	_load_level_scene(true)
 
 
-# === level loading ===
-# creates the playable level scene, loads the level definition, and asks the scene to build itself
-func _load_level_scene() -> void:
+func _load_level_scene(load_editor_text: bool = true) -> void:
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
@@ -115,35 +113,45 @@ func _load_level_scene() -> void:
 	if game_instance.has_signal("level_complete") and not game_instance.level_complete.is_connected(_on_level_complete):
 		game_instance.level_complete.connect(_on_level_complete)
 
-	# load the level definition from disk
+	# === LOAD PATH ===
 	var level_path := ""
 
 	if SelectedLevel.path.strip_edges() != "":
 		level_path = SelectedLevel.path
-		print("Using SelectedLevel.path: ", level_path)
 	elif SelectedLevel.level.strip_edges() != "":
 		level_path = SelectedLevel.level
-		print("Using LevelToLoad.level: ", level_path)
 	else:
 		push_error("No level path available.")
+		log_error("NO LEVEL PATH FOUND")
 		return
 
 	if not FileAccess.file_exists(level_path):
 		push_error("Level file does not exist: " + level_path)
+		log_error("FILE NOT FOUND")
 		return
 
 	var raw: Dictionary = level_definition.load(level_path)
 
-	# Old level loader line for testing
-	# var raw: Dictionary = level_definition.load(CampaignLevels.TEST_LEVEL)
 	if not raw.ok:
 		push_error("Level load failed: %s" % raw.error)
+		log_error("LOAD FAILED: " + raw.error)
 		return
 
-	# hand the definition to the level scene so it can build itself
+	# preload starter code into editor only when requested
+	if load_editor_text and raw.definition.has("editor"):
+		var starter = raw.definition["editor"]
+
+		if starter is Array:
+			var lines: PackedStringArray = []
+			for line in starter:
+				lines.append(str(line))
+			editor.text = "\n".join(lines)
+		elif starter is String:
+			editor.text = starter
+
+	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
-
 
 # === editor setup ===
 func _setup_editor() -> void:
@@ -266,11 +274,19 @@ func _on_step_button_pressed() -> void:
 
 func _highlight_editor_line(line: int) -> void:
 	_clear_editor_highlights()
+
 	var adjusted := line - 1
 	if current_language == Language.CPP:
 		adjusted = line - current_line_offset - 1
+
 	if adjusted >= 0 and adjusted < editor.get_line_count():
 		editor.set_line_background_color(adjusted, Color(0.30, 0.60, 0.30, 0.25))
+
+		# move caret to the active line so the editor knows where to scroll
+		editor.set_caret_line(adjusted)
+
+		# keep the executing line visible
+		editor.center_viewport_to_caret()
 
 
 func _clear_editor_highlights() -> void:
@@ -292,7 +308,7 @@ func _on_reset_button_pressed() -> void:
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene()
+	_load_level_scene(false)
 
 
 # === funny lose messages ===
