@@ -31,14 +31,8 @@ const chunk_size = 2
 # runs when this scene is instantiated into the tree
 # this scene owns the camera, so it configures it here
 func _ready() -> void:
-	if EventManager != null:
-		if not EventManager.rotate_camera_left.is_connected(rotate_world_left):
-			EventManager.rotate_camera_left.connect(rotate_world_left)
-
-		if not EventManager.rotate_camera_right.is_connected(rotate_world_right):
-			EventManager.rotate_camera_right.connect(rotate_world_right)
-	else:
-		push_error("EventManager is null in map_view")
+	EventManager.rotate_camera_left.connect(rotate_world_left)
+	EventManager.rotate_camera_right.connect(rotate_world_right)
 
 
 # ======= MAIN POINT: Build Rendition =======
@@ -379,23 +373,19 @@ func _build_goal_cells(data: Dictionary, cols: int, rows: int) -> void:
 				
 				# Swap the coordinates based on the current angle!
 				if rotation_state == 1: # 90 Degrees
-					draw_x =  (int(pos.get("x", -1))) - 1
-					draw_y = (int(pos.get("y", -1))) - 1
+					draw_x =  (int(pos.get("y", -1))) - 1
+					draw_y = (int(pos.get("x", -1))) - 1
 				elif rotation_state == 2: # 180 Degrees
-					draw_x = (max_grid) - (int(pos.get("y", -1)))
-					draw_y =  (int(pos.get("x", -1))) - 1
+					draw_x = (max_grid) - (int(pos.get("x", -1)))
+					draw_y =  (int(pos.get("y", -1))) - 1
 				elif rotation_state == 3: # 270 Degrees
-					draw_x = (max_grid) -  (int(pos.get("x", -1)))
-					draw_y = (max_grid) - (int(pos.get("y", -1)))
+					draw_x = (max_grid) -  (int(pos.get("y", -1)))
+					draw_y = (max_grid) - (int(pos.get("x", -1)))
 				var grid_pos = Vector2i(draw_x, draw_y)
 				print(grid_pos)
 				
 				# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
 				FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 0))
-
-func _is_goal_tile(gx: int, gy: int) -> void:
-	pass
-	#return goal_cells.has("%d,%d" % [gx, gy])
 
 ## Define and places the player at starting position
 func _place_player(data: Dictionary, cols: int, rows: int) -> void:
