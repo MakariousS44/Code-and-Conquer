@@ -728,22 +728,15 @@ func _build_objects() -> void:
 			_add_object_count_label(gx, gy, tile_objects)
 
 func _spawn_object(object_name: String, gx: int, gy: int) -> void:
-	var marker := Polygon2D.new()
-
-	marker.polygon = PackedVector2Array([
-		Vector2(0, -64),
-		Vector2(64, 0),
-		Vector2(0, 64),
-		Vector2(-64, 0)
-	])
-
-	marker.color = _get_object_color(object_name)
+	var sprite := Sprite2D.new()
+	var tex = load("res://assets/objects/" + object_name + ".png")
+	if tex:
+		sprite.texture = tex
+	sprite.scale = Vector2(5.0, 5.0)
 	var grid_pos = object_grid_position(gx, gy+1)
-	marker.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
-	marker.z_index = 0
-	marker.y_sort_enabled = true
-
-	objects_node.add_child(marker)
+	sprite.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
+	sprite.z_index = 1
+	objects_node.add_child(sprite)
 
 
 ## Renders outlined diamond markers for every object required by the level goal.
@@ -774,30 +767,21 @@ func _build_goal_object_markers() -> void:
 ## Spawns a single outlined diamond at a goal cell.
 ## satisfied = the matching object has already been placed here.
 func _spawn_goal_marker(object_name: String, gx: int, gy: int, satisfied: bool) -> void:
-	var size := 70.0
-	var outline := Line2D.new()
-	outline.points = PackedVector2Array([
-		Vector2(0, -size),
-		Vector2(size, 0),
-		Vector2(0, size),
-		Vector2(-size, 0),
-		Vector2(0, -size),
-	])
-	outline.width = 15.0
+	var sprite := Sprite2D.new()
+	var tex = load("res://assets/objects/" + object_name + "_goal.png")
+	if tex:
+		sprite.texture = tex
+	sprite.scale = Vector2(4.8, 4.8)
 
-	var col: Color
 	if satisfied:
-		col = Color(0.35, 0.9, 0.45, 0.55)  # dim green when slot is filled
+		sprite.modulate = Color(0.35, 0.9, 0.45, 0.55)
 	else:
-		col = _get_object_color(object_name)
-		col.a = 0.75                          # object colour while slot is empty
-
-	outline.default_color = col
+		sprite.modulate = Color(1.0, 1.0, 1.0, 0.75)
 
 	var grid_pos = object_grid_position(gx, gy + 1)
-	outline.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
-	outline.z_index = 0
-	objects_node.add_child(outline)
+	sprite.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
+	sprite.z_index = 0
+	objects_node.add_child(sprite)
 
 
 ## Adds a count label to a regular object tile.
