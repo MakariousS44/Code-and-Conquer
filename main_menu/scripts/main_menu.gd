@@ -1,67 +1,95 @@
 extends Control
 
-var OptionsOpen := false
-var LevelsOpen := false
-
-var selected_level_path: String = ""
-
 const CUSTOM_LEVELS_DIR := "user://custom_levels/"
 
-@onready var level_file_dialog: FileDialog = $UploadMarginContainer/VBoxContainer/FileDialog
+@onready var level_popup: Window = $LevelSelectPopup
+@onready var options_popup: Window = get_node_or_null("OptionsPopup")
+@onready var level_file_dialog: FileDialog = $FileDialog
+
+# main menu buttons
+@onready var start_button: Button = $StartButton
+@onready var options_button: Button = $OptionsButton
+@onready var quit_button: Button = $QuitButton
+
+# popup controls
+@onready var play_button: Button = $LevelSelectPopup/CenterContainer/MarginContainer/VBoxContainer/PlayButton
+@onready var upload_button: Button = $LevelSelectPopup/CenterContainer/MarginContainer/VBoxContainer/UploadLevelButton
+@onready var level_dropdown: OptionButton = $LevelSelectPopup/CenterContainer/MarginContainer/VBoxContainer/MenuButton
+
 
 func _ready() -> void:
+	if level_popup == null:
+		push_error("LevelSelectPopup node not found.")
+		return
+
+	if level_file_dialog == null:
+		push_error("FileDialog node not found.")
+		return
+
+	level_popup.hide()
+
+	if options_popup != null:
+		options_popup.hide()
+
+	level_file_dialog.hide()
 	level_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	level_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	level_file_dialog.clear_filters()
 	level_file_dialog.add_filter("*.json ; JSON Level Files")
-	level_file_dialog.file_selected.connect(_on_level_file_selected)
+
+	if not level_file_dialog.file_selected.is_connected(_on_level_file_selected):
+		level_file_dialog.file_selected.connect(_on_level_file_selected)
+
+	# connect buttons in code so scene signal hookups can't betray you
+	if start_button != null and not start_button.pressed.is_connected(_on_button_start_pressed):
+		start_button.pressed.connect(_on_button_start_pressed)
+
+	if options_button != null and not options_button.pressed.is_connected(_on_options_button_pressed):
+		options_button.pressed.connect(_on_options_button_pressed)
+
+	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_button_pressed):
+		quit_button.pressed.connect(_on_quit_button_pressed)
+
+	if play_button != null and not play_button.pressed.is_connected(_on_play_button_pressed):
+		play_button.pressed.connect(_on_play_button_pressed)
+
+	if upload_button != null and not upload_button.pressed.is_connected(_on_upload_level_button_pressed):
+		upload_button.pressed.connect(_on_upload_level_button_pressed)
+
+	# populate dropdown once on startup
+	if level_dropdown != null and level_dropdown.has_method("populate_from_folder"):
+		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
+
 
 func _on_button_start_pressed() -> void:
+	print("START BUTTON PRESSED")
 	$TabMoveSound.play()
-	var tween = create_tween()
-	
-	if LevelsOpen == false:
-		var duration = 1.0
-		var distance = Vector2(-300, 0)
-		var target_pos = position + distance
 
-		tween.tween_property($"LevelsTab", "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		LevelsOpen = true
-	else:
-		var duration = 1.0
-		var distance = Vector2(-600, 0)
-		var target_pos = position + distance
+	if level_dropdown != null and level_dropdown.has_method("populate_from_folder"):
+		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
 
-		tween.tween_property($"LevelsTab", "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		LevelsOpen = false
+	level_popup.popup_centered()
+
 
 func _on_options_button_pressed() -> void:
+	print("OPTIONS BUTTON PRESSED")
 	$TabMoveSound.play()
-	var tween = create_tween()
-	
-	if OptionsOpen == false:
-		var duration = 1.0
-		var distance = Vector2(1000, 0)
-		var target_pos = position + distance
+	if options_popup != null:
+		options_popup.popup_centered()
 
-		tween.tween_property($"OptionsTab", "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		OptionsOpen = true
-	else:
-		var duration = 1.0
-		var distance = Vector2(1300, 0)
-		var target_pos = position + distance
-
-		tween.tween_property($"OptionsTab", "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		OptionsOpen = false
 
 func _on_quit_button_pressed() -> void:
+	print("QUIT BUTTON PRESSED")
 	$QuitSound.play()
 	await get_tree().create_timer(2.0).timeout
 	get_tree().quit()
 
+
 func _on_upload_level_button_pressed() -> void:
+	print("UPLOAD BUTTON PRESSED")
 	$TabMoveSound.play()
 	level_file_dialog.popup_centered_ratio(0.75)
+
 
 func _on_level_file_selected(path: String) -> void:
 	print("=== FILE SELECTED ===")
@@ -102,40 +130,39 @@ func _on_level_file_selected(path: String) -> void:
 	print("File copied successfully.")
 	print("File exists at destination: ", FileAccess.file_exists(dest_path))
 
-	selected_level_path = dest_path
-	SelectedLevel.path = dest_path
+	if level_dropdown != null and level_dropdown.has_method("populate_from_folder"):
+		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
+
+	if level_dropdown != null and level_dropdown.has_method("select_path"):
+		level_dropdown.select_path(dest_path)
+	else:
+		SelectedLevel.path = dest_path
 
 	print("SelectedLevel.path set to: ", SelectedLevel.path)
 
-	if has_node("LevelsTab/PanelContainer/MarginContainer/VBoxContainer/MenuButton"):
-		var dropdown = $LevelsTab/PanelContainer/MarginContainer/VBoxContainer/MenuButton
-		if dropdown.has_method("populate_from_folder"):
-			dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
-			print("Dropdown refreshed.")
 
 func _on_play_button_pressed() -> void:
+	print("PLAY BUTTON PRESSED")
+	print("PLAY pressed. SelectedLevel.path = ", SelectedLevel.path)
+
 	$StartSound.play()
+	level_popup.hide()
+
 	var tween = create_tween()
 	tween.set_parallel(true)
-	
-	var duration = 1.0
-	var distance = Vector2(-600, 0)
-	var target_pos = $"LevelsTab".position + distance
-	tween.tween_property($"LevelsTab", "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
-	
-	duration = 1.0
-	distance = Vector2(400, 0)
-	target_pos = $"OptionsTab".position + distance
-	tween.tween_property($"OptionsTab", "position", target_pos, duration).set_trans(Tween.TRANS_SINE)
-	
 	tween.tween_property($Mask, "modulate:a", 0.0, 1.0)
-	
+
 	tween.set_parallel(false)
 	tween.tween_property($Mask, "modulate:a", 255.0, 1.2)
 
 	await get_tree().create_timer(2.2).timeout
-
-	if selected_level_path != "":
-		SelectedLevel.path = selected_level_path
-
 	get_tree().change_scene_to_file("res://workstation/scenes/workstation.tscn")
+
+
+func _on_level_select_popup_close_requested() -> void:
+	level_popup.hide()
+
+
+func _on_options_popup_close_requested() -> void:
+	if options_popup != null:
+		options_popup.hide()

@@ -1,6 +1,5 @@
 [gd_scene format=3 uid="uid://bjd1nmwoya47g"]
 
-[ext_resource type="Texture2D" uid="uid://cmlu85wwfd4ph" path="res://main_menu/scenes/logo.png" id="2_mkuju"]
 [ext_resource type="VideoStream" uid="uid://cybkjg56q828f" path="res://main_menu/scenes/bgvideo.ogv" id="2_nu78t"]
 [ext_resource type="Texture2D" uid="uid://c81yqgax77md2" path="res://main_menu/scenes/maybe.png" id="2_q11ey"]
 [ext_resource type="AudioStream" uid="uid://76wvxkahxvx" path="res://main_menu/scenes/start.mp3" id="2_suspn"]
@@ -11,75 +10,127 @@
 [sub_resource type="GDScript" id="GDScript_1iqtg"]
 script/source = "extends Control
 
-var OptionsOpen := false
-var LevelsOpen := false
-
-var selected_level_path: String = \"\"
-
 const CUSTOM_LEVELS_DIR := \"user://custom_levels/\"
 
-@onready var level_file_dialog: FileDialog = $UploadMarginContainer/VBoxContainer/FileDialog
+@onready var scene_root: Node = get_tree().current_scene
+
+@onready var level_popup: Window = scene_root.get_node_or_null(\"MenuBG/LevelSelectPopup\")
+@onready var options_popup: Control = scene_root.get_node_or_null(\"MenuBG/OptionsTab\")
+@onready var level_file_dialog: FileDialog = scene_root.get_node_or_null(\"MenuBG/UploadLevelButtonContainer/VBoxContainer/FileDialog\")
+
+# main menu buttons
+@onready var main_menu_start_button: Button = scene_root.get_node_or_null(\"MenuBG/PlayButtonContainer/VBoxContainer/StartButton\")
+@onready var upload_button: Button = scene_root.get_node_or_null(\"MenuBG/UploadLevelButtonContainer/VBoxContainer/Upload\")
+@onready var options_button: Button = scene_root.get_node_or_null(\"MenuBG/OptionsMarginContainer/VBoxContainer/OptionsButton\")
+@onready var quit_button: Button = scene_root.get_node_or_null(\"MenuBG/QuitButtonContainer/VBoxContainer/QuitButton\")
+
+# popup controls
+@onready var popup_play_button: Button = scene_root.get_node_or_null(\"MenuBG/LevelSelectPopup/VBoxContainer/PlayButton\")
+@onready var level_dropdown: OptionButton = scene_root.get_node_or_null(\"MenuBG/LevelSelectPopup/VBoxContainer/MenuButton\")
+
+@onready var start_sound: AudioStreamPlayer = scene_root.get_node_or_null(\"MenuBG/StartSound\")
+@onready var tab_move_sound: AudioStreamPlayer = scene_root.get_node_or_null(\"MenuBG/TabMoveSound\")
+@onready var quit_sound: AudioStreamPlayer = scene_root.get_node_or_null(\"MenuBG/QuitSound\")
+@onready var mask: CanvasItem = scene_root.get_node_or_null(\"MenuBG/Mask\")
+
 
 func _ready() -> void:
-	level_file_dialog.current_dir = OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)
+	print(\"MAIN MENU READY\")
+	print(\"scene_root: \", scene_root)
+	print(\"level_popup: \", level_popup)
+	print(\"options_popup: \", options_popup)
+	print(\"level_file_dialog: \", level_file_dialog)
+	print(\"main_menu_start_button: \", main_menu_start_button)
+	print(\"upload_button: \", upload_button)
+	print(\"options_button: \", options_button)
+	print(\"quit_button: \", quit_button)
+	print(\"popup_play_button: \", popup_play_button)
+	print(\"level_dropdown: \", level_dropdown)
+
+	if level_popup == null:
+		push_error(\"LevelSelectPopup node not found.\")
+		return
+
+	if level_file_dialog == null:
+		push_error(\"FileDialog node not found.\")
+		return
+
+	var real_custom_dir := ProjectSettings.globalize_path(CUSTOM_LEVELS_DIR)
+	DirAccess.make_dir_recursive_absolute(real_custom_dir)
+
+	level_popup.hide()
+
+	if options_popup != null:
+		options_popup.hide()
+
+	level_file_dialog.hide()
 	level_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	level_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	level_file_dialog.clear_filters()
 	level_file_dialog.add_filter(\"*.json ; JSON Level Files\")
-	level_file_dialog.file_selected.connect(_on_level_file_selected)
+
+	if not level_file_dialog.file_selected.is_connected(_on_level_file_selected):
+		level_file_dialog.file_selected.connect(_on_level_file_selected)
+
+	if main_menu_start_button != null and not main_menu_start_button.pressed.is_connected(_on_button_start_pressed):
+		main_menu_start_button.pressed.connect(_on_button_start_pressed)
+
+	if upload_button != null and not upload_button.pressed.is_connected(_on_upload_level_button_pressed):
+		upload_button.pressed.connect(_on_upload_level_button_pressed)
+
+	if options_button != null and not options_button.pressed.is_connected(_on_options_button_pressed):
+		options_button.pressed.connect(_on_options_button_pressed)
+
+	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_button_pressed):
+		quit_button.pressed.connect(_on_quit_button_pressed)
+
+	if popup_play_button != null and not popup_play_button.pressed.is_connected(_on_play_button_pressed):
+		popup_play_button.pressed.connect(_on_play_button_pressed)
+
+	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
+		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
+
 
 func _on_button_start_pressed() -> void:
+	print(\"MAIN MENU START PRESSED\")
 	$TabMoveSound.play()
-	var tween = create_tween()
 
-	if LevelsOpen == false:
-		var duration = 1.0
-		var distance = Vector2(-300, 0)
-		var target_pos = position + distance
+	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
+		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
 
-		tween.tween_property($\"MenuBG/LevelsTab\", \"position\", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		LevelsOpen = true
-	else:
-		var duration = 1.0
-		var distance = Vector2(-600, 0)
-		var target_pos = position + distance
+	if level_popup != null:
+		level_popup.popup_centered()
 
-		tween.tween_property($\"MenuBG/LevelsTab\", \"position\", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		LevelsOpen = false
 
 func _on_options_button_pressed() -> void:
+	print(\"OPTIONS PRESSED\")
 	$TabMoveSound.play()
-	var tween = create_tween()
 
-	if OptionsOpen == false:
-		var duration = 1.0
-		var distance = Vector2(1000, 0)
-		var target_pos = position + distance
+	if options_popup != null:
+		options_popup.show()
 
-		tween.tween_property($\"MenuBG/OptionsTab\", \"position\", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		OptionsOpen = true
-	else:
-		var duration = 1.0
-		var distance = Vector2(1300, 0)
-		var target_pos = position + distance
-
-		tween.tween_property($\"MenuBG/OptionsTab\", \"position\", target_pos, duration).set_trans(Tween.TRANS_SINE)
-		OptionsOpen = false
 
 func _on_quit_button_pressed() -> void:
+	print(\"QUIT PRESSED\")
 	$QuitSound.play()
 	await get_tree().create_timer(2.0).timeout
 	get_tree().quit()
 
+
 func _on_upload_level_button_pressed() -> void:
-	print(\"upload button pressed\")
+	print(\"UPLOAD PRESSED\")
 	$TabMoveSound.play()
-	level_file_dialog.popup_centered_ratio(0.75)
+
+	if level_file_dialog != null:
+		level_file_dialog.popup_centered_ratio(0.75)
+
 
 func _on_level_file_selected(path: String) -> void:
-	print(\"Selected level file: \", path)
+	print(\"=== FILE SELECTED ===\")
+	print(\"Original selected path: \", path)
 
-	DirAccess.make_dir_recursive_absolute(CUSTOM_LEVELS_DIR)
+	var real_custom_dir := ProjectSettings.globalize_path(CUSTOM_LEVELS_DIR)
+	DirAccess.make_dir_recursive_absolute(real_custom_dir)
 
 	var file_name := path.get_file()
 	var dest_path := CUSTOM_LEVELS_DIR.path_join(file_name)
@@ -100,45 +151,44 @@ func _on_level_file_selected(path: String) -> void:
 	dest_file.store_string(contents)
 	dest_file.close()
 
-	selected_level_path = dest_path
-	SelectedLevel.path = dest_path
+	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
+		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
 
-	print(\"Imported level saved to: \", dest_path)
-	print(\"Real OS path: \", ProjectSettings.globalize_path(dest_path))
+	if level_dropdown != null and level_dropdown.has_method(\"select_path\"):
+		level_dropdown.select_path(dest_path)
+	else:
+		SelectedLevel.path = dest_path
+
+	print(\"SelectedLevel.path set to: \", SelectedLevel.path)
+
 
 func _on_play_button_pressed() -> void:
+	print(\"POPUP PLAY PRESSED\")
+	print(\"SelectedLevel.path = \", SelectedLevel.path)
+
 	$StartSound.play()
-	var tween = create_tween()
+
+	if level_popup != null:
+		level_popup.hide()
+
+	var tween := create_tween()
 	tween.set_parallel(true)
-
-	var duration = 1.0
-	var distance = Vector2(-600, 0)
-	var target_pos = $\"MenuBG/LevelsTab\".position + distance
-	tween.tween_property($\"MenuBG/LevelsTab\", \"position\", target_pos, duration).set_trans(Tween.TRANS_SINE)
-
-	duration = 1.0
-	distance = Vector2(400, 0)
-	target_pos = $\"MenuBG/OptionsTab\".position + distance
-	tween.tween_property($\"MenuBG/OptionsTab\", \"position\", target_pos, duration).set_trans(Tween.TRANS_SINE)
-
 	tween.tween_property($Mask, \"modulate:a\", 0.0, 1.0)
 
 	tween.set_parallel(false)
 	tween.tween_property($Mask, \"modulate:a\", 255.0, 1.2)
 
 	await get_tree().create_timer(2.2).timeout
-
-	if selected_level_path != \"\":
-		SelectedLevel.path = selected_level_path
-
 	get_tree().change_scene_to_file(\"res://workstation/scenes/workstation.tscn\")
 
-func _on_upload_pressed() -> void:
-	pass
+
+func _on_level_select_popup_close_requested() -> void:
+	if level_popup != null:
+		level_popup.hide()
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nu78t"]
-bg_color = Color(0.03, 0.05, 0.12, 0.78)
+bg_color = Color(0, 0.0023203534, 0.11273261, 0.78039217)
 border_width_left = 8
 border_width_top = 8
 border_width_right = 8
@@ -170,24 +220,15 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PopupMenu" type="Popup" parent="MenuBG" unique_id=1886837316]
+[node name="LevelSelectPopup" type="Popup" parent="MenuBG" unique_id=1886837316]
+handle_input_locally = false
 oversampling_override = 1.0
-initial_position = 2
-size = Vector2i(500, 300)
-visible = true
+title = "Level Select"
+position = Vector2i(318, 170)
+size = Vector2i(644, 380)
+borderless = false
 
-[node name="Control" type="Control" parent="MenuBG/PopupMenu" unique_id=1475509610]
-light_mask = 0
-custom_minimum_size = Vector2(300, 190)
-layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ColorRect" type="Panel" parent="MenuBG/PopupMenu/Control" unique_id=2038610881]
-layout_mode = 1
+[node name="ColorRect" type="Panel" parent="MenuBG/LevelSelectPopup" unique_id=2038610881]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -195,90 +236,48 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_nu78t")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/PopupMenu/Control" unique_id=324351412]
-layout_mode = 1
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/LevelSelectPopup" unique_id=324351412]
+y_sort_enabled = true
+clip_contents = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 123.0
+offset_right = -124.0
+offset_bottom = -64.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 27
+alignment = 1
 
-[node name="Label" type="Label" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=704104408]
-top_level = true
-custom_minimum_size = Vector2(220, 40)
+[node name="PlayButton" type="Button" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=1443204992]
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
-size_flags_horizontal = 0
-size_flags_vertical = 1
-
-[node name="PlayButton" type="Button" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=1443204992]
-top_level = true
-custom_minimum_size = Vector2(0, 40)
-layout_direction = 3
-layout_mode = 2
+theme_type_variation = &"FlatButton"
 text = "Play
 "
 
-[node name="MenuButton" type="OptionButton" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=1253441802]
-top_level = true
+[node name="MenuButton" type="OptionButton" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=1253441802]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
-size_flags_vertical = 4
 size_flags_stretch_ratio = 0.0
 script = ExtResource("5_1iqtg")
 
-[node name="CloseButton" type="Button" parent="MenuBG/PopupMenu/Control/VBoxContainer" unique_id=1554100481]
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-
 [node name="TextureRect" type="TextureRect" parent="MenuBG" unique_id=1629830998]
 layout_mode = 0
-offset_left = -7.0
-offset_right = 1284.0
-offset_bottom = 726.0
+offset_top = 2.0
+offset_right = 1291.0
+offset_bottom = 728.0
 texture = ExtResource("2_q11ey")
 expand_mode = 1
 
-[node name="AspectRatioContainer" type="AspectRatioContainer" parent="MenuBG" unique_id=1843367750]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -7.0
-offset_right = 645.8357
-offset_bottom = 360.0
-grow_horizontal = 2
-grow_vertical = 2
-scale = Vector2(0.67, 0.67)
-mouse_filter = 2
+[node name="CloseButton" type="Button" parent="MenuBG/TextureRect" unique_id=1730237620]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 0
+size_flags_horizontal = 4
+size_flags_vertical = 8
 
-[node name="VideoBG" type="VideoStreamPlayer" parent="MenuBG/AspectRatioContainer" unique_id=1733741840]
-visible = false
-layout_mode = 2
-mouse_filter = 2
-stream = ExtResource("2_nu78t")
-autoplay = true
-loop = true
-
-[node name="Logo" type="MarginContainer" parent="MenuBG" unique_id=706626020]
-visible = false
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -339.5
-offset_top = 41.0
-offset_right = 339.5
-offset_bottom = 260.0
-grow_horizontal = 2
-
-[node name="TextureRect" type="TextureRect" parent="MenuBG/Logo" unique_id=629447021]
-visible = false
-layout_mode = 2
-texture = ExtResource("2_mkuju")
-
-[node name="StartMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=49013344]
-visible = false
+[node name="PlayButtonContainer" type="MarginContainer" parent="MenuBG" unique_id=49013344]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -292,18 +291,41 @@ offset_bottom = -94.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/StartMarginContainer" unique_id=1656775911]
-visible = false
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/PlayButtonContainer" unique_id=1656775911]
 layout_mode = 2
 
-[node name="StartButton" type="Button" parent="MenuBG/StartMarginContainer/VBoxContainer" unique_id=1499396833]
-visible = false
+[node name="StartButton" type="Button" parent="MenuBG/PlayButtonContainer/VBoxContainer" unique_id=1499396833]
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"FlatButton"
 
+[node name="UploadLevelButtonContainer" type="MarginContainer" parent="MenuBG" unique_id=1445314058]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -281.0
+offset_top = -70.0
+offset_right = 278.0
+offset_bottom = -10.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/UploadLevelButtonContainer" unique_id=1383072699]
+layout_mode = 2
+
+[node name="Upload" type="Button" parent="MenuBG/UploadLevelButtonContainer/VBoxContainer" unique_id=2111853005]
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"FlatButton"
+
+[node name="FileDialog" type="FileDialog" parent="MenuBG/UploadLevelButtonContainer/VBoxContainer" unique_id=2018251452]
+oversampling_override = 1.0
+position = Vector2i(0, 36)
+
 [node name="OptionsMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1557115278]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -318,17 +340,14 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/OptionsMarginContainer" unique_id=516003802]
-visible = false
 layout_mode = 2
 
 [node name="OptionsButton" type="Button" parent="MenuBG/OptionsMarginContainer/VBoxContainer" unique_id=2013621979]
-visible = false
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"FlatButton"
 
-[node name="QuitMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1129521710]
-visible = false
+[node name="QuitButtonContainer" type="MarginContainer" parent="MenuBG" unique_id=1129521710]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -342,10 +361,10 @@ offset_bottom = 154.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/QuitMarginContainer" unique_id=141939731]
+[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/QuitButtonContainer" unique_id=141939731]
 layout_mode = 2
 
-[node name="QuitButton" type="Button" parent="MenuBG/QuitMarginContainer/VBoxContainer" unique_id=1837881485]
+[node name="QuitButton" type="Button" parent="MenuBG/QuitButtonContainer/VBoxContainer" unique_id=1837881485]
 layout_mode = 2
 size_flags_vertical = 3
 theme_type_variation = &"FlatButton"
@@ -353,50 +372,10 @@ text = "
 "
 
 [node name="OptionsTab" type="TextureRect" parent="MenuBG" unique_id=1632772630]
-visible = false
 layout_mode = 0
 offset_left = 1280.0
 offset_right = 1880.0
 offset_bottom = 720.0
-
-[node name="LevelsTab" type="TextureRect" parent="MenuBG" unique_id=2029502849]
-visible = false
-visibility_layer = 751
-z_as_relative = false
-layout_mode = 1
-anchors_preset = -1
-anchor_left = -0.469
-anchor_right = -0.469
-offset_left = 0.32000732
-offset_right = 600.32
-offset_bottom = 720.0
-
-[node name="PanelContainer" type="PanelContainer" parent="MenuBG/LevelsTab" unique_id=1366467947]
-visible = false
-clip_children = 2
-layout_mode = 1
-offset_right = 591.0
-offset_bottom = 716.0
-
-[node name="MarginContainer" type="MarginContainer" parent="MenuBG/LevelsTab/PanelContainer" unique_id=227244431]
-visible = false
-clip_children = 2
-layout_mode = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/LevelsTab/PanelContainer/MarginContainer" unique_id=1382655629]
-visible = false
-layout_mode = 2
-
-[node name="MarginContainer2" type="MarginContainer" parent="MenuBG/LevelsTab" unique_id=1928199729]
-visible = false
-layout_mode = 1
-anchors_preset = -1
-anchor_right = 0.093
-anchor_bottom = 0.062000003
-offset_left = 344.0
-offset_top = 392.0
-offset_right = 463.2
-offset_bottom = 392.36
 
 [node name="StartSound" type="AudioStreamPlayer" parent="." unique_id=398680422]
 stream = ExtResource("2_suspn")
@@ -408,7 +387,6 @@ stream = ExtResource("5_6hyfw")
 stream = ExtResource("7_nu78t")
 
 [node name="Mask" type="ColorRect" parent="." unique_id=1348239614]
-visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -422,36 +400,30 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 0.003921569)
 
-[node name="UploadMarginContainer" type="MarginContainer" parent="." unique_id=1445314058]
-visible = false
+[node name="AspectRatioContainer" type="AspectRatioContainer" parent="." unique_id=1843367750]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -281.0
-offset_top = -70.0
-offset_right = 278.0
-offset_bottom = -10.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -7.0
+offset_right = 645.8357
+offset_bottom = 360.0
 grow_horizontal = 2
 grow_vertical = 2
+scale = Vector2(0.67, 0.67)
+mouse_filter = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="UploadMarginContainer" unique_id=1383072699]
+[node name="VideoBG" type="VideoStreamPlayer" parent="AspectRatioContainer" unique_id=1733741840]
 visible = false
 layout_mode = 2
+mouse_filter = 2
+stream = ExtResource("2_nu78t")
+autoplay = true
+loop = true
 
-[node name="Upload" type="Button" parent="UploadMarginContainer/VBoxContainer" unique_id=2111853005]
-visible = false
-layout_mode = 2
-size_flags_vertical = 3
-theme_type_variation = &"FlatButton"
-
-[node name="FileDialog" type="FileDialog" parent="UploadMarginContainer/VBoxContainer" unique_id=2018251452]
-
-[connection signal="pressed" from="MenuBG/PopupMenu/Control/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
-[connection signal="item_selected" from="MenuBG/PopupMenu/Control/VBoxContainer/MenuButton" to="MenuBG/PopupMenu/Control/VBoxContainer/MenuButton" method="_on_item_selected"]
-[connection signal="pressed" from="MenuBG/StartMarginContainer/VBoxContainer/StartButton" to="." method="_on_button_start_pressed"]
+[connection signal="pressed" from="MenuBG/LevelSelectPopup/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
+[connection signal="item_selected" from="MenuBG/LevelSelectPopup/VBoxContainer/MenuButton" to="MenuBG/LevelSelectPopup/VBoxContainer/MenuButton" method="_on_item_selected"]
+[connection signal="pressed" from="MenuBG/PlayButtonContainer/VBoxContainer/StartButton" to="." method="_on_button_start_pressed"]
+[connection signal="pressed" from="MenuBG/UploadLevelButtonContainer/VBoxContainer/Upload" to="." method="_on_upload_level_button_pressed"]
 [connection signal="pressed" from="MenuBG/OptionsMarginContainer/VBoxContainer/OptionsButton" to="." method="_on_options_button_pressed"]
-[connection signal="pressed" from="MenuBG/QuitMarginContainer/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
-[connection signal="pressed" from="UploadMarginContainer/VBoxContainer/Upload" to="." method="_on_upload_level_button_pressed"]
+[connection signal="pressed" from="MenuBG/QuitButtonContainer/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
