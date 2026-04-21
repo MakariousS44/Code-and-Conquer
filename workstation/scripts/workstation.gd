@@ -52,6 +52,7 @@ var current_language: Language = Language.CPP
 # this screen now loads the level definition and instantiates the playable level scene directly
 var level_definition = preload(Paths.MAP_LOADER).new()
 var level_scene_resource = preload(Paths.MAP_VIEW_SCENE)
+var current_level_definition: Dictionary = {}
 
 # cached runtime refs so this screen can hand commands to the live player
 var game_instance: Node = null
@@ -160,21 +161,67 @@ func _load_level_scene(load_editor_text: bool = true) -> void:
 		log_error("LOAD FAILED: " + raw.error)
 		return
 
-	# preload starter code into editor only when requested
-	if load_editor_text and raw.definition.has("editor"):
-		var starter = raw.definition["editor"]
+	current_level_definition = raw.definition
 
-		if starter is Array:
-			var lines: PackedStringArray = []
-			for line in starter:
-				lines.append(str(line))
-			editor.text = "\n".join(lines)
-		elif starter is String:
-			editor.text = starter
+	# preload starter code into editor only when requested
+	if load_editor_text:
+		_load_editor_template_for_current_language()
 
 	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
+
+
+func _load_editor_template_for_current_language() -> void:
+	if current_level_definition.is_empty():
+		_load_default_editor_template()
+		return
+
+	if not current_level_definition.has("editor"):
+		_load_default_editor_template()
+		return
+
+	var editor_data = current_level_definition["editor"]
+
+	# === OLD FORMAT SUPPORT ===
+	if editor_data is String:
+		editor.text = editor_data
+		return
+
+	if editor_data is Array:
+		var old_lines: PackedStringArray = []
+		for line in editor_data:
+			old_lines.append(str(line))
+		editor.text = "\n".join(old_lines)
+		return
+
+	# === NEW FORMAT SUPPORT ===
+	if editor_data is Dictionary:
+		var key := "cpp" if current_language == Language.CPP else "python"
+
+		if editor_data.has(key):
+			var starter = editor_data[key]
+
+			if starter is String:
+				editor.text = starter
+				return
+
+			if starter is Array:
+				var lines: PackedStringArray = []
+				for line in starter:
+					lines.append(str(line))
+				editor.text = "\n".join(lines)
+				return
+
+	_load_default_editor_template()
+
+
+func _load_default_editor_template() -> void:
+	if current_language == Language.CPP:
+		editor.text = "int main() {\n    move();\n}\n"
+	else:
+		editor.text = "move()\n"
+
 
 # === editor setup ===
 func _setup_editor() -> void:
@@ -204,12 +251,12 @@ func _on_language_changed(index: int) -> void:
 	_clear_editor_highlights()
 
 	if current_language == Language.CPP:
-		editor.text = "int main() {\n    move();\n}\n"
 		_setup_syntax_highlighting()
+		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
 	elif current_language == Language.PYTHON:
-		editor.text = "move()\n"
 		_setup_python_highlighting()
+		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
 
 
@@ -304,11 +351,7 @@ func _highlight_editor_line(line: int) -> void:
 
 	if adjusted >= 0 and adjusted < editor.get_line_count():
 		editor.set_line_background_color(adjusted, Color(0.30, 0.60, 0.30, 0.25))
-
-		# move caret to the active line so the editor knows where to scroll
 		editor.set_caret_line(adjusted)
-
-		# keep the executing line visible
 		editor.center_viewport_to_caret()
 
 
