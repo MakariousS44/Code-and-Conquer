@@ -12,16 +12,16 @@ extends Control
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
-
+@onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
 # === popups ===
 @onready var lose_overlay: Control = $LoseOverlay
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
 @onready var win_overlay: Control = $WinOverlay
 @onready var win_retry_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinRetryButton
-@onready var win_next_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinNextButton
 @onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
 @onready var win_menu_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinMenuButton
+@onready var library_overlay: Control = $LibraryOverlay
 
 # === execution components ===
 # these turn student code into command output the game can actually use
@@ -74,7 +74,6 @@ func _ready() -> void:
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
 	win_retry_button.pressed.connect(_on_win_retry)
-	win_next_button.pressed.connect(_on_win_next)
 	lose_menu_button.pressed.connect(_on_go_to_menu)
 	win_menu_button.pressed.connect(_on_go_to_menu)
 
@@ -633,3 +632,14 @@ func l_rotate_button_up() -> void:
 func r_rotate_button_up() -> void:
 	# Utilize Global events to communicate to the level scene
 	EventManager.rotate_camera_left.emit()
+
+
+func _on_library_button_pressed() -> void:
+	if library_overlay.is_visible_in_tree():
+		library_overlay.visible = false
+	else:
+		library_overlay.visible = true
+
+
+func _on_main_menu_button_pressed() -> void:
+	_on_go_to_menu()
