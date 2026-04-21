@@ -1,0 +1,151 @@
+{
+  "robots": [
+    {
+      "x": 1,
+      "y": 1,
+      "_prev_x": 1,
+      "_prev_y": 1,
+      "_prev_orientation": 0,
+      "objects": {},
+      "_orientation": 0,
+      "_is_leaky": true,
+      "_trace_history": [],
+      "_trace_style": "default",
+      "_trace_color": "seagreen",
+      "__id": 3,
+      "model": "classic",
+      "possible_initial_positions": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "walls": {
+    "1,1": [
+      "north"
+    ],
+    "2,1": [
+      "north"
+    ],
+    "3,1": [
+      "north"
+    ],
+    "4,1": [
+      "north"
+    ],
+    "5,1": [
+      "north"
+    ],
+    "6,1": [
+      "north"
+    ],
+    "7,1": [
+      "north"
+    ],
+    "8,1": [
+      "north"
+    ],
+    "9,1": [
+      "north"
+    ],
+    "9,2": [
+      "east",
+      "north"
+    ],
+    "8,2": [
+      "north"
+    ],
+    "7,2": [
+      "north"
+    ],
+    "6,2": [
+      "north"
+    ],
+    "5,2": [
+      "north"
+    ],
+    "4,2": [
+      "north"
+    ],
+    "3,3": [
+      "east"
+    ],
+    "6,5": [
+      "east"
+    ],
+    "7,5": [
+      "north",
+      "east"
+    ],
+    "7,4": [
+      "east"
+    ],
+    "8,3": [
+      "north"
+    ],
+    "9,3": [
+      "north"
+    ],
+    "10,3": [
+      "north"
+    ],
+    "6,4": [
+      "north"
+    ],
+    "7,3": [
+      "north"
+    ],
+    "5,4": [
+      "north"
+    ],
+    "4,4": [
+      "north"
+    ],
+    "3,4": [
+      "east"
+    ],
+    "5,3": [
+      "north"
+    ],
+    "6,3": [
+      "north"
+    ]
+  },
+  "description": [
+    "A simple, empty world, ready for Reeborg to explore."
+  ],
+  "small_tiles": false,
+  "rows": 10,
+  "cols": 10,
+  "objects": {
+    "5,1": {
+      "apple": 1
+    },
+    "4,1": {
+      "carrot": 1
+    }
+  },
+  "goal": {
+    "objects": {
+      "7,1": {
+        "apple": 1
+      },
+      "8,1": {
+        "carrot": 1
+      }
+    },
+    "possible_final_positions": [
+      [
+        7,
+        5
+      ]
+    ],
+    "position": {
+      "image": "green_home_tile",
+      "x": 7,
+      "y": 5
+    }
+  }
+}

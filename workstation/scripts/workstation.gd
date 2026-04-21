@@ -9,17 +9,19 @@ extends Control
 @onready var run_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/RunButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
+@onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
+@onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
-
+@onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
 # === popups ===
 @onready var lose_overlay: Control = $LoseOverlay
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
 @onready var win_overlay: Control = $WinOverlay
 @onready var win_retry_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinRetryButton
-@onready var win_next_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinNextButton
 @onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
 @onready var win_menu_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinMenuButton
+@onready var library_overlay: Control = $LibraryOverlay
 
 # === execution components ===
 # these turn student code into command output the game can actually use
@@ -72,7 +74,6 @@ func _ready() -> void:
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
 	win_retry_button.pressed.connect(_on_win_retry)
-	win_next_button.pressed.connect(_on_win_next)
 	lose_menu_button.pressed.connect(_on_go_to_menu)
 	win_menu_button.pressed.connect(_on_go_to_menu)
 
@@ -262,6 +263,9 @@ func _on_reset_button_pressed() -> void:
 	run_button.disabled = false
 	step_button.disabled = false
 	reset_button.disabled = false
+	rotate_left_btn.disabled = false
+	rotate_right_btn.disabled = false
+	
 	step_mode = false
 	output_box.clear()
 	log_header("reset")
@@ -295,6 +299,8 @@ func _set_controls_disabled(disabled: bool) -> void:
 	reset_button.disabled = disabled
 	language_selector.disabled = disabled
 	editor.editable = not disabled
+	rotate_left_btn.disabled = disabled
+	rotate_right_btn.disabled = disabled
 
 
 func _get_funny_lose_message() -> String:
@@ -373,6 +379,10 @@ func _run_pipeline(step_only: bool) -> void:
 	reset_button.disabled = false
 	run_button.disabled = true
 	step_button.disabled = true
+	
+	if not step_only:
+		rotate_left_btn.disabled = true
+		rotate_right_btn.disabled = true
 	
 	_set_status("Running..." if not step_only else "Compiling...", "")
 	output_box.clear()
@@ -601,6 +611,8 @@ func _re_enable_buttons() -> void:
 	run_button.disabled = false
 	step_button.disabled = false
 	reset_button.disabled = false
+	rotate_left_btn.disabled = false
+	rotate_right_btn.disabled = false
 
 # === logging ===
 
@@ -622,3 +634,24 @@ func log_warning(text: String) -> void:
 
 func log_error(text: String) -> void:
 	output_box.append_text("[color=#e17777]✗[/color]  %s\n" % text)
+
+
+func l_rotate_button_up() -> void:
+	# Utilize Global events to communicate to the level scene
+	EventManager.rotate_camera_right.emit()
+
+
+func r_rotate_button_up() -> void:
+	# Utilize Global events to communicate to the level scene
+	EventManager.rotate_camera_left.emit()
+
+
+func _on_library_button_pressed() -> void:
+	if library_overlay.is_visible_in_tree():
+		library_overlay.visible = false
+	else:
+		library_overlay.visible = true
+
+
+func _on_main_menu_button_pressed() -> void:
+	_on_go_to_menu()
