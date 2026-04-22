@@ -89,6 +89,16 @@ func _ready() -> void:
 
 	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
 		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
+		
+	if level_dropdown != null:
+		level_dropdown.item_selected.connect(func(_i: int): _update_play_button())
+
+	_update_play_button()
+
+
+func _update_play_button() -> void:
+	if popup_play_button != null:
+		popup_play_button.disabled = SelectedLevel.path.is_empty()
 
 
 func _on_button_start_pressed() -> void:
@@ -163,6 +173,9 @@ func _on_level_file_selected(path: String) -> void:
 
 
 func _on_play_button_pressed() -> void:
+	if SelectedLevel.path.is_empty():
+		return
+
 	print(\"POPUP PLAY PRESSED\")
 	print(\"SelectedLevel.path = \", SelectedLevel.path)
 

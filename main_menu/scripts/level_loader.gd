@@ -37,10 +37,14 @@ func populate_from_folder(path: String) -> void:
 	clear()
 	file_paths.clear()
 
+	add_item(" -- Select a world -- ")
+	file_paths.append("")
+
 	var dir := DirAccess.open(path)
 	if dir == null:
 		print("Could not open folder: ", path)
 		SelectedLevel.path = ""
+		select(0)
 		return
 
 	var files := dir.get_files()
@@ -60,13 +64,8 @@ func populate_from_folder(path: String) -> void:
 
 	print("Dropdown item count: ", item_count)
 
-	if file_paths.size() > 0:
-		select(0)
-		SelectedLevel.path = file_paths[0]
-		print("Default selected path: ", SelectedLevel.path)
-	else:
-		print("No JSON files found in: ", path)
-		SelectedLevel.path = ""
+	select(0)
+	SelectedLevel.path = ""
 
 
 func select_path(path: String) -> void:

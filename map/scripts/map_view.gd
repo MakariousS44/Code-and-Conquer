@@ -296,7 +296,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					if other_wall == Vector2i(6,1):
 						var corner_pos = Vector2i(cell[0]-1,cell[1])
 						# T-intersection: skip corner if a straight wall already occupies this cell
-						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(7,1):
+						if WallTiles.get_cell_source_id(corner_pos) == -1:
 							WallTiles.set_cell(corner_pos, 44, Vector2i(3,2))
 			elif rotation_state == 2:
 				#find all cell that id
@@ -308,7 +308,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					if other_wall == Vector2i(5,1):
 						var corner_pos = Vector2i(cell[0]+1,cell[1])
 						# T-intersection: skip corner if a straight wall already occupies this cell
-						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(7,1):
+						if WallTiles.get_cell_source_id(corner_pos) == -1:
 							WallTiles.set_cell(corner_pos, 44, Vector2i(1,2))
 			elif rotation_state == 3:
 				#find all cell that id
@@ -320,7 +320,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					if other_wall == Vector2i(5,1):
 						var corner_pos = Vector2i(cell[0]+1,cell[1])
 						# T-intersection: skip corner if a straight wall already occupies this cell
-						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(4,1):
+						if WallTiles.get_cell_source_id(corner_pos) == -1:
 							WallTiles.set_cell(corner_pos, 44, Vector2i(0,2))
 			else:
 				#find all cell that id
@@ -332,7 +332,7 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 					if other_wall == Vector2i(6,1):
 						var corner_pos = Vector2i(cell[0]-1,cell[1])
 						# T-intersection: skip corner if a straight wall already occupies this cell
-						if WallTiles.get_cell_atlas_coords(corner_pos) != Vector2i(4,1):
+						if WallTiles.get_cell_source_id(corner_pos) == -1:
 							WallTiles.set_cell(corner_pos, 44, Vector2i(2,2))
 
 	else:

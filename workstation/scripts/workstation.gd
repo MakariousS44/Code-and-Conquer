@@ -141,8 +141,6 @@ func _load_level_scene(load_editor_text: bool = true) -> void:
 
 	if SelectedLevel.path.strip_edges() != "":
 		level_path = SelectedLevel.path
-	elif SelectedLevel.level.strip_edges() != "":
-		level_path = SelectedLevel.level
 	else:
 		push_error("No level path available.")
 		log_error("NO LEVEL PATH FOUND")
