@@ -687,7 +687,7 @@ func object_grid_position(x_pos: int, y_pos: int) -> Vector2:
 		pos_y = y_pos - 4
 	elif rotation_state == 3:
 		pos_x = max_grid - y_pos
-		pos_y = max_grid - x_pos - 2
+		pos_y = max_grid - x_pos - 4
 
 	# 5. Ask the TileMapLayer where that specific grid tile is in actual pixels
 	var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x,pos_y))
