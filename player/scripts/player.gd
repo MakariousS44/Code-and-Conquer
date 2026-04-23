@@ -47,16 +47,13 @@ func update_animation(is_running: bool = false) -> void:
 	
 ## Initialize player at proper location and face direction
 func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, is_rotating: bool) -> void:
-	_has_lost = false
-	carried_object = ""
-	
 	# Prevent the tween from fighting the sudden camera snap
 	if current_tween and current_tween.is_running():
 		current_tween.kill()
-		
+
 	# Snap to the rotated coordinates instantly
 	position = world_pos
-	
+
 	if not is_rotating:
 		# BRAND NEW LEVEL: Reset logical variables
 		_has_lost = false
