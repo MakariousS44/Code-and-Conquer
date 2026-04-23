@@ -6,7 +6,8 @@
 
 ## Table of Contents
 1. [About the Project](#about-the-project)
-3. [Getting Started](#getting-started)
+2. [Download & Play](#download--play)
+3. [Getting Started (Developers)](#getting-started-developers)
 4. [How to Play](#how-to-play)
 5. [Available Commands](#available-commands)
 
@@ -14,7 +15,7 @@
 
 ## About the Project
 
-Code & Conquer is an educational coding game where players write real code (C++ or Python) to control a robot navigating an isometric world. It is designed as a beginner-friendly, hands-on introduction to programming concepts like loops, conditionals, and functions — inspired by tools like Reeborg's World.
+Code & Conquer is an educational coding game where players write real code (C++ or Python) to control a character navigating an isometric world. It is designed as a beginner-friendly, hands-on introduction to programming concepts like loops, conditions, and functions — inspired by Reeborg's World.
 
 **Key features:**
 - Built-in code editor with syntax highlighting (C++ and Python)
@@ -25,7 +26,22 @@ Code & Conquer is an educational coding game where players write real code (C++ 
 
 ---
 
-## Getting Started
+## Download & Play
+
+Just want to play the game? Download a pre-built executable — no Godot required.
+
+Head to the [**Releases**](https://github.com/MakariousS44/RobotGame/releases) page and grab the latest build for your OS:
+- **Windows** — `CodeAndConquer_Windows.zip`
+- **macOS** — `CodeAndConquer_MacOS.zip`
+- **Linux** — `CodeAndConquer_Linux.zip`
+
+Unzip and run the executable. You will still need **GCC (g++)** and **Python 3** installed to compile and run your code (see prerequisites below).
+
+> Looking to modify or contribute to the game? Follow the developer setup below.
+
+---
+
+## Getting Started (Developers)
 
 ### Prerequisites
 
@@ -59,7 +75,7 @@ To get a local copy of the project, clone the repository using your terminal or 
 3. Run the following command:
 
 ```bash
-git clone https://github.com/MakariousS44/RobotGame.git
+https://github.com/MakariousS44/Code-and-Conquer.git
 ```
 
 Once the download is complete, a new folder named after the project will be created.
@@ -95,25 +111,42 @@ Press **F5** or click the **Play** button in the top-right of the Godot editor.
 
 ## Available Commands
 
-These are the robot functions students can use. They work the same in both C++ and Python:
+## Available Commands & Sensors
+
+These robot functions work the same in both C++ and Python.
+
+### Commands (perform an action)
 
 ```cpp
-move();           // Move the robot one tile forward
-turn_left();      // Rotate the robot 90° to the left
-turn_right();     // Rotate the robot 90° to the right
-front_is_clear(); // Returns true if no wall is ahead
-pick_object();    // Pick up an object on the current tile
-put_object();     // Place an object on the current tile
+move();          // Move the charcter one tile forward
+turn_left();     // Rotate the charcter 90° to the left
+pick_object();   // Pick up an object on the current tile
+put_object();    // Place an object on the current tile
 ```
 
-**Example:**
+### Sensors (return `true` or `false`)
+
+```cpp
+front_is_clear();   // No wall directly ahead
+right_is_clear();   // No wall to the character's right
+left_is_clear();    // No wall to the charcter's left
+wall_in_front();    // Wall directly ahead
+wall_on_right();    // Wall to the charcter's right
+wall_on_left();     // Wall to the charcter's left
+at_goal();          // charcter is standing on the goal tile
+object_here();      // An object is on the current tile
+carries_object();   // Robot is carrying an object
+is_facing_north();  // Robot is currently facing north
+```
+
+**Example — walk in a square:**
 ```cpp
 int main() {
     for (int i = 0; i < 4; i++) {
         move();
         move();
         move();
-        turn_right();
+        turn_left();
     }
 }
 ```
