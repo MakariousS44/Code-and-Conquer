@@ -1,6 +1,6 @@
 # Code & Conquer
-**A visual coding learning game built with Godot 4**  
-*CSCI 4700 — Software Engineering | Pickaxe Productions*
+**A programming game and learning tool built with Godot 4**  
+
  
 ---
  
