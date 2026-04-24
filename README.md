@@ -33,6 +33,7 @@ Head to the [**Releases**](https://github.com/MakariousS44/Code-and-Conquer/rele
 - **Windows** — `CodeAndConquer_Windows.zip`
 - **macOS** — `CodeAndConquer_MacOS.zip`
 - **Linux** — `CodeAndConquer_Linux.zip`
+  
 Unzip and run the executable.
  
 > **Note:** GCC (g++) and Python 3 are required to compile and run student code. See [Prerequisites](#prerequisites) below.
