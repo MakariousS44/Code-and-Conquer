@@ -76,7 +76,7 @@ func _get_world() -> Node:
 
 # ========= Movement =========
 ## Advances the player one step to where its facing
-func move_forward() -> void:
+func move_forward(duration: float = 0.5) -> void:
 	var world = _get_world()
 	var next_x = grid_x
 	var next_y = grid_y
@@ -114,7 +114,7 @@ func move_forward() -> void:
 		
 		# Assign it to the class variable so initialize_from_level can stop it if needed
 		current_tween = create_tween()
-		current_tween.tween_property(self, "position", target_pos, 0.5)
+		current_tween.tween_property(self, "position", target_pos, duration)
 		await current_tween.finished
 	
 	# Stop running animation

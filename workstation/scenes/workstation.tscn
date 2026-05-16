@@ -303,6 +303,33 @@ layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 2
 
+[node name="SpeedContainer" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1938898629]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SpeedLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer" unique_id=315367129]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.82483774, 0.8507098, 0.8844092, 1)
+theme_override_font_sizes/font_size = 14
+text = "Speed:"
+vertical_alignment = 1
+
+[node name="SpeedSlider" type="HSlider" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer" unique_id=336836318]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+size_flags_vertical = 4
+min_value = 0.1
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="SpeedValueLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer" unique_id=1580749198]
+custom_minimum_size = Vector2(38, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0.50s"
+vertical_alignment = 1
+
 [node name="LeftRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1748109493]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")

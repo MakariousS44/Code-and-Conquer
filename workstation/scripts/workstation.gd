@@ -13,6 +13,8 @@ extends Control
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
 @onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
+@onready var speed_slider: HSlider = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedSlider
+@onready var speed_value_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedValueLabel
 
 # Popups -------------------------------------------+
 # Lose overlay
@@ -73,6 +75,7 @@ var current_line_offset: int = 0
 var _is_handling_lose: bool = false
 
 var global_level_name := ""
+var exec_speed: float = 0.5
 
 func _ready() -> void:
 	_set_status("Ready", "")
@@ -109,6 +112,8 @@ func _ready() -> void:
 
 	if menu_button != null and not menu_button.pressed.is_connected(_on_main_menu_button_pressed):
 		menu_button.pressed.connect(_on_main_menu_button_pressed)
+
+	speed_slider.value_changed.connect(_on_speed_change)
 
 	library_overlay.visible = false
 
@@ -375,6 +380,10 @@ func _on_reset_button_pressed() -> void:
 	_set_status("Ready", "")
 	_load_level_scene(false)
 
+func _on_speed_change(value: float) -> void:
+	exec_speed = value
+	speed_value_label.text = "%.2fs" % value
+
 
 # === funny lose messages ===
 const LOSE_MESSAGES := [
@@ -635,13 +644,13 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		return
 	match cmd:
 		"MOVE":
-			await player_node.move_forward()
+			await player_node.move_forward(exec_speed)
 		"TURN_LEFT":
 			player_node.turn_left()
-			await get_tree().create_timer(0.1).timeout
+			await get_tree().create_timer(exec_speed * 0.2).timeout
 		"TURN_RIGHT":
 			player_node.turn_right()
-			await get_tree().create_timer(0.1).timeout
+			await get_tree().create_timer(exec_speed * 0.2).timeout
 		"PICK_OBJECT":
 			player_node.pick_object()
 		"PUT_OBJECT":
