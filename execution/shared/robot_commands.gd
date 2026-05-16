@@ -22,6 +22,8 @@ const SENSORS := [
 	{ "name": "object_here",     "query": "OBJECT_HERE"     },
 	{ "name": "carries_object",  "query": "CARRIES_OBJECT"  },
 	{ "name": "is_facing_north", "query": "IS_FACING_NORTH" },
+	{ "name": "is_facing_east", "query": "IS_FACING_EAST" },
+	{ "name": "is_facing_west", "query": "IS_FACING_WEST" },
 ]
 
 ## Socket bootstrap + all commands + all sensors, injected before student code.

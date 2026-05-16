@@ -33,6 +33,7 @@ var pending_report_text: String = ""
 
 # Library overlay
 @onready var library_overlay: Control = $LibraryOverlay
+@onready var library_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LibraryButton
 
 # === execution components ===
 # these turn student code into command output the game can actually use
@@ -666,6 +667,10 @@ func _answer_query(query: String) -> String:
 			return _bool(not _is_clear(_left_of(facing)))
 		"IS_FACING_NORTH":
 			return _bool(facing == "north")
+		"IS_FACING_EAST":
+			return _bool(facing == "east")
+		"IS_FACING_WEST":
+			return _bool(facing == "west")
 		"AT_GOAL":
 			return _bool(game_instance.is_at_goal(player_node.grid_x, player_node.grid_y))
 		"OBJECT_HERE":
@@ -775,10 +780,24 @@ func l_rotate_button_up() -> void:
 func r_rotate_button_up() -> void:
 	EventManager.rotate_camera_left.emit()
 
-
+# toggle library_overlay between visible and invisible when library_button is pressed
 func _on_library_button_pressed() -> void:
 	library_overlay.visible = not library_overlay.visible
 
+# switches the library_overlay to invisible when clicked outside the the overlay
+func _input(event) -> void:
+	# filter for left click only
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# run the logic only if the overlay is visible
+		if library_overlay.visible:
+			# var to hold the overlay's position
+			var clicked_overlay = library_overlay.get_global_rect().has_point(event.position)
+			# var to hold the oberlay button's position
+			var clicked_button = library_button.get_global_rect().has_point(event.position)
+			# if the click is outside the overlay and the button's position
+			if not clicked_overlay and not clicked_button:
+				# toggle the overlay to invisible
+				library_overlay.hide()
 
 func _on_main_menu_button_pressed() -> void:
 	_on_go_to_menu()
