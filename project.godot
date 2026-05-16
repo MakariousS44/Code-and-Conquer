@@ -24,10 +24,11 @@ EventManager="*uid://cl00riv6kfaao"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/mode=3
 window/stretch/mode="canvas_items"
-window/mode=4
+window/mode=3
 
 [gui]
 

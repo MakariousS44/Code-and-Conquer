@@ -78,6 +78,14 @@ var global_level_name := ""
 var exec_speed: float = 0.5
 
 func _ready() -> void:
+	# Kill any subprocess left over from a previous session that was force-closed.
+	# auto_accept_quit disabled so _notification can clean up before Godot exits.
+	get_tree().set_auto_accept_quit(false)		# required for _notification to intercept window close
+	if OS.get_name() == "Windows":
+		OS.execute("taskkill", ["/F", "/IM", "student_program.exe"], [], true)
+	else:
+		OS.execute("pkill", ["-f", "student_program"], [], true)
+
 	_set_status("Ready", "")
 	editor.text = "int main() {\n    move();\n}\n"
 	editor.grab_focus()
@@ -635,6 +643,11 @@ func _run_ipc_loop() -> void:
 		step_button.disabled = true
 		_set_status("Done", "ok")
 
+# Intercepts window close so the subprocess is killed before Godot exits
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_stop_execution()
+		get_tree().quit()
 
 func _execute_cmd(cmd: String, src_line: int) -> void:
 	_highlight_editor_line(src_line)

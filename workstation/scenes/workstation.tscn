@@ -256,10 +256,6 @@ size_flags_stretch_ratio = 0.35
 texture = ExtResource("3_1bmh4")
 expand_mode = 3
 
-[node name="Divider2" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=676676868]
-visible = false
-layout_mode = 2
-
 [node name="LeftButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=222222221]
 layout_mode = 2
 theme_override_constants/separation = 6
@@ -437,12 +433,14 @@ theme_override_constants/margin_bottom = 10
 
 [node name="Output" type="RichTextLabel" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin" unique_id=402483377]
 layout_mode = 2
+focus_mode = 2
 theme_override_colors/default_color = Color(0.72, 0.76, 0.81, 1)
 theme_override_fonts/normal_font = ExtResource("3_hu8hj")
 theme_override_font_sizes/normal_font_size = 13
 bbcode_enabled = true
 scroll_following = true
 context_menu_enabled = true
+selection_enabled = true
 
 [node name="GameViewPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit" unique_id=1786001261]
 layout_mode = 2

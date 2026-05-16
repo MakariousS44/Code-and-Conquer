@@ -360,7 +360,6 @@ oversampling_override = 1.0
 title = "Level Select"
 position = Vector2i(318, 170)
 size = Vector2i(644, 380)
-visible = true
 borderless = false
 
 [node name="ColorRect" type="Panel" parent="MenuBG/LevelSelectPopup" unique_id=2038610881]
@@ -408,9 +407,8 @@ script = ExtResource("5_1iqtg")
 
 [node name="TextureRect" type="TextureRect" parent="MenuBG" unique_id=1629830998]
 layout_mode = 0
-offset_top = 2.0
-offset_right = 1291.0
-offset_bottom = 728.0
+offset_right = 1920.0
+offset_bottom = 1080.0
 texture = ExtResource("2_6hyfw")
 expand_mode = 1
 
@@ -430,10 +428,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -276.0
-offset_top = -148.0
-offset_right = 286.0
-offset_bottom = -83.0
+offset_left = -418.0
+offset_top = -228.0
+offset_right = 421.0
+offset_bottom = -126.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -455,10 +453,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -283.0
-offset_top = -53.0
-offset_right = 294.0
-offset_bottom = 13.0
+offset_left = -426.0
+offset_top = -82.0
+offset_right = 427.0
+offset_bottom = 15.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -484,10 +482,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -283.0
-offset_top = 37.0
-offset_right = 294.0
-offset_bottom = 103.0
+offset_left = -428.0
+offset_top = 49.0
+offset_right = 432.0
+offset_bottom = 144.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -509,10 +507,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -282.0
-offset_top = 127.0
-offset_right = 293.0
-offset_bottom = 192.0
+offset_left = -429.0
+offset_top = 181.0
+offset_right = 431.0
+offset_bottom = 280.0
 grow_horizontal = 2
 grow_vertical = 2
 
