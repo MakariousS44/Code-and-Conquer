@@ -7,41 +7,12 @@
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
 border_width_bottom = 1
 border_color = Color(0.22, 0.22, 0.28, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.13, 0.26, 0.18, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.25, 0.6, 0.38, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run_hover"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.16, 0.32, 0.22, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0.75, 0.46, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step"]
 content_margin_left = 16.0
@@ -70,6 +41,38 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.88, 0.65, 0.22, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.13, 0.26, 0.18, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.6, 0.38, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.16, 0.32, 0.22, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.75, 0.46, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -260,7 +263,18 @@ expand_mode = 3
 layout_mode = 2
 theme_override_constants/separation = 6
 
+[node name="PrevButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=352291800]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_step")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
+theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
+text = "◀◀"
+
 [node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=1989659408]
+custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.95, 0.65, 1)
 theme_override_font_sizes/font_size = 14
@@ -270,13 +284,14 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_run_hover")
 text = "Run"
 
 [node name="StepButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=333333331]
+custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_step")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
 theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
-text = "Step"
+text = "▶▶"
 
 [node name="ResetButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=444444441]
 layout_mode = 2
@@ -457,7 +472,7 @@ stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
 handle_input_locally = false
-size = Vector2i(790, 679)
+size = Vector2i(1430, 1024)
 render_target_update_mode = 4
 
 [node name="LibraryOverlay" type="Control" parent="." unique_id=1223608090]
@@ -468,10 +483,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = 161.0
-offset_top = -320.0
-offset_right = 521.0
-offset_bottom = -120.0
+offset_left = 417.0
+offset_top = -482.0
+offset_right = 706.0
+offset_bottom = -326.0
 grow_horizontal = 2
 grow_vertical = 2
 

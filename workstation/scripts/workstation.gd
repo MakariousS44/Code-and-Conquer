@@ -7,6 +7,7 @@ extends Control
 @onready var output_box: RichTextLabel = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin/Output
 @onready var status_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/StatusLabel
 @onready var run_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/RunButton
+@onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
@@ -67,9 +68,14 @@ var _subprocess_pid: int = -1
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
 
-# === step mode state ===
-var step_mode: bool = false
-signal _step_continue
+# === step history for step back ===
+var _cmd_history: Array = []	# [{cmd, src_line, snap}] - snap is state before the cmd ran
+var _step_index: int = 0		# how many commands the user has seen
+var _in_replay: bool = false	# true when replaying from history
+
+# === pause state ===
+var _paused: bool = false
+signal _resume
 
 var current_line_offset: int = 0
 var _is_handling_lose: bool = false
@@ -93,9 +99,12 @@ func _ready() -> void:
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
-		
+	
+	run_button.text = "▶ Run"
 	run_button.pressed.connect(_on_run_button_pressed)
 	step_button.pressed.connect(_on_step_button_pressed)
+	prev_button.pressed.connect(_on_prev_button_pressed)
+	prev_button.disabled = true
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
 	win_retry_button.pressed.connect(_on_win_retry)
@@ -258,9 +267,19 @@ func _setup_language_selector() -> void:
 func _on_language_changed(index: int) -> void:
 	_stop_execution()
 	current_language = Language.CPP if index == 0 else Language.PYTHON
-	step_mode = false
+	_cmd_history.clear()
+	_step_index = 0
+	_in_replay = false
 	output_box.clear()
 	_clear_editor_highlights()
+
+	run_button.text = "▶ Run"
+	run_button.disabled = false
+	step_button.disabled = false
+	prev_button.disabled = true
+	reset_button.disabled = false
+	rotate_left_btn.disabled = false
+	rotate_right_btn.disabled = false
 
 	if current_language == Language.CPP:
 		_setup_syntax_highlighting()
@@ -270,6 +289,8 @@ func _on_language_changed(index: int) -> void:
 		_setup_python_highlighting()
 		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
+	
+	_load_level_scene(false)
 
 
 # === syntax highlighting ===
@@ -334,24 +355,140 @@ func _setup_python_highlighting() -> void:
 # === button handlers ===
 
 func _on_run_button_pressed() -> void:
-	step_mode = false
-	_run_pipeline(false)
+	if _ipc_active:
+		if _paused:
+			if _step_index < _cmd_history.size():
+				await _resume_after_step_back()
+			else:
+				_paused = false
+				run_button.text = "❚❚ Pause"
+				_set_status("Running...", "")
+				_resume.emit()
+		else:
+			_paused = true
+			run_button.text = "▶ Resume"
+			_set_status("Paused", "")
+		return
+
+	_paused = false
+	_run_pipeline()
+
+
+# The subprocess is held at the original pause position; the world is at the stepped-back position. 
+# Replay cached commands at the user's selected speed to catch the world up,
+# so it looks like seamless continuation, then unblock the IPC loop.
+# Pause check between commands so the user can interrupt the catch-up.
+func _resume_after_step_back() -> void:
+	_in_replay = false
+	_paused = false
+	run_button.text = "❚❚ Pause"
+	prev_button.disabled = true
+	step_button.disabled = true
+	_set_status("Running...", "")
+
+	while _step_index < _cmd_history.size() and _ipc_active:
+		var entry = _cmd_history[_step_index]
+		_step_index += 1
+		await _execute_cmd(entry.cmd, entry.src_line)
+		if not _ipc_active:
+			return
+		if _paused:
+			# User pressed Pause mid-replay. Stop catching up.
+			# If there are still cached commands left, stay in replay mode so
+			# Step continues via _replay_step_forward; otherwise drop to live ste
+			_in_replay = _step_index < _cmd_history.size()
+			run_button.text = "▶ Resume"
+			_set_status("Paused", "")
+			step_button.disabled = false
+			prev_button.disabled = _step_index <= 0
+			return
+	
+	_resume.emit()
 
 
 func _on_step_button_pressed() -> void:
-	if _ipc_active and step_mode:
-		if not _ipc_loop_running:
-			# Second click: begin executing
-			_ipc_loop_running = true
-			step_button.disabled = true
-			_run_ipc_loop()
-		else:
-			# Subsequent clicks: advance one step
-			step_button.disabled = true
-			_step_continue.emit()
+	# Running: pause first
+	if _ipc_active and not _paused:
+		_paused = true
+		run_button.text = "▶ Resume"
+		_set_status("Paused", "")
 		return
-	step_mode = true
-	_run_pipeline(true)
+
+	# Paused: single step forward
+	if _ipc_active and _paused:
+		step_button.disabled = true
+		prev_button.disabled = true
+		if _in_replay:
+			await _replay_step_forward()
+		else:
+			_resume.emit()	# loop executes one cmd then re-pauses
+		return
+
+	# start a fresh run, but begin paused so the first command is a single step
+	_paused = true
+	_run_pipeline()
+
+
+func _on_prev_button_pressed() -> void:
+	if not _ipc_active or _step_index <= 0 or not _paused:
+		return
+
+	_step_index -= 1
+	_in_replay = true
+	_restore_snapshot(_cmd_history[_step_index].snap)
+	step_button.disabled = false
+	prev_button.disabled = _step_index <= 0
+
+
+func _take_snapshot() -> Dictionary:
+	var obj_copy: Dictionary = {}
+
+	for key in game_instance.object_data:
+		obj_copy[key] = game_instance.object_data[key].duplicate()
+
+	return {
+		grid_x = player_node.grid_x,
+		grid_y = player_node.grid_y,
+		facing = player_node.facing,
+		carried_object = player_node.carried_object,
+		object_data = obj_copy
+	}
+
+
+func _restore_snapshot(snap: Dictionary) -> void:
+	if player_node == null or game_instance == null:
+		return
+
+	player_node.grid_x = snap.grid_x
+	player_node.grid_y = snap.grid_y
+	player_node.facing = snap.facing
+	player_node.carried_object = snap.carried_object
+	player_node.position = game_instance.player_grid_position(snap.grid_x, snap.grid_y)
+
+	player_node.update_animation(false)
+	game_instance.restore_object_data(snap.object_data)
+
+	if _step_index > 0:
+		_highlight_editor_line(_cmd_history[_step_index - 1].src_line)
+	else:
+		_clear_editor_highlights()
+
+
+func _replay_step_forward() -> void:
+	var entry = _cmd_history[_step_index]
+	_step_index += 1
+	await _execute_cmd(entry.cmd, entry.src_line)
+	if not _ipc_active:
+		return
+
+	log_line("✓ %s" % entry.cmd.to_lower())
+	if _step_index >= _cmd_history.size():
+		# Caught up to live position; next step will be a real live step via _resume.
+		_in_replay = false
+
+	_set_status("Paused", "")
+	step_button.disabled = false
+	prev_button.disabled = _step_index <= 0
 
 
 func _highlight_editor_line(line: int) -> void:
@@ -375,13 +512,17 @@ func _clear_editor_highlights() -> void:
 func _on_reset_button_pressed() -> void:
 	_stop_execution()
 	_clear_editor_highlights()
+	_cmd_history.clear()
+	_step_index = 0
+	_in_replay = false
+	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
 	reset_button.disabled = false
 	rotate_left_btn.disabled = false
 	rotate_right_btn.disabled = false
+	prev_button.disabled = true
 
-	step_mode = false
 	output_box.clear()
 	log_header("reset")
 	log_line("Level reloaded.")
@@ -414,6 +555,7 @@ const LOSE_MESSAGES := [
 
 func _set_controls_disabled(disabled: bool) -> void:
 	run_button.disabled = disabled
+	prev_button.disabled = disabled
 	step_button.disabled = disabled
 	reset_button.disabled = disabled
 	language_selector.disabled = disabled
@@ -443,7 +585,6 @@ func _on_player_lose(reason: String) -> void:
 
 func _on_level_complete() -> void:
 	_stop_execution()
-	step_mode = false
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
@@ -480,6 +621,7 @@ func _on_go_to_menu() -> void:
 # === pipeline execution ===
 
 func _stop_execution() -> void:
+	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
 
@@ -491,21 +633,25 @@ func _stop_execution() -> void:
 		_subprocess_pid = -1
 
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
-	_step_continue.emit()
+	_resume.emit()
 
 
-func _run_pipeline(step_only: bool) -> void:
+func _run_pipeline() -> void:
+	# Capture caller's intent BEFORE _stop_execution wipes _paused.
+	var start_paused: bool = _paused
+	_stop_execution()
 	reset_button.disabled = false
 	run_button.disabled = true
 	step_button.disabled = true
+	rotate_left_btn.disabled = true
+	rotate_right_btn.disabled = true
 
-	if not step_only:
-		rotate_left_btn.disabled = true
-		rotate_right_btn.disabled = true
-
-	_set_status("Running..." if not step_only else "Compiling...", "")
+	_set_status("Compiling...", "")
 	output_box.clear()
-	log_header("run" if not step_only else "step mode")
+	log_header("run")
+	_cmd_history.clear()
+	_step_index = 0
+	_in_replay = false
 	await get_tree().process_frame
 
 	# Python path
@@ -515,7 +661,6 @@ func _run_pipeline(step_only: bool) -> void:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
 			_set_status("Validation failed", "error")
-			step_mode = false
 			_re_enable_buttons()
 			return
 	else:
@@ -524,7 +669,6 @@ func _run_pipeline(step_only: bool) -> void:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
 			_set_status("Validation failed", "error")
-			step_mode = false
 			_re_enable_buttons()
 			return
 
@@ -534,7 +678,6 @@ func _run_pipeline(step_only: bool) -> void:
 	if not _ipc_server.start():
 		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
 		_set_status("IPC failed", "error")
-		step_mode = false
 		_re_enable_buttons()
 		return
 
@@ -548,7 +691,6 @@ func _run_pipeline(step_only: bool) -> void:
 		if not build.ok:
 			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
 			_set_status("Compile failed", "error")
-			step_mode = false
 			_ipc_server.stop()
 			_ipc_server = null
 			_re_enable_buttons()
@@ -562,7 +704,6 @@ func _run_pipeline(step_only: bool) -> void:
 	if _subprocess_pid == -1:
 		log_error("Failed to launch subprocess.")
 		_set_status("Launch failed", "error")
-		step_mode = false
 		_ipc_server.stop()
 		_ipc_server = null
 		_re_enable_buttons()
@@ -577,13 +718,16 @@ func _run_pipeline(step_only: bool) -> void:
 		return
 
 	_ipc_active = true
+	_paused = start_paused
 	log_header("executing")
 
-	if step_mode:
-		_set_status("Step mode - press Step to begin", "")
-		step_button.disabled = false
+	run_button.disabled = false
+	if _paused:
+		run_button.text = "▶ Resume"
+		_set_status("Paused", "")
 	else:
-		await _run_ipc_loop()
+		run_button.text = "❚❚ Pause"
+	await _run_ipc_loop()
 
 
 func _run_ipc_loop() -> void:
@@ -604,20 +748,24 @@ func _run_ipc_loop() -> void:
 				cmd = parts[0].strip_edges()
 				src_line = int(parts[1].strip_edges())
 
+			var snap = _take_snapshot()
+			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
+			_step_index = _cmd_history.size()
+
 			await _execute_cmd(cmd, src_line)
 
 			if not _ipc_active:
 				break
 
-			_ipc_server.send("OK")
-
-			if step_mode:
+			if _paused:
 				log_line("✓ %s" % cmd.to_lower())
-				_set_status("Step mode - press Step", "")
+				_set_status("Paused", "")
 				step_button.disabled = false
-				await _step_continue
+				prev_button.disabled = false
+				await _resume
 				if not _ipc_active:
 					break
+			_ipc_server.send("OK")
 
 		elif line.begins_with("[QUERY]"):
 			var query := line.trim_prefix("[QUERY] ")
@@ -639,6 +787,7 @@ func _run_ipc_loop() -> void:
 	if _ipc_active:
 		_stop_execution()
 
+		run_button.text = "▶ Run"
 		run_button.disabled = true
 		step_button.disabled = true
 		_set_status("Done", "ok")
@@ -651,7 +800,7 @@ func _notification(what: int) -> void:
 
 func _execute_cmd(cmd: String, src_line: int) -> void:
 	_highlight_editor_line(src_line)
-	if not step_mode:
+	if not _paused:
 		log_line("▶ %s" % cmd.to_lower())
 	if player_node == null:
 		return
@@ -766,8 +915,11 @@ func _set_status(text: String, state: String) -> void:
 
 
 func _re_enable_buttons() -> void:
+	_paused = false
+	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
+	prev_button.disabled = true
 	reset_button.disabled = false
 	rotate_left_btn.disabled = false
 	rotate_right_btn.disabled = false

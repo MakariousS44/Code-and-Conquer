@@ -718,7 +718,6 @@ func _build_objects() -> void:
 			var count := int(tile_objects[object_name])
 
 			for i in range(count):
-				print(object_name, ", ", gx, ", ", gy, ", ", i)
 				_spawn_object(object_name, gx, gy)
 
 		var is_goal_tile : bool = level_data.has("goal") \
@@ -803,7 +802,6 @@ func _add_object_count_label(gx: int, gy: int, tile_objects: Dictionary) -> void
 ## Adds have/needed labels to a goal marker tile.
 ## "have" sits at the bottom-left corner, "needed" at the bottom-right.
 func _add_goal_count_label(gx: int, gy: int, have: int, needed: int) -> void:
-	print("\n[goal label] (%d,%d) have=%d needed=%d   object_data=%s\n" % [gx, gy, have, needed, object_data])
 	var center: Vector2 = object_grid_position(gx, gy + 1)
 	center = Vector2(center.x + offset_x, center.y + offset_y)
 
@@ -890,3 +888,8 @@ func place_object_at(gx: int, gy: int, object_name: String) -> void:
 func tile_has_any_object(gx: int, gy: int) -> bool:
 	var tile_objects: Dictionary = get_objects_at(gx, gy)
 	return not tile_objects.is_empty()
+
+
+func restore_object_data(data: Dictionary) -> void:
+	object_data = data.duplicate(true)
+	_build_objects()
