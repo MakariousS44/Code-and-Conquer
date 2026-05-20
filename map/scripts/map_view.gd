@@ -12,6 +12,7 @@ signal level_incomplete(reason: String)
 
 # ============ Global Values ============
 const LABEL_FONT_PATH := "res://assets/fonts/ttf/FiraCode-Bold.ttf"
+var _compass_font: Font = null
 
 var level_data: Dictionary = {}
 var object_data: Dictionary = {}
@@ -88,7 +89,9 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var font := load(LABEL_FONT_PATH) as Font
+	if _compass_font == null:
+		_compass_font = load(LABEL_FONT_PATH)
+	var font := _compass_font
 	var fs   := 18
 	var col  := Color(0.28, 0.78, 0.92, 0.85)
 	var inv  := get_canvas_transform().affine_inverse()
