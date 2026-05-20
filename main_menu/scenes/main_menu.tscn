@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bjd1nmwoya47g"]
 
-[ext_resource type="Texture2D" uid="uid://bbnqf3536ftgh" path="res://assets/images/background_with_logo.png" id="2_1iqtg"]
+[ext_resource type="Texture2D" uid="uid://drbi0dqx8jpx5" path="res://assets/images/LogoAndBackground.png" id="2_6hyfw"]
 [ext_resource type="AudioStream" uid="uid://76wvxkahxvx" path="res://assets/audio/start.mp3" id="2_suspn"]
 [ext_resource type="Script" uid="uid://bacjqpx0lstd4" path="res://main_menu/scripts/level_loader.gd" id="5_1iqtg"]
 [ext_resource type="AudioStream" uid="uid://c54t0khjgkxeg" path="res://assets/audio/menumove.mp3" id="5_6hyfw"]
@@ -18,6 +18,78 @@ corner_detail = 10
 shadow_color = Color(0.797, 1.408, 1.479, 1)
 shadow_size = 4
 anti_aliasing_size = 4.9
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_n"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_p"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.04, 0.08, 0.12, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_h"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.06, 0.12, 0.16, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_n"]
+bg_color = Color(0.06, 0.1, 0.13, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_p"]
+bg_color = Color(0.04, 0.08, 0.12, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_h"]
+bg_color = Color(0.06, 0.13, 0.17, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_n"]
 bg_color = Color(0.06, 0.1, 0.13, 1)
@@ -51,78 +123,6 @@ border_color = Color(0, 0.65, 0.88, 1)
 corner_detail = 1
 shadow_color = Color(0, 0.5, 0.72, 1)
 shadow_size = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_n"]
-bg_color = Color(0.06, 0.1, 0.13, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_h"]
-bg_color = Color(0.06, 0.13, 0.17, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_p"]
-bg_color = Color(0.04, 0.08, 0.12, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_n"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.0, 0.65, 0.88, 1)
-corner_detail = 1
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-shadow_color = Color(0.0, 0.5, 0.72, 1)
-shadow_size = 2
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_h"]
-bg_color = Color(0.06, 0.12, 0.16, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.0, 0.65, 0.88, 1)
-corner_detail = 1
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-shadow_color = Color(0.0, 0.5, 0.72, 1)
-shadow_size = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_p"]
-bg_color = Color(0.04, 0.08, 0.12, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.0, 0.65, 0.88, 1)
-corner_detail = 1
-content_margin_left = 10.0
-content_margin_top = 6.0
-content_margin_right = 10.0
-content_margin_bottom = 6.0
-shadow_color = Color(0.0, 0.5, 0.72, 1)
-shadow_size = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
@@ -239,15 +239,14 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+texture = ExtResource("2_6hyfw")
 
 [node name="LevelSelectPopup" type="Popup" parent="MenuBG" unique_id=1886837316]
 handle_input_locally = false
 oversampling_override = 1.0
-title = ""
 position = Vector2i(318, 170)
 size = Vector2i(644, 380)
 exclusive = true
-borderless = true
 
 [node name="ColorRect" type="Panel" parent="MenuBG/LevelSelectPopup" unique_id=2038610881]
 anchors_preset = 15
@@ -274,8 +273,8 @@ alignment = 1
 [node name="Title" type="Label" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=300000001]
 layout_mode = 2
 size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
+theme_override_font_sizes/font_size = 20
 text = "SELECT LEVEL"
 horizontal_alignment = 1
 
@@ -283,10 +282,10 @@ horizontal_alignment = 1
 custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
 theme_override_styles/normal = SubResource("StyleBoxFlat_dd_n")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_dd_p")
 theme_override_styles/hover = SubResource("StyleBoxFlat_dd_h")
-theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
 script = ExtResource("5_1iqtg")
 
 [node name="PlayButton" type="Button" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=1443204992]
@@ -294,9 +293,9 @@ custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"FlatButton"
-theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
-theme_override_colors/font_hover_color = Color(0.6, 0.92, 1.0, 1)
+theme_override_colors/font_hover_color = Color(0.6, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 20
 theme_override_styles/normal = SubResource("StyleBoxFlat_pop_play_n")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_pop_play_p")
 theme_override_styles/hover = SubResource("StyleBoxFlat_pop_play_h")
@@ -306,7 +305,6 @@ text = "PLAY"
 layout_mode = 0
 offset_right = 1920.0
 offset_bottom = 1080.0
-texture = ExtResource("2_1iqtg")
 expand_mode = 1
 
 [node name="CloseButton" type="Button" parent="MenuBG/TextureRect" unique_id=1730237620]
@@ -418,8 +416,8 @@ mouse_filter = 2
 color = Color(0, 0, 0, 0.003921569)
 
 [connection signal="close_requested" from="MenuBG/LevelSelectPopup" to="." method="_on_level_select_popup_close_requested"]
-[connection signal="pressed" from="MenuBG/LevelSelectPopup/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
 [connection signal="item_selected" from="MenuBG/LevelSelectPopup/VBoxContainer/MenuButton" to="MenuBG/LevelSelectPopup/VBoxContainer/MenuButton" method="_on_item_selected"]
+[connection signal="pressed" from="MenuBG/LevelSelectPopup/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
 [connection signal="pressed" from="MenuBG/ButtonsContainer/StartButton" to="." method="_on_button_start_pressed"]
 [connection signal="pressed" from="MenuBG/ButtonsContainer/Upload" to="." method="_on_upload_level_button_pressed"]
 [connection signal="pressed" from="MenuBG/ButtonsContainer/OptionsButton" to="." method="_on_options_button_pressed"]

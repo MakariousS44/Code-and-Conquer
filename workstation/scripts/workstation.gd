@@ -7,7 +7,6 @@ extends Control
 @onready var output_box: RichTextLabel = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin/Output
 @onready var status_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/StatusLabel
 @onready var run_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/RunButton
-@onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
@@ -18,23 +17,12 @@ extends Control
 @onready var speed_value_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedValueLabel
 @onready var grid_2d_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/Grid2DButton
 
-# Compass HUD - Index order matches player.gd DIRS
-@onready var compass: TextureRect = $Compass
-const COMPASS_TEXTURES: Array[Texture2D] = [
-	preload("res://assets/images/compass_east.png"),	# 0 = east
-	preload("res://assets/images/compass_south.png"),	# 1 = south
-	preload("res://assets/images/compass_west.png"),	# 2 = west
-	preload("res://assets/images/compass_north.png"),	# 3 = north
-]
-
 # Popups -------------------------------------------+
 # Lose overlay
 @onready var lose_overlay: Control = $LoseOverlay
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
 @onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
-@onready var lose_report_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/PrintButton
-@onready var lose_clipboard_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/CopyButton
 
 # Win overlay
 @onready var win_overlay: Control = $WinOverlay
@@ -42,8 +30,22 @@ const COMPASS_TEXTURES: Array[Texture2D] = [
 @onready var win_menu_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinMenuButton
 @onready var win_report_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/PrintButton
 @onready var win_clipboard_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/CopyButton
+@onready var win_screenshot_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/WinScreenshotButton
 @onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
 var pending_report_text: String = ""
+
+# Done overlay (no-condition levels)
+@onready var done_overlay: Control = $DoneOverlay
+@onready var done_retry_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneRetryButton
+@onready var done_menu_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneMenuButton
+@onready var done_screenshot_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneScreenshotRow/DoneScreenshotButton
+
+# Lose screenshot
+@onready var lose_screenshot_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseScreenshotButton
+
+# Screenshot dialog
+@onready var screenshot_save_dialog: FileDialog = $ScreenshotSaveDialog
+var _pending_screenshot: Image = null
 
 
 # Library overlay
@@ -84,22 +86,22 @@ var _subprocess_pid: int = -1
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
 
-# === step history for step back ===
-var _cmd_history: Array = []	# [{cmd, src_line, snap}] - snap is state before the cmd ran
-var _step_index: int = 0		# how many commands the user has seen
-var _in_replay: bool = false	# true when replaying from history
-
-# === pause state ===
-var _paused: bool = false
-signal _resume
+# === step mode state ===
+var step_mode: bool = false
+signal _step_continue
 
 var current_line_offset: int = 0
 var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
-var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete"
-const MOVE_LIMIT := 999
+
+var _move_sequence: String = ""
+var _sequence_ended: bool = false
+var _start_gx: int = 0
+var _start_gy: int = 0
+var _start_facing: String = ""
+var _start_obj_data: Dictionary = {}
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -117,15 +119,9 @@ func _ready() -> void:
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
-
-	# compass updates whenever the player's logical facing changes
-	EventManager.player_facing_changed.connect(_on_player_facing_changed)
-	
-	run_button.text = "▶ Run"
+		
 	run_button.pressed.connect(_on_run_button_pressed)
 	step_button.pressed.connect(_on_step_button_pressed)
-	prev_button.pressed.connect(_on_prev_button_pressed)
-	prev_button.disabled = true
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
 	win_retry_button.pressed.connect(_on_win_retry)
@@ -133,9 +129,22 @@ func _ready() -> void:
 	win_menu_button.pressed.connect(_on_go_to_menu)
 	win_report_button.pressed.connect(_on_win_report_save)
 	win_clipboard_button.pressed.connect(_on_win_report_copy)
-	lose_report_button.pressed.connect(_on_win_report_save)
-	lose_clipboard_button.pressed.connect(_on_win_report_copy)
-	
+	win_screenshot_button.pressed.connect(_take_screenshot)
+	lose_screenshot_button.pressed.connect(_take_screenshot)
+	done_retry_button.pressed.connect(_on_done_retry)
+	done_menu_button.pressed.connect(_on_go_to_menu)
+	done_screenshot_button.pressed.connect(_take_screenshot)
+
+	screenshot_save_dialog.hide()
+	screenshot_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	screenshot_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	screenshot_save_dialog.clear_filters()
+	screenshot_save_dialog.add_filter("*.png ; PNG Image")
+	var level_name := global_level_name.get_file().get_basename()
+	screenshot_save_dialog.current_file = "%s screenshot.png" % level_name
+	if not screenshot_save_dialog.file_selected.is_connected(_on_screenshot_save_selected):
+		screenshot_save_dialog.file_selected.connect(_on_screenshot_save_selected)
+
 	report_save_dialog.hide()
 	report_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	report_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -164,11 +173,7 @@ func _ready() -> void:
 	_load_level_scene(true)
 
 
-func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
-	var saved_camera_state: Dictionary = {}
-	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
-		saved_camera_state = game_instance.get_camera_state()
-
+func _load_level_scene(load_editor_text: bool = true) -> void:
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
@@ -177,10 +182,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# create and attach the playable level scene
 	game_instance = level_scene_resource.instantiate()
 	game_subviewport.add_child(game_instance)
-
-	if preserve_camera and not saved_camera_state.is_empty() \
-			and game_instance.has_method("set_pending_camera_restore"):
-		game_instance.set_pending_camera_restore(saved_camera_state)
 
 	# grab the player node so runtime systems can control it later
 	if not game_instance.has_node("WorldRoot/Player"):
@@ -192,8 +193,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		player_node.lose_triggered.connect(_on_player_lose)
 	if game_instance.has_signal("level_complete") and not game_instance.level_complete.is_connected(_on_level_complete):
 		game_instance.level_complete.connect(_on_level_complete)
-	if game_instance.has_signal("level_incomplete") and not game_instance.level_incomplete.is_connected(_trigger_incomplete_lose):
-		game_instance.level_incomplete.connect(_trigger_incomplete_lose)
 
 	# === LOAD PATH ===
 	var level_path := ""
@@ -228,6 +227,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
+	_capture_start_state()
 
 	# (re)create the 2D flat grid view alongside the isometric scene
 	var FlatGridScript = load("res://map/scripts/flat_grid_view.gd")
@@ -235,6 +235,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	game_subviewport.add_child(flat_grid_node)
 	flat_grid_node.setup(game_instance, player_node)
 	flat_grid_node.visible = _is_2d_mode
+	game_instance.visible = not _is_2d_mode
 	if _is_2d_mode:
 		game_instance.camera.enabled = false
 		flat_grid_node.activate()
@@ -317,19 +318,9 @@ func _setup_language_selector() -> void:
 func _on_language_changed(index: int) -> void:
 	_stop_execution()
 	current_language = Language.CPP if index == 0 else Language.PYTHON
-	_cmd_history.clear()
-	_step_index = 0
-	_in_replay = false
+	step_mode = false
 	output_box.clear()
 	_clear_editor_highlights()
-
-	run_button.text = "▶ Run"
-	run_button.disabled = false
-	step_button.disabled = false
-	prev_button.disabled = true
-	reset_button.disabled = false
-	rotate_left_btn.disabled = false
-	rotate_right_btn.disabled = false
 
 	if current_language == Language.CPP:
 		_setup_syntax_highlighting()
@@ -339,8 +330,6 @@ func _on_language_changed(index: int) -> void:
 		_setup_python_highlighting()
 		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
-	
-	_load_level_scene(false, true)
 
 
 # === syntax highlighting ===
@@ -405,140 +394,24 @@ func _setup_python_highlighting() -> void:
 # === button handlers ===
 
 func _on_run_button_pressed() -> void:
-	if _ipc_active:
-		if _paused:
-			if _step_index < _cmd_history.size():
-				await _resume_after_step_back()
-			else:
-				_paused = false
-				run_button.text = "❚❚ Pause"
-				_set_status("Running...", "")
-				_resume.emit()
-		else:
-			_paused = true
-			run_button.text = "▶ Resume"
-			_set_status("Paused", "")
-		return
-
-	_paused = false
-	_run_pipeline()
-
-
-# The subprocess is held at the original pause position; the world is at the stepped-back position. 
-# Replay cached commands at the user's selected speed to catch the world up,
-# so it looks like seamless continuation, then unblock the IPC loop.
-# Pause check between commands so the user can interrupt the catch-up.
-func _resume_after_step_back() -> void:
-	_in_replay = false
-	_paused = false
-	run_button.text = "❚❚ Pause"
-	prev_button.disabled = true
-	step_button.disabled = true
-	_set_status("Running...", "")
-
-	while _step_index < _cmd_history.size() and _ipc_active:
-		var entry = _cmd_history[_step_index]
-		_step_index += 1
-		await _execute_cmd(entry.cmd, entry.src_line)
-		if not _ipc_active:
-			return
-		if _paused:
-			# User pressed Pause mid-replay. Stop catching up.
-			# If there are still cached commands left, stay in replay mode so
-			# Step continues via _replay_step_forward; otherwise drop to live ste
-			_in_replay = _step_index < _cmd_history.size()
-			run_button.text = "▶ Resume"
-			_set_status("Paused", "")
-			step_button.disabled = false
-			prev_button.disabled = _step_index <= 0
-			return
-	
-	_resume.emit()
+	step_mode = false
+	_run_pipeline(false)
 
 
 func _on_step_button_pressed() -> void:
-	# Running: pause first
-	if _ipc_active and not _paused:
-		_paused = true
-		run_button.text = "▶ Resume"
-		_set_status("Paused", "")
-		return
-
-	# Paused: single step forward
-	if _ipc_active and _paused:
-		step_button.disabled = true
-		prev_button.disabled = true
-		if _in_replay:
-			await _replay_step_forward()
+	if _ipc_active and step_mode:
+		if not _ipc_loop_running:
+			# Second click: begin executing
+			_ipc_loop_running = true
+			step_button.disabled = true
+			_run_ipc_loop()
 		else:
-			_resume.emit()	# loop executes one cmd then re-pauses
+			# Subsequent clicks: advance one step
+			step_button.disabled = true
+			_step_continue.emit()
 		return
-
-	# start a fresh run, but begin paused so the first command is a single step
-	_paused = true
-	_run_pipeline()
-
-
-func _on_prev_button_pressed() -> void:
-	if not _ipc_active or _step_index <= 0 or not _paused:
-		return
-
-	_step_index -= 1
-	_in_replay = true
-	_restore_snapshot(_cmd_history[_step_index].snap)
-	step_button.disabled = false
-	prev_button.disabled = _step_index <= 0
-
-
-func _take_snapshot() -> Dictionary:
-	var obj_copy: Dictionary = {}
-
-	for key in game_instance.object_data:
-		obj_copy[key] = game_instance.object_data[key].duplicate()
-
-	return {
-		grid_x = player_node.grid_x,
-		grid_y = player_node.grid_y,
-		facing = player_node.facing,
-		carried_object = player_node.carried_object,
-		object_data = obj_copy
-	}
-
-
-func _restore_snapshot(snap: Dictionary) -> void:
-	if player_node == null or game_instance == null:
-		return
-
-	player_node.grid_x = snap.grid_x
-	player_node.grid_y = snap.grid_y
-	player_node.facing = snap.facing
-	player_node.carried_object = snap.carried_object
-	player_node.position = game_instance.player_grid_position(snap.grid_x, snap.grid_y)
-
-	player_node.update_animation(false)
-	game_instance.restore_object_data(snap.object_data)
-
-	if _step_index > 0:
-		_highlight_editor_line(_cmd_history[_step_index - 1].src_line)
-	else:
-		_clear_editor_highlights()
-
-
-func _replay_step_forward() -> void:
-	var entry = _cmd_history[_step_index]
-	_step_index += 1
-	await _execute_cmd(entry.cmd, entry.src_line)
-	if not _ipc_active:
-		return
-
-	log_line("✓ %s" % entry.cmd.to_lower())
-	if _step_index >= _cmd_history.size():
-		# Caught up to live position; next step will be a real live step via _resume.
-		_in_replay = false
-
-	_set_status("Paused", "")
-	step_button.disabled = false
-	prev_button.disabled = _step_index <= 0
+	step_mode = true
+	_run_pipeline(true)
 
 
 func _highlight_editor_line(line: int) -> void:
@@ -562,22 +435,18 @@ func _clear_editor_highlights() -> void:
 func _on_reset_button_pressed() -> void:
 	_stop_execution()
 	_clear_editor_highlights()
-	_cmd_history.clear()
-	_step_index = 0
-	_in_replay = false
-	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
 	reset_button.disabled = false
 	rotate_left_btn.disabled = false
 	rotate_right_btn.disabled = false
-	prev_button.disabled = true
 
+	step_mode = false
 	output_box.clear()
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene(false, true)
+	_load_level_scene(false)
 
 func _on_speed_change(value: float) -> void:
 	exec_speed = value
@@ -605,7 +474,6 @@ const LOSE_MESSAGES := [
 
 func _set_controls_disabled(disabled: bool) -> void:
 	run_button.disabled = disabled
-	prev_button.disabled = disabled
 	step_button.disabled = disabled
 	reset_button.disabled = disabled
 	language_selector.disabled = disabled
@@ -618,46 +486,12 @@ func _get_funny_lose_message() -> String:
 	return LOSE_MESSAGES[randi() % LOSE_MESSAGES.size()]
 
 
-func _trigger_move_limit_lose() -> void:
-	if _is_handling_lose:
-		return
-	_is_handling_lose = true
-	_run_outcome = "lose"
-	_stop_execution()
-
-	log_header("lose")
-	log_error("Move Limit Reached")
-	_set_status("You lost", "error")
-
-	lose_message.text = "Move Limit Reached"
-	lose_overlay.visible = true
-	_set_controls_disabled(true)
-
-
-# Shared handler for both "incomplete" lose conditions:
-#   - Player code finished without winning or crashing
-#   - player landed on the goal tile but objectives weren't satisfied
-func _trigger_incomplete_lose(reason: String) -> void:
-	if _is_handling_lose:
-		return
-	_is_handling_lose = true
-	_run_outcome = "incomplete"
-	_stop_execution()
-
-	log_header("lose")
-	log_error(reason)
-	_set_status("You lost", "error")
-
-	lose_message.text = reason
-	lose_overlay.visible = true
-	_set_controls_disabled(true)
-
-
 func _on_player_lose(reason: String) -> void:
 	if _is_handling_lose:
 		return
 	_is_handling_lose = true
-	_run_outcome = "lose"
+	_move_sequence += "?"
+	_sequence_ended = true
 	_stop_execution()
 
 	log_header("lose")
@@ -670,8 +504,10 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
-	_run_outcome = "win"
+	_move_sequence += "!"
+	_sequence_ended = true
 	_stop_execution()
+	step_mode = false
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
@@ -701,6 +537,67 @@ func _on_win_next() -> void:
 	log_line("Next level coming soon!")
 
 
+func _on_execution_done() -> void:
+	if not _sequence_ended:
+		_move_sequence += "."
+	run_button.disabled = true
+	step_button.disabled = true
+	_set_status("Done", "ok")
+	if not _level_has_win_condition():
+		done_overlay.visible = true
+		_set_controls_disabled(true)
+
+
+func _level_has_win_condition() -> bool:
+	if not current_level_definition.has("goal"):
+		return false
+	var goal = current_level_definition["goal"]
+	if goal is Dictionary and goal.is_empty():
+		return false
+	return true
+
+
+func _on_done_retry() -> void:
+	done_overlay.visible = false
+	_set_controls_disabled(false)
+	_on_reset_button_pressed()
+
+
+func _take_screenshot() -> void:
+	# Always capture the 2D flat view — switch to it temporarily if needed
+	var was_2d := _is_2d_mode
+	if not was_2d and flat_grid_node != null:
+		game_instance.visible = false
+		game_instance.camera.enabled = false
+		flat_grid_node.visible = true
+		flat_grid_node.activate()
+
+	# Two frames: one to process visibility, one to actually render
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	_pending_screenshot = game_subviewport.get_texture().get_image()
+
+	if not was_2d and flat_grid_node != null:
+		flat_grid_node.deactivate()
+		flat_grid_node.visible = false
+		game_instance.visible = true
+		game_instance.camera.enabled = true
+		game_instance.camera.make_current()
+
+	var level_name := global_level_name.get_file().get_basename()
+	screenshot_save_dialog.current_file = "%s screenshot.png" % level_name
+	screenshot_save_dialog.popup_centered()
+
+
+func _on_screenshot_save_selected(path: String) -> void:
+	if _pending_screenshot == null:
+		return
+	_pending_screenshot.save_png(path)
+	_pending_screenshot = null
+	log_line("Screenshot saved: " + path)
+
+
 func _on_go_to_menu() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
 
@@ -708,7 +605,6 @@ func _on_go_to_menu() -> void:
 # === pipeline execution ===
 
 func _stop_execution() -> void:
-	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
 
@@ -720,26 +616,21 @@ func _stop_execution() -> void:
 		_subprocess_pid = -1
 
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
-	_resume.emit()
+	_step_continue.emit()
 
 
-func _run_pipeline() -> void:
-	# Capture caller's intent BEFORE _stop_execution wipes _paused.
-	var start_paused: bool = _paused
-	_stop_execution()
+func _run_pipeline(step_only: bool) -> void:
 	reset_button.disabled = false
 	run_button.disabled = true
 	step_button.disabled = true
-	rotate_left_btn.disabled = true
-	rotate_right_btn.disabled = true
 
-	_set_status("Compiling...", "")
+	if not step_only:
+		rotate_left_btn.disabled = true
+		rotate_right_btn.disabled = true
+
+	_set_status("Running..." if not step_only else "Compiling...", "")
 	output_box.clear()
-	log_header("run")
-	_cmd_history.clear()
-	_step_index = 0
-	_in_replay = false
-	_run_outcome = "incomplete"
+	log_header("run" if not step_only else "step mode")
 	await get_tree().process_frame
 
 	# Python path
@@ -749,6 +640,7 @@ func _run_pipeline() -> void:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
 			_set_status("Validation failed", "error")
+			step_mode = false
 			_re_enable_buttons()
 			return
 	else:
@@ -757,6 +649,7 @@ func _run_pipeline() -> void:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
 			_set_status("Validation failed", "error")
+			step_mode = false
 			_re_enable_buttons()
 			return
 
@@ -766,6 +659,7 @@ func _run_pipeline() -> void:
 	if not _ipc_server.start():
 		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
 		_set_status("IPC failed", "error")
+		step_mode = false
 		_re_enable_buttons()
 		return
 
@@ -779,6 +673,7 @@ func _run_pipeline() -> void:
 		if not build.ok:
 			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
 			_set_status("Compile failed", "error")
+			step_mode = false
 			_ipc_server.stop()
 			_ipc_server = null
 			_re_enable_buttons()
@@ -792,6 +687,7 @@ func _run_pipeline() -> void:
 	if _subprocess_pid == -1:
 		log_error("Failed to launch subprocess.")
 		_set_status("Launch failed", "error")
+		step_mode = false
 		_ipc_server.stop()
 		_ipc_server = null
 		_re_enable_buttons()
@@ -806,16 +702,13 @@ func _run_pipeline() -> void:
 		return
 
 	_ipc_active = true
-	_paused = start_paused
 	log_header("executing")
 
-	run_button.disabled = false
-	if _paused:
-		run_button.text = "▶ Resume"
-		_set_status("Paused", "")
+	if step_mode:
+		_set_status("Step mode - press Step to begin", "")
+		step_button.disabled = false
 	else:
-		run_button.text = "❚❚ Pause"
-	await _run_ipc_loop()
+		await _run_ipc_loop()
 
 
 func _run_ipc_loop() -> void:
@@ -836,24 +729,20 @@ func _run_ipc_loop() -> void:
 				cmd = parts[0].strip_edges()
 				src_line = int(parts[1].strip_edges())
 
-			var snap = _take_snapshot()
-			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
-			_step_index = _cmd_history.size()
-
 			await _execute_cmd(cmd, src_line)
 
 			if not _ipc_active:
 				break
 
-			if _paused:
+			_ipc_server.send("OK")
+
+			if step_mode:
 				log_line("✓ %s" % cmd.to_lower())
-				_set_status("Paused", "")
+				_set_status("Step mode - press Step", "")
 				step_button.disabled = false
-				prev_button.disabled = false
-				await _resume
+				await _step_continue
 				if not _ipc_active:
 					break
-			_ipc_server.send("OK")
 
 		elif line.begins_with("[QUERY]"):
 			var query := line.trim_prefix("[QUERY] ")
@@ -873,17 +762,8 @@ func _run_ipc_loop() -> void:
 
 	_ipc_loop_running = false
 	if _ipc_active:
-		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
-		# win or crash. Treat this as an "incomplete" lose.
-		if _run_outcome == "incomplete" and not _is_handling_lose:
-			_trigger_incomplete_lose("Did not reach the goal.")
-		else:
-			_stop_execution()
-
-		run_button.text = "▶ Run"
-		run_button.disabled = true
-		step_button.disabled = true
-		_set_status("Done", "ok")
+		_stop_execution()
+		_on_execution_done()
 
 # Intercepts window close so the subprocess is killed before Godot exits
 func _notification(what: int) -> void:
@@ -893,29 +773,27 @@ func _notification(what: int) -> void:
 
 func _execute_cmd(cmd: String, src_line: int) -> void:
 	_highlight_editor_line(src_line)
-	if not _paused:
+	if not step_mode:
 		log_line("▶ %s" % cmd.to_lower())
 	if player_node == null:
 		return
 	match cmd:
 		"MOVE":
-			var moves_so_far := 0
-			for i in range(min(_step_index, _cmd_history.size())):
-				if _cmd_history[i].cmd == "MOVE":
-					moves_so_far += 1
-			if moves_so_far > MOVE_LIMIT:
-				_trigger_move_limit_lose()
-				return
+			_move_sequence += "M"
 			await player_node.move_forward(exec_speed)
 		"TURN_LEFT":
+			_move_sequence += "L"
 			player_node.turn_left()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
 		"TURN_RIGHT":
+			_move_sequence += "R"
 			player_node.turn_right()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
 		"PICK_OBJECT":
+			_move_sequence += "U"
 			player_node.pick_object()
 		"PUT_OBJECT":
+			_move_sequence += "D"
 			player_node.put_object()
 
 
@@ -1011,15 +889,12 @@ func _set_status(text: String, state: String) -> void:
 		"error":
 			status_label.add_theme_color_override("font_color", Color(0.88, 0.47, 0.47))
 		_:
-			status_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.81))
+			status_label.add_theme_color_override("font_color", Color(0.11, 0.85, 1.0))
 
 
 func _re_enable_buttons() -> void:
-	_paused = false
-	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
-	prev_button.disabled = true
 	reset_button.disabled = false
 	rotate_left_btn.disabled = _is_2d_mode
 	rotate_right_btn.disabled = _is_2d_mode
@@ -1054,6 +929,7 @@ func _on_grid_2d_button_pressed() -> void:
 		flat_grid_node.visible = _is_2d_mode
 
 	if game_instance != null and is_instance_valid(game_instance):
+		game_instance.visible = not _is_2d_mode
 		game_instance.camera.enabled = not _is_2d_mode
 		if not _is_2d_mode:
 			game_instance.camera.make_current()
@@ -1098,157 +974,252 @@ func _input(event) -> void:
 func _on_main_menu_button_pressed() -> void:
 	_on_go_to_menu()
 
-func _build_win_report() -> String:
-	var cols := int(current_level_definition.get("cols", 0))
-	var rows := int(current_level_definition.get("rows", 0))
-	var walls: Dictionary = current_level_definition.get("walls", {})
+func _capture_start_state() -> void:
+	if player_node == null or game_instance == null:
+		return
+	_start_gx = player_node.grid_x
+	_start_gy = player_node.grid_y
+	_start_facing = player_node.facing
+	_move_sequence = ""
+	_sequence_ended = false
+	_start_obj_data = {}
+	for key in game_instance.object_data:
+		_start_obj_data[key] = game_instance.object_data[key].duplicate()
 
-	var start_x := 1
-	var start_y := 1
-	var start_facing := "north"
-	var robots: Array = current_level_definition.get("robots", [])
-	if not robots.is_empty():
-		var r: Dictionary = robots[0]
-		start_x = int(r.get("x", 1))
-		start_y = int(r.get("y", 1))
-		var ori := int(r.get("_orientation", 3))
-		var dirs := ["east", "south", "west", "north"]
-		if ori >= 0 and ori < dirs.size():
-			start_facing = dirs[ori]
 
-	var end_x := start_x
-	var end_y := start_y
-	var end_facing := start_facing
+func _build_report() -> String:
+	var lang_name := "C++" if current_language == Language.CPP else "Python"
+	var level_name := global_level_name.get_file().get_basename()
+	var date := Time.get_date_string_from_system()
+
+	var max_moves := 999
+	if current_level_definition.has("max_moves"):
+		max_moves = int(current_level_definition["max_moves"])
+
+	var report := "=== CODE & CONQUER - LEVEL REPORT ===\n"
+	report += "Level: %s\n" % level_name
+	report += "Language: %s\n" % lang_name
+	report += "Date: %s\n" % date
+	report += "\n"
+
+	report += "--- ROBOT START ---\n"
+	report += "Position: (%d, %d)  Facing: %s\n" % [_start_gx - 1, _start_gy - 1, _facing_char(_start_facing)]
+	report += "\n"
+
+	report += "--- WORLD START ---\n"
+	report += "Max Moves: %d\n" % max_moves
+	report += "\n"
+	report += _render_map(_start_gx, _start_gy, _start_facing, _start_obj_data)
+	report += "\n"
+
+	var end_gx := _start_gx
+	var end_gy := _start_gy
+	var end_facing := _start_facing
 	if player_node != null:
-		end_x = player_node.grid_x
-		end_y = player_node.grid_y
+		end_gx = player_node.grid_x
+		end_gy = player_node.grid_y
 		end_facing = player_node.facing
 
-	var cmd_letters: Array = []
-	var move_count := 0
-	for entry in _cmd_history:
-		var letter := _cmd_to_report_letter(entry.cmd)
-		if letter == "":
-			continue
-		cmd_letters.append(letter)
-		if entry.cmd == "MOVE":
-			move_count += 1
-	cmd_letters.append(_run_outcome_marker())
+	report += "--- ROBOT END ---\n"
+	report += "Position: (%d, %d)  Facing: %s\n" % [end_gx - 1, end_gy - 1, _facing_char(end_facing)]
+	report += "\n"
 
-	var report := ""
-	report += "Starting position: (%d, %d) - %s\n" % [start_x, start_y, start_facing]
-	report += "Starting world state:\n\n"
-	report += _render_world_text(cols, rows, walls, start_x, start_y, start_facing)
-	report += "\n\n"
-	report += "Ending position: (%d, %d) - %s\n" % [end_x, end_y, end_facing]
-	report += "Ending world state:\n\n"
-	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing)
-	report += "\n\n"
-	report += "Commands: " + " ".join(cmd_letters) + "\n"
+	report += "--- WORLD END ---\n"
+	report += "\n"
+	var end_obj_data: Dictionary = {}
+	if game_instance != null:
+		for key in game_instance.object_data:
+			end_obj_data[key] = game_instance.object_data[key]
+	report += _render_map(end_gx, end_gy, end_facing, end_obj_data)
+	report += "\n"
+
+	var move_count := _count_moves(_move_sequence)
+	report += "--- MOVES ---\n"
+	report += "Sequence: %s\n" % _move_sequence
 	report += "Move Count: %d\n" % move_count
+
 	return report
 
 
-func _cmd_to_report_letter(cmd: String) -> String:
-	match cmd:
-		"MOVE":
-			return "M"
-		"TURN_LEFT":
-			return "T"
-		"PICK_OBJECT":
-			return "U"
-		"PUT_OBJECT":
-			return "D"
-	return ""
+func _has_wall(gx: int, gy: int, dir: String) -> bool:
+	var cols: int = current_level_definition.get("cols", 0)
+	var rows: int = current_level_definition.get("rows", 0)
+	match dir:
+		"north":
+			if gy >= rows: return true
+		"south":
+			if gy <= 1: return true
+		"east":
+			if gx >= cols: return true
+		"west":
+			if gx <= 1: return true
+
+	var walls = current_level_definition.get("walls", {})
+	var key := "%d,%d" % [gx, gy]
+	if walls.has(key):
+		for d in walls[key]:
+			if str(d).to_lower() == dir:
+				return true
+
+	var opp_key := ""
+	var opp_dir := ""
+	match dir:
+		"north": opp_key = "%d,%d" % [gx, gy + 1]; opp_dir = "south"
+		"south": opp_key = "%d,%d" % [gx, gy - 1]; opp_dir = "north"
+		"east":  opp_key = "%d,%d" % [gx + 1, gy]; opp_dir = "west"
+		"west":  opp_key = "%d,%d" % [gx - 1, gy]; opp_dir = "east"
+	if walls.has(opp_key):
+		for d in walls[opp_key]:
+			if str(d).to_lower() == opp_dir:
+				return true
+	return false
 
 
-func _run_outcome_marker() -> String:
-	match _run_outcome:
-		"win":
-			return "!"
-		"lose":
-			return "#"
-		_:
-			return "?"
+func _get_goal_positions() -> Array:
+	var positions := []
+	if not current_level_definition.has("goal"):
+		return positions
+	var goal = current_level_definition["goal"]
+	if goal.has("possible_final_positions"):
+		for pos in goal["possible_final_positions"]:
+			if typeof(pos) == TYPE_ARRAY and pos.size() >= 2:
+				positions.append(Vector2i(int(pos[0]), int(pos[1])))
+	if goal.has("position") and typeof(goal["position"]) == TYPE_DICTIONARY:
+		var pos = goal["position"]
+		positions.append(Vector2i(int(pos.get("x", -1)), int(pos.get("y", -1))))
+	return positions
+
+
+func _get_deposit_positions() -> Dictionary:
+	var deposits: Dictionary = {}
+	if not current_level_definition.has("goal"):
+		return deposits
+	var goal = current_level_definition["goal"]
+	if not goal.has("objects"):
+		return deposits
+	for key in goal["objects"]:
+		var parts = key.split(",")
+		if parts.size() != 2:
+			continue
+		var gx := int(parts[0])
+		var gy := int(parts[1])
+		var obj_dict = goal["objects"][key]
+		if obj_dict is Dictionary:
+			for obj_name in obj_dict:
+				deposits[Vector2i(gx, gy)] = str(obj_name)
+				break
+	return deposits
+
+
+func _cell_content(gx: int, gy: int, robot_gx: int, robot_gy: int, robot_facing: String,
+		obj_data: Dictionary, deposits: Dictionary, goal_positions: Array) -> String:
+	if gx == robot_gx and gy == robot_gy:
+		return " %s " % _facing_arrow(robot_facing)
+
+	var pos := Vector2i(gx, gy)
+	var key := "%d,%d" % [gx, gy]
+
+	if deposits.has(pos):
+		var obj_name: String = deposits[pos]
+		var letter := obj_name[0].to_upper()
+		var has_obj := false
+		if obj_data.has(key):
+			var tile_objs = obj_data[key]
+			if tile_objs is Dictionary and tile_objs.has(obj_name) and int(tile_objs[obj_name]) > 0:
+				has_obj = true
+		return "[%s]" % letter if has_obj else "(%s)" % letter
+
+	if obj_data.has(key):
+		var tile_objs = obj_data[key]
+		if tile_objs is Dictionary:
+			for obj_name in tile_objs:
+				if int(tile_objs[obj_name]) > 0:
+					return " %s " % str(obj_name)[0].to_upper()
+
+	if goal_positions.has(pos):
+		return " * "
+
+	return "   "
+
+
+func _render_map(robot_gx: int, robot_gy: int, robot_facing: String, obj_data: Dictionary) -> String:
+	var cols: int = current_level_definition.get("cols", 0)
+	var rows: int = current_level_definition.get("rows", 0)
+	if cols == 0 or rows == 0:
+		return "(no map data)\n"
+
+	var deposits := _get_deposit_positions()
+	var goal_positions := _get_goal_positions()
+
+	var max_row_digits := len(str(rows - 1))
+	var label_pad := " ".repeat(max_row_digits + 1)
+
+	var result := ""
+	for gy in range(rows, 0, -1):
+		var sep := label_pad + "+"
+		for gx in range(1, cols + 1):
+			sep += ("---" if _has_wall(gx, gy, "north") else "   ") + "+"
+		result += sep + "\n"
+
+		var row_label := str(gy - 1).rpad(max_row_digits) + " "
+		var row := row_label + "|"
+		for gx in range(1, cols + 1):
+			row += _cell_content(gx, gy, robot_gx, robot_gy, robot_facing, obj_data, deposits, goal_positions)
+			row += "|" if _has_wall(gx, gy, "east") else " "
+		result += row + "\n"
+
+	var bot := label_pad + "+"
+	for _gx in range(cols):
+		bot += "---+"
+	result += bot + "\n"
+
+	var col_labels := label_pad + "  "
+	for gx in range(1, cols + 1):
+		col_labels += str(gx - 1).rpad(4)
+	result += col_labels + "\n"
+
+	return result
+
+
+func _facing_char(facing: String) -> String:
+	match facing:
+		"north": return "N"
+		"south": return "S"
+		"east":  return "E"
+		"west":  return "W"
+	return "?"
 
 
 func _facing_arrow(facing: String) -> String:
 	match facing:
-		"north":
-			return "^"
-		"south":
-			return "v"
-		"east":
-			return ">"
-		"west":
-			return "<"
+		"north": return "^"
+		"south": return "v"
+		"east":  return ">"
+		"west":  return "<"
 	return "?"
 
 
-func _wall_at(walls: Dictionary, x: int, y: int, dir: String) -> bool:
-	var key := "%d,%d" % [x, y]
-	if not walls.has(key):
-		return false
-	for d in walls[key]:
-		if str(d).to_lower() == dir:
-			return true
-	return false
+func _count_moves(seq: String) -> int:
+	var count := 0
+	for c in seq:
+		if c in ["M", "L", "R", "U", "D"]:
+			count += 1
+	return count
 
-
-# Sparse-wall ASCII grid. Outer edges always drawn, '+' at every corner,
-# interior walls only where they exist.
-func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: int, facing: String) -> String:
-	if cols <= 0 or rows <= 0:
-		return ""
-
-	var arrow := _facing_arrow(facing)
-	var lines: Array = []
-
-	var outer := "   +"
-	for c in range(cols):
-		outer += "---+"
-	lines.append(outer)
-
-	for row in range(rows, 0, -1):
-		var row_line := "%2d |" % row
-		for col in range(1, cols + 1):
-			var glyph := "."
-			if col == px and row == py:
-				glyph = arrow
-			row_line += " %s " % glyph
-			if col < cols:
-				row_line += "|" if _wall_at(walls, col, row, "east") else " "
-		row_line += "|"
-		lines.append(row_line)
-
-		if row > 1:
-			var sep := "   +"
-			for col in range(1, cols + 1):
-				sep += "---+" if _wall_at(walls, col, row - 1, "north") else "   +"
-			lines.append(sep)
-
-	lines.append(outer)
-
-	var label := "     "
-	var parts: Array = []
-	for col in range(1, cols + 1):
-		parts.append(str(col))
-	label += "   ".join(parts)
-	lines.append(label)
-
-	return "\n".join(lines)
 
 func _on_win_report_copy() -> void:
-	var report := _build_win_report()
+	var report := _build_report()
 	DisplayServer.clipboard_set(report)
 	log_success("Report copied to clipboard.")
-	
+
+
 func _on_win_report_save() -> void:
-	pending_report_text = _build_win_report()
-	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace(" ", "")
-	report_save_dialog.current_file = "report%s.txt" % stamp
+	pending_report_text = _build_report()
+	var level_name := global_level_name.get_file().get_basename()
+	report_save_dialog.current_file = "%s report.txt" % level_name
 	report_save_dialog.popup_centered_ratio(0.75)
-	
+
+
 func _on_report_save_selected(path: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
@@ -1257,7 +1228,3 @@ func _on_report_save_selected(path: String) -> void:
 	file.store_string(pending_report_text)
 	file.close()
 	log_success("Report saved to: " + path)
-
-
-func _on_player_facing_changed(facing_index: int) -> void:
-	compass.texture = COMPASS_TEXTURES[facing_index]
