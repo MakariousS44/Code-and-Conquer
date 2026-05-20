@@ -99,11 +99,11 @@ func _draw() -> void:
 	var pad  := 20.0
 
 	# Directions rotate with the world: N stays "above" whatever is grid-north on screen
-	var dirs   := ["N", "E", "S", "W"]
-	var top_lbl    := dirs[rotation_state % 4]
-	var right_lbl  := dirs[(rotation_state + 1) % 4]
-	var bottom_lbl := dirs[(rotation_state + 2) % 4]
-	var left_lbl   := dirs[(rotation_state + 3) % 4]
+	var dirs: Array[String] = ["N", "E", "S", "W"]
+	var top_lbl:    String = dirs[rotation_state % 4]
+	var right_lbl:  String = dirs[(rotation_state + 1) % 4]
+	var bottom_lbl: String = dirs[(rotation_state + 2) % 4]
+	var left_lbl:   String = dirs[(rotation_state + 3) % 4]
 
 	var top    := inv * Vector2(vp.size.x * 0.5, pad)
 	var right  := inv * Vector2(vp.size.x - pad, vp.size.y * 0.5)
