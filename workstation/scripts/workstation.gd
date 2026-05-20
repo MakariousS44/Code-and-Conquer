@@ -44,6 +44,10 @@ const COMPASS_TEXTURES: Array[Texture2D] = [
 @onready var win_clipboard_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/CopyButton
 @onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
 var pending_report_text: String = ""
+@onready var win_screenshot_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/WinScreenshotButton
+@onready var lose_screenshot_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseScreenshotButton
+@onready var screenshot_save_dialog: FileDialog = $ScreenshotSaveDialog
+var _pending_screenshot: Image = null
 
 
 # Library overlay
@@ -144,6 +148,16 @@ func _ready() -> void:
 	report_save_dialog.add_filter("*.txt ; Text Report")
 	if not report_save_dialog.file_selected.is_connected(_on_report_save_selected):
 		report_save_dialog.file_selected.connect(_on_report_save_selected)
+
+	win_screenshot_button.pressed.connect(_take_screenshot)
+	lose_screenshot_button.pressed.connect(_take_screenshot)
+	screenshot_save_dialog.hide()
+	screenshot_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	screenshot_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	screenshot_save_dialog.clear_filters()
+	screenshot_save_dialog.add_filter("*.png ; PNG Image")
+	if not screenshot_save_dialog.file_selected.is_connected(_on_screenshot_save_selected):
+		screenshot_save_dialog.file_selected.connect(_on_screenshot_save_selected)
 
 	if rotate_left_btn != null and not rotate_left_btn.pressed.is_connected(l_rotate_button_up):
 		rotate_left_btn.pressed.connect(l_rotate_button_up)
@@ -1055,6 +1069,35 @@ func _on_grid_2d_button_pressed() -> void:
 	rotate_left_btn.disabled = _is_2d_mode
 	rotate_right_btn.disabled = _is_2d_mode
 	grid_2d_button.text = "3D View" if _is_2d_mode else "2D View"
+
+
+func _take_screenshot() -> void:
+	var was_2d := _is_2d_mode
+	if not was_2d and flat_grid_node != null:
+		game_instance.visible = false
+		game_instance.camera.enabled = false
+		flat_grid_node.visible = true
+		flat_grid_node.activate()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_pending_screenshot = game_subviewport.get_texture().get_image()
+	if not was_2d and flat_grid_node != null:
+		flat_grid_node.deactivate()
+		flat_grid_node.visible = false
+		game_instance.visible = true
+		game_instance.camera.enabled = true
+		game_instance.camera.make_current()
+	var level_name := global_level_name.get_file().get_basename()
+	screenshot_save_dialog.current_file = "%s screenshot.png" % level_name
+	screenshot_save_dialog.popup_centered()
+
+
+func _on_screenshot_save_selected(path: String) -> void:
+	if _pending_screenshot == null:
+		return
+	_pending_screenshot.save_png(path)
+	_pending_screenshot = null
+	log_line("Screenshot saved: " + path)
 
 
 # === logging ===
