@@ -627,6 +627,12 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Clipboard"
 
+[node name="LoseScreenshotButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1950236882]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Screenshot"
+
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
 layout_mode = 1
@@ -708,7 +714,16 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Clipboard"
 
+[node name="WinScreenshotButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=852844280]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Screenshot"
+
 [node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
+oversampling_override = 1.0
+
+[node name="ScreenshotSaveDialog" type="FileDialog" parent="." unique_id=852844281]
 oversampling_override = 1.0
 
 [node name="Compass" type="TextureRect" parent="." unique_id=532882177]
