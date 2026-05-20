@@ -294,22 +294,24 @@ func _draw_player() -> void:
 
 
 func _draw_compass() -> void:
-	var font := ThemeDB.fallback_font
-	var fs   := 18
-	var col  := Color(0.28, 0.78, 0.92, 0.85)
-	var pad  := 12.0
-	# convert screen corners to world space so labels stay fixed in viewport corners
-	var ct  := get_canvas_transform().affine_inverse()
-	var vp  := get_viewport().get_visible_rect()
-	var tl  := ct * vp.position
-	var tr  := ct * Vector2(vp.position.x + vp.size.x, vp.position.y)
-	var bl  := ct * Vector2(vp.position.x, vp.position.y + vp.size.y)
-	var br  := ct * (vp.position + vp.size)
-	# N = top-left, E = top-right, S = bottom-right, W = bottom-left
-	draw_string(font, tl + Vector2(pad, pad + fs),        "N", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-	draw_string(font, tr + Vector2(-pad - fs, pad + fs),  "E", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-	draw_string(font, br + Vector2(-pad - fs, -pad),      "S", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-	draw_string(font, bl + Vector2(pad, -pad),            "W", HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	var font  := ThemeDB.fallback_font
+	var fs    := int(CELL_SIZE * 0.30)
+	var col   := Color(0.28, 0.78, 0.92, 0.85)
+	var gw    := _cols * CELL_SIZE
+	var gh    := _rows * CELL_SIZE
+	var pad   := CELL_SIZE * 0.35
+	# N above grid center
+	draw_string(font, Vector2(gw * 0.5 - fs * 0.3, -pad * 0.3), "N",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	# S below grid center
+	draw_string(font, Vector2(gw * 0.5 - fs * 0.3, gh + pad + fs * 0.5), "S",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	# E right of grid center
+	draw_string(font, Vector2(gw + pad * 0.4, gh * 0.5 + fs * 0.4), "E",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	# W left of grid center
+	draw_string(font, Vector2(-pad - fs * 0.6, gh * 0.5 + fs * 0.4), "W",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
 func _draw_deposits() -> void:

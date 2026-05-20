@@ -159,12 +159,12 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lose_card"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 2
-border_width_top = 2
+bg_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
+border_width_left = 13
+border_width_top = 13
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.07843249, 0.081858315, 0.098991044, 1)
+border_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
@@ -231,7 +231,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_done_card"]
-bg_color = Color(0.05, 0.10, 0.20, 0.97)
+bg_color = Color(0.05, 0.1, 0.2, 0.97)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -505,17 +505,16 @@ size = Vector2i(1430, 1020)
 render_target_update_mode = 4
 
 [node name="LibraryOverlay" type="Control" parent="." unique_id=1223608090]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = 161.0
-offset_top = -320.0
-offset_right = 521.0
-offset_bottom = -120.0
+offset_left = 427.0
+offset_top = -478.0
+offset_right = 651.0
+offset_bottom = -66.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -524,23 +523,23 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="LibraryOverlay/FunctionCard" unique_id=1543404544]
 layout_mode = 2
+theme_override_constants/separation = 15
 
 [node name="CommandLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=521573179]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "Robot Commands"
-horizontal_alignment = 1
+text = "Action Commands:"
 
 [node name="RichTextLabel2" type="RichTextLabel" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=961984308]
 layout_mode = 2
 size_flags_vertical = 3
+size_flags_stretch_ratio = 0.38
 text = "move()
 turn_left()
 pick_object()
@@ -548,9 +547,9 @@ put_object()"
 
 [node name="ConditionLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=117519483]
 layout_mode = 2
+theme_override_constants/line_spacing = 3
 theme_override_font_sizes/font_size = 20
-text = "Condition Checker"
-horizontal_alignment = 1
+text = "Conditional Checks:"
 
 [node name="RichTextLabel" type="RichTextLabel" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=583956929]
 layout_mode = 2
