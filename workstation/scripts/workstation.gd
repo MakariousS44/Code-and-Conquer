@@ -93,7 +93,8 @@ var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
-var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete"
+var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit"
+var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
 const MOVE_LIMIT := 999
 
 func _ready() -> void:
@@ -106,7 +107,7 @@ func _ready() -> void:
 		OS.execute("pkill", ["-f", "student_program"], [], true)
 
 	_set_status("Ready", "")
-	editor.text = "int main() {\n    move();\n}\n"
+	editor.text = "#include \"robot.hpp\"\n\nint main() {\n    move();\n}\n"
 	editor.grab_focus()
 
 	_setup_editor()
@@ -267,9 +268,9 @@ func _load_editor_template_for_current_language() -> void:
 
 func _load_default_editor_template() -> void:
 	if current_language == Language.CPP:
-		editor.text = "int main() {\n    move();\n}\n"
+		editor.text = "#include \"robot.hpp\"\n\nint main()\n{\n\tmove();\n\n\treturn 0;\n}\n"
 	else:
-		editor.text = "move()\n"
+		editor.text = "from robot import *\n\nmove()\n"
 
 
 # === editor setup ===
@@ -348,6 +349,8 @@ func _setup_syntax_highlighting() -> void:
 	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
 	highlighter.add_color_region("//", "", Color(0.50, 0.50, 0.50), true)
 	highlighter.add_color_region("/*", "*/", Color(0.50, 0.50, 0.50), false)
+	highlighter.add_keyword_color("include", Color(0.95, 0.45, 0.75))
+	highlighter.add_color_region("<", ">", Color(1.0, 0.6, 0.25), true)
 
 	editor.syntax_highlighter = highlighter
 
@@ -369,6 +372,9 @@ func _setup_python_highlighting() -> void:
 	for sensor in _commands.SENSORS:
 		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
 
+	highlighter.add_keyword_color("from", Color(0.95, 0.45, 0.75))
+	highlighter.add_keyword_color("import", Color(0.95, 0.45, 0.75))
+	highlighter.add_color_region("*", "", Color(0.95, 0.45, 0.75), true)
 	highlighter.number_color = Color(0.95, 0.65, 0.30)
 	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
 	highlighter.function_color = Color(0.95, 0.85, 0.45)
@@ -600,7 +606,7 @@ func _trigger_move_limit_lose() -> void:
 	if _is_handling_lose:
 		return
 	_is_handling_lose = true
-	_run_outcome = "lose"
+	_run_outcome = "move_limit"
 	_stop_execution()
 
 	log_header("lose")
@@ -718,6 +724,7 @@ func _run_pipeline() -> void:
 	_step_index = 0
 	_in_replay = false
 	_run_outcome = "incomplete"
+	_run_had_error = false
 	await get_tree().process_frame
 
 	# Python path
@@ -845,6 +852,7 @@ func _run_ipc_loop() -> void:
 
 		elif line.begins_with("[ERROR]"):
 			log_error(line.trim_prefix("[ERROR] "))
+			_run_had_error = true
 
 		elif line == "[DONE]":
 			break
@@ -853,15 +861,18 @@ func _run_ipc_loop() -> void:
 	if _ipc_active:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash. Treat this as an "incomplete" lose.
-		if _run_outcome == "incomplete" and not _is_handling_lose:
+		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
 			_trigger_incomplete_lose("Did not reach the goal.")
 		else:
 			_stop_execution()
 
-		run_button.text = "▶ Run"
-		run_button.disabled = true
-		step_button.disabled = true
-		_set_status("Done", "ok")
+			run_button.text = "▶ Run"
+			run_button.disabled = true
+			step_button.disabled = true
+			if _run_had_error:
+				_set_status("Error", "error")
+			else:
+				_set_status("Done", "ok")
 
 # Intercepts window close so the subprocess is killed before Godot exits
 func _notification(what: int) -> void:
@@ -1124,6 +1135,8 @@ func _run_outcome_marker() -> String:
 			return "!"
 		"lose":
 			return "#"
+		"move_limit":
+			return "$"
 		_:
 			return "?"
 

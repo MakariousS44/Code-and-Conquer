@@ -1,7 +1,9 @@
 extends RefCounted
 
+# Only this exact import is allowed
+const REQUIRED_IMPORT := "from robot import *"
+
 const FORBIDDEN_WORDS := {
-	"import": "import statements are not allowed.",
 	"__import__": "Direct imports are not allowed.",
 	"open": "File access is not allowed.",
 	"exec": "exec() is not allowed.",
@@ -16,9 +18,23 @@ const FORBIDDEN_WORDS := {
 func validate(source: String) -> Dictionary:
 	var errors: Array = []
 	var lines := source.split("\n")
+	var has_required_import := false
 
 	for i in range(lines.size()):
 		var line: String = lines[i]
+		var trimmed := line.strip_edges()
+
+		# Import statements: only the required one is allowed.
+		if trimmed.begins_with("import ") or trimmed.begins_with("from "):
+			if trimmed == REQUIRED_IMPORT:
+				has_required_import = true
+			else:
+				errors.append({
+					"line": i + 1,
+					"column": 1,
+					"message": "Import '%s' is not allowed. Only '%s' is permitted." % [trimmed, REQUIRED_IMPORT]
+				})
+			continue
 
 		for word in FORBIDDEN_WORDS.keys():
 			var idx := line.find(word)
@@ -31,6 +47,12 @@ func validate(source: String) -> Dictionary:
 
 	if source.strip_edges().is_empty():
 		errors.append({ "line": 1, "column": 1, "message": "Program is empty." })
+	elif not has_required_import:
+		errors.append({
+			"line": 1,
+			"column": 1,
+			"message": "Missing required import: %s" % REQUIRED_IMPORT
+		})
 
 	return {
 		"ok": errors.is_empty(),

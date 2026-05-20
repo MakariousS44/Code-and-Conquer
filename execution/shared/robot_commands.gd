@@ -26,10 +26,10 @@ const SENSORS := [
 	{ "name": "is_facing_west", "query": "IS_FACING_WEST" },
 ]
 
-## Socket bootstrap + all commands + all sensors, injected before student code.
+## Socket bootstrap + a synthesized 'robot' module containing all commands and sensors.
 func get_python_bootstrap(port: int) -> String:
 	var lines := [
-		"import socket as _socket, sys, traceback",
+		"import socket as _socket, sys, traceback, types",
 		"",
 		"_sock = _socket.create_connection(('127.0.0.1', %d))" % port,
 		"_sock_file = _sock.makefile('rwb', buffering=1)",
@@ -50,21 +50,35 @@ func get_python_bootstrap(port: int) -> String:
 		"    def flush(self): pass",
 		"sys.stdout = _SockStdout()",
 		"",
+		"# Build the 'robot' module dynamically and register it so student code",
+		"_robot_mod = types.ModuleType('robot')",
+		"_robot_exports = []",
+		"",
+		"def _mk_cmd(_cmd):",
+		"    def _fn():",
+		"        _f = traceback.extract_stack()[-2]",
+		"        _robot_send('[CMD] ' + _cmd + ' [LINE] ' + str(_f.lineno))",
+		"        _robot_recv()",
+		"    return _fn",
+		"",
+		"def _mk_sensor(_query):",
+		"    def _fn():",
+		"        _f = traceback.extract_stack()[-2]",
+		"        _robot_send('[QUERY] ' + _query + ' [LINE] ' + str(_f.lineno))",
+		"        return _robot_recv() == 'true'",
+		"    return _fn",
+		"",
 	]
 	# Commands: send [CMD], wait for Godot's OK before continuing
 	for cmd in COMMANDS:
-		lines.append("def %s():" % cmd.name)
-		lines.append("    _f = traceback.extract_stack()[-2]")
-		lines.append("    _robot_send('[CMD] %s [LINE] ' + str(_f.lineno))" % cmd.cmd)
-		lines.append("    _robot_recv()")
-		lines.append("")
-	# Sensors: send [QUERY], return Godot's true/false answer — identical pattern every language
+		lines.append("setattr(_robot_mod, '%s', _mk_cmd('%s'))" % [cmd.name, cmd.cmd])
+		lines.append("_robot_exports.append('%s')" % cmd.name)
 	for sensor in SENSORS:
-		lines.append("def %s():" % sensor.name)
-		lines.append("    _f = traceback.extract_stack()[-2]")
-		lines.append("    _robot_send('[QUERY] %s [LINE] ' + str(_f.lineno))" % sensor.query)
-		lines.append("    return _robot_recv() == 'true'")
-		lines.append("")
+		lines.append("setattr(_robot_mod, '%s', _mk_sensor('%s'))" % [sensor.name, sensor.query])
+		lines.append("_robot_exports.append('%s')" % sensor.name)
+	lines.append("_robot_mod.__all__ = _robot_exports")
+	lines.append("sys.modules['robot'] = _robot_mod")
+	lines.append("")
 	return "\n".join(lines)
 
 

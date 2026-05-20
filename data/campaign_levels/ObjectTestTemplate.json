@@ -90,6 +90,8 @@
   },
   "editor": {
 	"cpp": [
+	  "#include \"robot.hpp\"",
+	  "",
 	  "int main() {",
 	  "    ",
 	  "    move();",
@@ -156,6 +158,8 @@
       "}"
 	],
 	"python": [
+	  "from robot import *",
+	  "",
 	  "move()",
 	  "move()",
 	  "move()",

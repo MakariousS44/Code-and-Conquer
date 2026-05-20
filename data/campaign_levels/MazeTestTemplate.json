@@ -90,6 +90,8 @@
   },
   "editor": {
 	"cpp": [
+	"#include \"robot.hpp\"",
+	"",
 	"void turn_right() {",
 	"    turn_left();",
 	"    turn_left();",
@@ -110,6 +112,8 @@
     "}"
 	],
 	"python": [
+	"from robot import *",
+	"",
 	"def turn_right():",
 	"    turn_left()",
 	"    turn_left()",
