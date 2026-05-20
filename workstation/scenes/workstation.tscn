@@ -352,6 +352,11 @@ layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
 text = "Turn Right"
 
+[node name="Grid2DButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=999111222]
+layout_mode = 2
+theme_override_styles/normal = ExtResource("3_0u7pg")
+text = "2D View"
+
 [node name="LibraryButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1410462227]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
