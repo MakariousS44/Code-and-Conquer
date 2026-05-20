@@ -21,8 +21,10 @@ var offset_x = 256
 var offset_y = 64
 var is_rotating = false
 const CAMERA_ZOOM_STEP := 0.05
-const CAMERA_ZOOM_MAX := 2.0
-var camera_zoom_min := 0.22
+const CAMERA_ZOOM_OUT_FLOOR := 0.05
+# Higher zoom value = zoomed in (less visible). Lower value = zoomed out (more visible).
+var camera_zoom_min := CAMERA_ZOOM_OUT_FLOOR
+var camera_zoom_max := 4.0
 var camera_start_zoom := 1.0
 const CAMERA_PAN_SPEED := 1700.0
 const CAMERA_DRAG_SPEED := 1.8
@@ -83,7 +85,7 @@ func _process(delta: float) -> void:
 
 
 func _adjust_camera_zoom(delta: float) -> void:
-	var next_zoom = clampf(camera.zoom.x + delta, camera_zoom_min, CAMERA_ZOOM_MAX)
+	var next_zoom = clampf(camera.zoom.x + delta, camera_zoom_min, camera_zoom_max)
 	camera.zoom = Vector2(next_zoom, next_zoom)
 	_update_camera_pan_bounds()
 
@@ -101,10 +103,9 @@ func _update_camera_pan_bounds() -> void:
 		return
 
 	var viewport_size: Vector2 = get_viewport_rect().size
-	# In this project, larger zoom values correspond to seeing more world space,
-	# so the visible world area scales with zoom.
-	var half_viewport_world: Vector2 = (viewport_size * camera.zoom) / 2.0
-	var zoom_growth := maxf(0.0, camera.zoom.x / maxf(camera_start_zoom, 0.001) - 1.0)
+	# Standard Camera2D: visible world size = viewport / zoom (higher zoom = zoomed in).
+	var half_viewport_world: Vector2 = (viewport_size / camera.zoom) / 2.0
+	var zoom_growth := maxf(0.0, camera_start_zoom / maxf(camera.zoom.x, 0.001) - 1.0)
 	var extra_pan_x := (camera_bounds_max.x - camera_bounds_min.x) * 0.5 * zoom_growth
 	var extra_pan_y := (camera_bounds_max.y - camera_bounds_min.y) * 0.5 * zoom_growth
 
@@ -212,29 +213,42 @@ func _rotate_world():
 		push_warning("JSON loaded, but 'cols' or 'rows' keys were missing!")
 
 # ====== World Rendering Functions ======
+
+## Rotate a 0-based floor cell for the current camera angle.
+## Uses cols and rows separately so non-square grids (e.g. 6x10) stay aligned.
+func _rotate_floor_cell(x: int, y: int, cols: int, rows: int) -> Vector2i:
+	match rotation_state:
+		1:
+			return Vector2i(y, x)
+		2:
+			return Vector2i(cols - 1 - x, rows - 1 - y)
+		3:
+			return Vector2i(rows - 1 - y, cols - 1 - x)
+		_:
+			return Vector2i(x, y)
+
+
+## Rotate a 1-based Reeborg goal cell into floor tile coordinates.
+func _rotate_goal_cell(gx: int, gy: int, cols: int, rows: int) -> Vector2i:
+	match rotation_state:
+		1:
+			return Vector2i(gy - 1, gx - 1)
+		2:
+			return Vector2i(cols - gx, gy - 1)
+		3:
+			return Vector2i(rows - gy, cols - gx)
+		_:
+			return Vector2i(gx - 1, rows - gy)
+
+
 ## This builds the floor given the grid size
 func _build_floor(cols: int,rows: int) -> void:
 	# Clear current floor
 	FloorTiles.clear()
 	# Loop through every x (column) and y (row) to fill the grid
-	var max_grid = max(cols,rows)
-	
 	for x in range(cols):
-		var draw_x = x
 		for y in range(rows):
-			var draw_y = y
-				# Swap the coordinates based on the current angle!
-			if rotation_state == 1: # 90 Degrees
-				draw_x = y
-				draw_y = x
-			elif rotation_state == 2: # 180 Degrees
-				draw_x = (max_grid - 1) - x
-				draw_y = (max_grid - 1) - y
-			elif rotation_state == 3: # 270 Degrees
-				draw_x = (max_grid - 1) - y
-				draw_y = (max_grid - 1) - x
-			
-			var grid_pos = Vector2i(draw_x,draw_y)
+			var grid_pos := _rotate_floor_cell(x, y, cols, rows)
 			# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
 			FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 1))
 
@@ -432,52 +446,23 @@ func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
 		push_warning("JSON loaded, but 'walls' keys were missing!")
 
 func _build_goal_cells(data: Dictionary, cols: int, rows: int) -> void:
-	var max_grid = max(cols,rows)
-	
 	if not data.has("goal"):
 		return
 	var goal = data["goal"]
 	if goal.has("possible_final_positions"):
 		for pos in goal["possible_final_positions"]:
 			if typeof(pos) == TYPE_ARRAY and pos.size() >= 2:
-				var draw_x = pos[0] - 1
-				var draw_y = rows - pos[1]
-				
-				# Swap the coordinates based on the current angle!
-				if rotation_state == 1: # 90 Degrees
-					draw_x = pos[1] - 1
-					draw_y = pos[0] - 1
-				elif rotation_state == 2: # 180 Degrees
-					draw_x = (max_grid) - pos[0]
-					draw_y = pos[1] - 1
-				elif rotation_state == 3: # 270 Degrees
-					draw_x = (max_grid) - pos[1]
-					draw_y = (max_grid) - pos[0]
-				var grid_pos = Vector2i(draw_x, draw_y)
-				print(grid_pos)
-				
-				# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
+				var grid_pos := _rotate_goal_cell(int(pos[0]), int(pos[1]), cols, rows)
 				FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 0))
 	if goal.has("position"):
 		var pos = goal["position"]
 		if typeof(pos) == TYPE_DICTIONARY:
-				var draw_x = (int(pos.get("x", -1))) - 1
-				var draw_y = rows - (int(pos.get("y", -1)))
-				
-				# Swap the coordinates based on the current angle!
-				if rotation_state == 1: # 90 Degrees
-					draw_x =  (int(pos.get("y", -1))) - 1
-					draw_y = (int(pos.get("x", -1))) - 1
-				elif rotation_state == 2: # 180 Degrees
-					draw_x = (max_grid) - (int(pos.get("x", -1)))
-					draw_y =  (int(pos.get("y", -1))) - 1
-				elif rotation_state == 3: # 270 Degrees
-					draw_x = (max_grid) -  (int(pos.get("y", -1)))
-					draw_y = (max_grid) - (int(pos.get("x", -1)))
-				var grid_pos = Vector2i(draw_x, draw_y)
-				print(grid_pos)
-				
-				# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
+				var grid_pos := _rotate_goal_cell(
+					int(pos.get("x", -1)),
+					int(pos.get("y", -1)),
+					cols,
+					rows
+				)
 				FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 0))
 
 ## Define and places the player at starting position
@@ -500,7 +485,7 @@ func _place_player(data: Dictionary, cols: int, rows: int) -> void:
 			# CAUTION: mantain chunk_size since floor are scale 2x
 			cols = cols * chunk_size
 			rows = rows * chunk_size
-			var max_grid = max(cols,rows)
+			var max_grid = max(cols, rows)
 			
 			innit_x = (innit_x * chunk_size) - 2
 			innit_y = (innit_y * chunk_size) - 2
@@ -512,69 +497,87 @@ func _place_player(data: Dictionary, cols: int, rows: int) -> void:
 				pos_x = innit_y
 				pos_y = innit_x
 			elif rotation_state == 2:
-				pos_x = max_grid - innit_x - 2
+				pos_x = cols - innit_x - 2
 				pos_y = innit_y
 			elif rotation_state == 3:
-				pos_x = max_grid - innit_y - 2
-				pos_y = max_grid - innit_x - 2
+				pos_x = rows - innit_y - 2
+				pos_y = cols - innit_x - 2
 
-			var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x,pos_y))
+			var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x, pos_y))
 			@warning_ignore("narrowing_conversion")
-			var pixel_pos = Vector2i(grid_pos[0]+offset_x,grid_pos[1]+offset_y)
+			var pixel_pos = Vector2i(grid_pos[0] + offset_x, grid_pos[1] + offset_y)
 			
-			# Pass `is_rotating` to the player so it knows whether to reset its facing
 			player.initialize_from_level(robot_info, pixel_pos, is_rotating)
-			#player.global_position = pixel_pos
 
-## Centers the camera to the middle and zoom relative to the grid size.
-func _center_camera(cols: int, rows: int) -> void:
-	# 1. Find the 4 extreme corners of the isometric diamond grid
-	# (Subtracting 1 because a 6x6 grid goes from index 0 to 5)
-	var top_corner = FloorTiles.map_to_local(Vector2i(0, 0))
-	var bottom_corner = FloorTiles.map_to_local(Vector2i(cols - 1, rows - 1))
-	var right_corner = FloorTiles.map_to_local(Vector2i(cols - 1, 0))
-	var left_corner = FloorTiles.map_to_local(Vector2i(0, rows - 1))
+## Queues a deferred camera fit so the SubViewport has its final size first.
+func _center_camera(_cols: int, _rows: int) -> void:
+	call_deferred("_fit_camera_to_level")
 
-	# 2. Get the base pixel boundaries
-	var min_x = left_corner.x
-	var max_x = right_corner.x
-	var min_y = top_corner.y
-	var max_y = bottom_corner.y
 
-	# 3. Add padding for the tile edges! 
-	# map_to_local() returns the CENTER of the tile. If we don't add half 
-	# of the tile's size, the camera will cut off the outer halves of the edge tiles.
-	var half_tile = Vector2(FloorTiles.tile_set.tile_size) / 2.0
-	min_x -= half_tile.x
-	max_x += half_tile.x
-	min_y -= half_tile.y
-	max_y += half_tile.y
+## Centers and zooms the camera so the full floor grid is visible on level start.
+func _fit_camera_to_level() -> void:
+	var bounds := _compute_level_pixel_bounds()
+	if bounds.is_empty():
+		return
 
-	# 4. Center the camera
-	var center_x = (min_x + max_x) / 2.0
-	var center_y = (min_y + max_y) / 2.0
+	var min_local: Vector2 = bounds["min"]
+	var max_local: Vector2 = bounds["max"]
+	var center_local: Vector2 = (min_local + max_local) / 2.0
 
-	camera_bounds_min = FloorTiles.to_global(Vector2(min_x, min_y))
-	camera_bounds_max = FloorTiles.to_global(Vector2(max_x, max_y))
+	camera_bounds_min = FloorTiles.to_global(min_local)
+	camera_bounds_max = FloorTiles.to_global(max_local)
 	camera_bounds_ready = true
-	
-	# Convert local coordinates back to global just in case the Node2D is moved
-	camera.global_position = FloorTiles.to_global(Vector2(center_x, center_y))
+	camera.global_position = FloorTiles.to_global(center_local)
 
-	# Fit the map to the viewport so every level starts with the whole grid visible.
 	var viewport_size: Vector2 = get_viewport_rect().size
-	var map_width: float = maxf(max_x - min_x, 1.0)
-	var map_height: float = maxf(max_y - min_y, 1.0)
-	var fit_zoom_x: float = map_width / viewport_size.x
-	var fit_zoom_y: float = map_height / viewport_size.y
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return
+
+	var map_width: float = maxf(max_local.x - min_local.x, 1.0)
+	var map_height: float = maxf(max_local.y - min_local.y, 1.0)
+	var fit_zoom_x: float = viewport_size.x / map_width
+	var fit_zoom_y: float = viewport_size.y / map_height
 	var fit_zoom: float = minf(fit_zoom_x, fit_zoom_y)
 
-	# Leave a little room for the player to zoom further out without losing the map.
-	fit_zoom = maxf(fit_zoom * 0.9, CAMERA_ZOOM_STEP)
+	# Pull back slightly so walls/tiles are not clipped on load (lower zoom = more visible).
+	fit_zoom = maxf(fit_zoom * 0.85, CAMERA_ZOOM_OUT_FLOOR)
 	camera.zoom = Vector2(fit_zoom, fit_zoom)
-	camera_zoom_min = maxf(fit_zoom * 0.75, CAMERA_ZOOM_STEP)
 	camera_start_zoom = fit_zoom
+	# zoom_min = lowest value = furthest zoom out; zoom_max = highest value = furthest zoom in.
+	camera_zoom_min = maxf(fit_zoom * 0.25, CAMERA_ZOOM_OUT_FLOOR)
+	camera_zoom_max = maxf(fit_zoom * 3.0, fit_zoom + 0.5)
 	_update_camera_pan_bounds()
+
+
+## Pixel bounds of floor + wall tiles in FloorTiles local space.
+func _compute_level_pixel_bounds() -> Dictionary:
+	var min_local := Vector2(INF, INF)
+	var max_local := Vector2(-INF, -INF)
+	var found := false
+
+	var half_floor := Vector2(FloorTiles.tile_set.tile_size) * FloorTiles.scale / 2.0
+	for cell in FloorTiles.get_used_cells():
+		found = true
+		var center := FloorTiles.map_to_local(cell)
+		min_local.x = minf(min_local.x, center.x - half_floor.x)
+		min_local.y = minf(min_local.y, center.y - half_floor.y)
+		max_local.x = maxf(max_local.x, center.x + half_floor.x)
+		max_local.y = maxf(max_local.y, center.y + half_floor.y)
+
+	if WallTiles.tile_set != null:
+		var half_wall := Vector2(WallTiles.tile_set.tile_size) / 2.0
+		for cell in WallTiles.get_used_cells():
+			found = true
+			var center := FloorTiles.to_local(WallTiles.to_global(WallTiles.map_to_local(cell)))
+			min_local.x = minf(min_local.x, center.x - half_wall.x)
+			min_local.y = minf(min_local.y, center.y - half_wall.y)
+			max_local.x = maxf(max_local.x, center.x + half_wall.x)
+			max_local.y = maxf(max_local.y, center.y + half_wall.y)
+
+	if not found:
+		return {}
+
+	return { "min": min_local, "max": max_local }
 
 # === grid overlay ===
 # visual helper for readability and debugging (not gameplay logic)
@@ -607,7 +610,7 @@ func _center_camera(cols: int, rows: int) -> void:
 func player_grid_position(x_pos: int, y_pos: int) -> Vector2:	
 	var cols = world_x_size * chunk_size
 	var rows = world_y_size * chunk_size
-	var max_grid = max(cols,rows)
+	var max_grid = max(cols, rows)
 	
 	x_pos = (x_pos * chunk_size) - 2
 	y_pos = (y_pos * chunk_size) - 2
@@ -619,19 +622,15 @@ func player_grid_position(x_pos: int, y_pos: int) -> Vector2:
 		pos_x = y_pos
 		pos_y = x_pos
 	elif rotation_state == 2:
-		pos_x = max_grid - x_pos - 2
+		pos_x = cols - x_pos - 2
 		pos_y = y_pos
 	elif rotation_state == 3:
-		pos_x = max_grid - y_pos - 2
-		pos_y = max_grid - x_pos - 2
+		pos_x = rows - y_pos - 2
+		pos_y = cols - x_pos - 2
 
-	# 5. Ask the TileMapLayer where that specific grid tile is in actual pixels
-	var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x,pos_y))
-	
-	# If offset is needed
+	var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x, pos_y))
 	@warning_ignore("narrowing_conversion")
-	var pixel_pos = Vector2i(grid_pos[0]+offset_x,grid_pos[1]+offset_y)
-	print("New Position: ", x_pos, ",", y_pos, " Grid Postion: ", grid_pos, " Pixel Position: ", pixel_pos)
+	var pixel_pos = Vector2i(grid_pos[0] + offset_x, grid_pos[1] + offset_y)
 	return pixel_pos
 
 ## simple bounds check so the player doesn't walk off the map like a clown
@@ -755,10 +754,9 @@ func _clear_children(node: Node) -> void:
 		child.queue_free()
 
 func object_grid_position(x_pos: int, y_pos: int) -> Vector2:
-	# Remember if the player has moved
 	var cols = world_x_size * chunk_size
 	var rows = world_y_size * chunk_size
-	var max_grid = max(cols,rows)
+	var max_grid = max(cols, rows)
 	
 	x_pos = (x_pos * chunk_size) - 2
 	y_pos = (y_pos * chunk_size) - 2
@@ -770,19 +768,15 @@ func object_grid_position(x_pos: int, y_pos: int) -> Vector2:
 		pos_x = y_pos - 2
 		pos_y = x_pos - 2
 	elif rotation_state == 2:
-		pos_x = max_grid - x_pos - 2
+		pos_x = cols - x_pos - 2
 		pos_y = y_pos - 4
 	elif rotation_state == 3:
-		pos_x = max_grid - y_pos
-		pos_y = max_grid - x_pos - 4
+		pos_x = rows - y_pos
+		pos_y = cols - x_pos - 4
 
-	# 5. Ask the TileMapLayer where that specific grid tile is in actual pixels
-	var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x,pos_y))
-
-	# If offset is needed
+	var grid_pos = FloorTiles.map_to_local(Vector2i(pos_x, pos_y))
 	@warning_ignore("narrowing_conversion")
-	var pixel_pos = Vector2i(grid_pos[0]+offset_x,grid_pos[1]+offset_y)
-	print("New Position: ", x_pos, ",", y_pos, " Grid Postion: ", grid_pos, " Pixel Position: ", pixel_pos)
+	var pixel_pos = Vector2i(grid_pos[0] + offset_x, grid_pos[1] + offset_y)
 	return pixel_pos
 
 func _build_objects() -> void:
@@ -819,7 +813,7 @@ func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 	if tex:
 		sprite.texture = tex
 	sprite.scale = Vector2(5.0, 5.0)
-	var grid_pos = object_grid_position(gx, gy+1)
+	var grid_pos = object_grid_position(gx, gy + 1)
 	sprite.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
 	sprite.z_index = 1
 	objects_node.add_child(sprite)

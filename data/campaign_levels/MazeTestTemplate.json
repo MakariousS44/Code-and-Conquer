@@ -73,8 +73,8 @@
     "Navigate the maze and reach the goal tile."
   ],
   "small_tiles": false,
-  "rows": 20,
-  "cols": 20,
+  "rows": 6,
+  "cols": 6,
   "goal": {
 	"possible_final_positions": [
 	  [
