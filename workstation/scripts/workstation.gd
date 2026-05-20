@@ -1145,7 +1145,15 @@ func _build_win_report() -> String:
 			move_count += 1
 	cmd_letters.append(_run_outcome_marker())
 
-	var report := ""
+	var level_name := global_level_name.get_file().get_basename()
+	var lang_name := "C++" if current_language == Language.CPP else "Python"
+	var date := Time.get_date_string_from_system()
+
+	var report := "=== CODE & CONQUER - LEVEL REPORT ===\n"
+	report += "Level:    %s\n" % level_name
+	report += "Language: %s\n" % lang_name
+	report += "Date:     %s\n" % date
+	report += "\n"
 	report += "Starting position: (%d, %d) - %s\n" % [start_x, start_y, start_facing]
 	report += "Starting world state:\n\n"
 	report += _render_world_text(cols, rows, walls, start_x, start_y, start_facing)
@@ -1154,7 +1162,7 @@ func _build_win_report() -> String:
 	report += "Ending world state:\n\n"
 	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing)
 	report += "\n\n"
-	report += "Commands: " + " ".join(cmd_letters) + "\n"
+	report += "Sequence: " + " ".join(cmd_letters) + "\n"
 	report += "Move Count: %d\n" % move_count
 	return report
 
