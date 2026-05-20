@@ -32,6 +32,8 @@ const COMPASS_TEXTURES: Array[Texture2D] = [
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
 @onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
+@onready var lose_report_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/PrintButton
+@onready var lose_clipboard_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/CopyButton
 
 # Win overlay
 @onready var win_overlay: Control = $WinOverlay
@@ -91,6 +93,8 @@ var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
+var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete"
+const MOVE_LIMIT := 999
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -124,6 +128,8 @@ func _ready() -> void:
 	win_menu_button.pressed.connect(_on_go_to_menu)
 	win_report_button.pressed.connect(_on_win_report_save)
 	win_clipboard_button.pressed.connect(_on_win_report_copy)
+	lose_report_button.pressed.connect(_on_win_report_save)
+	lose_clipboard_button.pressed.connect(_on_win_report_copy)
 	
 	report_save_dialog.hide()
 	report_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -169,6 +175,8 @@ func _load_level_scene(load_editor_text: bool = true) -> void:
 		player_node.lose_triggered.connect(_on_player_lose)
 	if game_instance.has_signal("level_complete") and not game_instance.level_complete.is_connected(_on_level_complete):
 		game_instance.level_complete.connect(_on_level_complete)
+	if game_instance.has_signal("level_incomplete") and not game_instance.level_incomplete.is_connected(_trigger_incomplete_lose):
+		game_instance.level_incomplete.connect(_trigger_incomplete_lose)
 
 	# === LOAD PATH ===
 	var level_path := ""
@@ -588,10 +596,46 @@ func _get_funny_lose_message() -> String:
 	return LOSE_MESSAGES[randi() % LOSE_MESSAGES.size()]
 
 
+func _trigger_move_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	_is_handling_lose = true
+	_run_outcome = "lose"
+	_stop_execution()
+
+	log_header("lose")
+	log_error("Move Limit Reached")
+	_set_status("You lost", "error")
+
+	lose_message.text = "Move Limit Reached"
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
+
+
+# Shared handler for both "incomplete" lose conditions:
+#   - Player code finished without winning or crashing
+#   - player landed on the goal tile but objectives weren't satisfied
+func _trigger_incomplete_lose(reason: String) -> void:
+	if _is_handling_lose:
+		return
+	_is_handling_lose = true
+	_run_outcome = "incomplete"
+	_stop_execution()
+
+	log_header("lose")
+	log_error(reason)
+	_set_status("You lost", "error")
+
+	lose_message.text = reason
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
+
+
 func _on_player_lose(reason: String) -> void:
 	if _is_handling_lose:
 		return
 	_is_handling_lose = true
+	_run_outcome = "lose"
 	_stop_execution()
 
 	log_header("lose")
@@ -604,6 +648,7 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	_run_outcome = "win"
 	_stop_execution()
 
 	log_header("level complete")
@@ -672,6 +717,7 @@ func _run_pipeline() -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_run_outcome = "incomplete"
 	await get_tree().process_frame
 
 	# Python path
@@ -805,7 +851,12 @@ func _run_ipc_loop() -> void:
 
 	_ipc_loop_running = false
 	if _ipc_active:
-		_stop_execution()
+		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
+		# win or crash. Treat this as an "incomplete" lose.
+		if _run_outcome == "incomplete" and not _is_handling_lose:
+			_trigger_incomplete_lose("Did not reach the goal.")
+		else:
+			_stop_execution()
 
 		run_button.text = "▶ Run"
 		run_button.disabled = true
@@ -826,6 +877,13 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		return
 	match cmd:
 		"MOVE":
+			var moves_so_far := 0
+			for i in range(min(_step_index, _cmd_history.size())):
+				if _cmd_history[i].cmd == "MOVE":
+					moves_so_far += 1
+			if moves_so_far > MOVE_LIMIT:
+				_trigger_move_limit_lose()
+				return
 			await player_node.move_forward(exec_speed)
 		"TURN_LEFT":
 			player_node.turn_left()
@@ -997,17 +1055,145 @@ func _on_main_menu_button_pressed() -> void:
 	_on_go_to_menu()
 
 func _build_win_report() -> String:
-	var lang_name := "C++" if current_language == Language.CPP else "Python"
-	var level_name := global_level_name
+	var cols := int(current_level_definition.get("cols", 0))
+	var rows := int(current_level_definition.get("rows", 0))
+	var walls: Dictionary = current_level_definition.get("walls", {})
+
+	var start_x := 1
+	var start_y := 1
+	var start_facing := "north"
+	var robots: Array = current_level_definition.get("robots", [])
+	if not robots.is_empty():
+		var r: Dictionary = robots[0]
+		start_x = int(r.get("x", 1))
+		start_y = int(r.get("y", 1))
+		var ori := int(r.get("_orientation", 3))
+		var dirs := ["east", "south", "west", "north"]
+		if ori >= 0 and ori < dirs.size():
+			start_facing = dirs[ori]
+
+	var end_x := start_x
+	var end_y := start_y
+	var end_facing := start_facing
+	if player_node != null:
+		end_x = player_node.grid_x
+		end_y = player_node.grid_y
+		end_facing = player_node.facing
+
+	var cmd_letters: Array = []
+	var move_count := 0
+	for entry in _cmd_history:
+		var letter := _cmd_to_report_letter(entry.cmd)
+		if letter == "":
+			continue
+		cmd_letters.append(letter)
+		if entry.cmd == "MOVE":
+			move_count += 1
+	cmd_letters.append(_run_outcome_marker())
+
 	var report := ""
-	report += "Code & Conquer - Win Report\n"
-	report += "Language: %s\n" % lang_name
-	report += "Level: %s\n" % level_name
-	report += "Time: %s\n\n" % Time.get_datetime_string_from_system()
-	report += "Player Code:\n"
-	report += editor.text
+	report += "Starting position: (%d, %d) - %s\n" % [start_x, start_y, start_facing]
+	report += "Starting world state:\n\n"
+	report += _render_world_text(cols, rows, walls, start_x, start_y, start_facing)
+	report += "\n\n"
+	report += "Ending position: (%d, %d) - %s\n" % [end_x, end_y, end_facing]
+	report += "Ending world state:\n\n"
+	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing)
+	report += "\n\n"
+	report += "Commands: " + " ".join(cmd_letters) + "\n"
+	report += "Move Count: %d\n" % move_count
 	return report
-	
+
+
+func _cmd_to_report_letter(cmd: String) -> String:
+	match cmd:
+		"MOVE":
+			return "M"
+		"TURN_LEFT":
+			return "T"
+		"PICK_OBJECT":
+			return "U"
+		"PUT_OBJECT":
+			return "D"
+	return ""
+
+
+func _run_outcome_marker() -> String:
+	match _run_outcome:
+		"win":
+			return "!"
+		"lose":
+			return "#"
+		_:
+			return "?"
+
+
+func _facing_arrow(facing: String) -> String:
+	match facing:
+		"north":
+			return "^"
+		"south":
+			return "v"
+		"east":
+			return ">"
+		"west":
+			return "<"
+	return "?"
+
+
+func _wall_at(walls: Dictionary, x: int, y: int, dir: String) -> bool:
+	var key := "%d,%d" % [x, y]
+	if not walls.has(key):
+		return false
+	for d in walls[key]:
+		if str(d).to_lower() == dir:
+			return true
+	return false
+
+
+# Sparse-wall ASCII grid. Outer edges always drawn, '+' at every corner,
+# interior walls only where they exist.
+func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: int, facing: String) -> String:
+	if cols <= 0 or rows <= 0:
+		return ""
+
+	var arrow := _facing_arrow(facing)
+	var lines: Array = []
+
+	var outer := "   +"
+	for c in range(cols):
+		outer += "---+"
+	lines.append(outer)
+
+	for row in range(rows, 0, -1):
+		var row_line := "%2d |" % row
+		for col in range(1, cols + 1):
+			var glyph := "."
+			if col == px and row == py:
+				glyph = arrow
+			row_line += " %s " % glyph
+			if col < cols:
+				row_line += "|" if _wall_at(walls, col, row, "east") else " "
+		row_line += "|"
+		lines.append(row_line)
+
+		if row > 1:
+			var sep := "   +"
+			for col in range(1, cols + 1):
+				sep += "---+" if _wall_at(walls, col, row - 1, "north") else "   +"
+			lines.append(sep)
+
+	lines.append(outer)
+
+	var label := "     "
+	var parts: Array = []
+	for col in range(1, cols + 1):
+		parts.append(str(col))
+	label += "   ".join(parts)
+	lines.append(label)
+
+	return "\n".join(lines)
+
 func _on_win_report_copy() -> void:
 	var report := _build_win_report()
 	DisplayServer.clipboard_set(report)

@@ -560,6 +560,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -48.0
+offset_right = 48.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
@@ -583,13 +585,13 @@ theme_override_font_sizes/font_size = 11
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="LoseButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=800000006]
+[node name="LoseButtons" type="VBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=1362105537]
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
 
 [node name="LoseRetryButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000007]
+custom_minimum_size = Vector2(107, 0)
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(1, 0.65, 0.65, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_red")
@@ -597,10 +599,28 @@ text = "Try Again"
 
 [node name="LoseMenuButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000009]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[node name="ReportButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="PrintButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1693447111]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Print Report"
+
+[node name="CopyButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1950236881]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Clipboard"
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
@@ -650,6 +670,7 @@ autowrap_mode = 3
 layout_mode = 2
 
 [node name="WinRetryButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000007]
+custom_minimum_size = Vector2(107, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.6, 1, 0.7, 1)
@@ -683,6 +704,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Clipboard"
 
 [node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
+oversampling_override = 1.0
 
 [node name="Compass" type="TextureRect" parent="." unique_id=532882177]
 layout_mode = 1

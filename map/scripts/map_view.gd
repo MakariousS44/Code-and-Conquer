@@ -1,6 +1,7 @@
 extends Node2D
 
 signal level_complete
+signal level_incomplete(reason: String)
 
 @onready var camera: Camera2D = $Camera2D
 @onready var world_root: Node2D = $WorldRoot
@@ -757,6 +758,7 @@ func check_win_condition(gx: int, gy: int) -> void:
 
 	# --- object goal check ---
 	if not are_goal_objects_satisfied():
+		level_incomplete.emit("Reached the goal without completing all the objectives.")
 		return
 
 	level_complete.emit()
