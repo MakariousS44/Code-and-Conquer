@@ -67,6 +67,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	queue_redraw()
 	if not camera_bounds_ready:
 		return
 
@@ -84,6 +85,33 @@ func _process(delta: float) -> void:
 	if move_direction != Vector2.ZERO:
 		camera.global_position += move_direction.normalized() * CAMERA_PAN_SPEED * delta
 		_clamp_camera_to_bounds()
+
+
+func _draw() -> void:
+	var font := load(LABEL_FONT_PATH) as Font
+	var fs   := 18
+	var col  := Color(0.28, 0.78, 0.92, 0.85)
+	var inv  := get_canvas_transform().affine_inverse()
+	var vp   := get_viewport_rect()
+	var pad  := 20.0
+
+	# Directions rotate with the world: N stays "above" whatever is grid-north on screen
+	var dirs   := ["N", "E", "S", "W"]
+	var top_lbl    := dirs[rotation_state % 4]
+	var right_lbl  := dirs[(rotation_state + 1) % 4]
+	var bottom_lbl := dirs[(rotation_state + 2) % 4]
+	var left_lbl   := dirs[(rotation_state + 3) % 4]
+
+	var top    := inv * Vector2(vp.size.x * 0.5, pad)
+	var right  := inv * Vector2(vp.size.x - pad, vp.size.y * 0.5)
+	var bottom := inv * Vector2(vp.size.x * 0.5, vp.size.y - pad * 0.5)
+	var left   := inv * Vector2(pad, vp.size.y * 0.5)
+
+	draw_string(font, top,    top_lbl,    HORIZONTAL_ALIGNMENT_CENTER, -1, fs, col)
+	draw_string(font, right,  right_lbl,  HORIZONTAL_ALIGNMENT_LEFT,   -1, fs, col)
+	draw_string(font, bottom, bottom_lbl, HORIZONTAL_ALIGNMENT_CENTER, -1, fs, col)
+	draw_string(font, left,   left_lbl,   HORIZONTAL_ALIGNMENT_RIGHT,  -1, fs, col)
+
 
 func get_camera_state() -> Dictionary:
 	return {
