@@ -49,6 +49,12 @@ var pending_report_text: String = ""
 @onready var screenshot_save_dialog: FileDialog = $ScreenshotSaveDialog
 var _pending_screenshot: Image = null
 
+# Done overlay (for levels without a win condition)
+@onready var done_overlay: Control = $DoneOverlay
+@onready var done_retry_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneRetryButton
+@onready var done_menu_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneMenuButton
+@onready var done_screenshot_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneScreenshotRow/DoneScreenshotButton
+
 
 # Library overlay
 @onready var library_overlay: Control = $LibraryOverlay
@@ -151,6 +157,9 @@ func _ready() -> void:
 
 	win_screenshot_button.pressed.connect(_take_screenshot)
 	lose_screenshot_button.pressed.connect(_take_screenshot)
+	done_retry_button.pressed.connect(_on_done_retry)
+	done_menu_button.pressed.connect(_on_go_to_menu)
+	done_screenshot_button.pressed.connect(_take_screenshot)
 	screenshot_save_dialog.hide()
 	screenshot_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	screenshot_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
@@ -896,9 +905,13 @@ func _run_ipc_loop() -> void:
 	_ipc_loop_running = false
 	if _ipc_active:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
-		# win or crash. Treat this as an "incomplete" lose.
+		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
-			_trigger_incomplete_lose("Did not reach the goal.")
+			if _level_has_win_condition():
+				_trigger_incomplete_lose("Did not reach the goal.")
+			else:
+				_on_execution_done()
+				return
 		else:
 			_stop_execution()
 
@@ -909,6 +922,32 @@ func _run_ipc_loop() -> void:
 				_set_status("Error", "error")
 			else:
 				_set_status("Done", "ok")
+
+
+func _on_execution_done() -> void:
+	_stop_execution()
+	run_button.text = "▶ Run"
+	run_button.disabled = true
+	step_button.disabled = true
+	_set_status("Done", "ok")
+	done_overlay.visible = true
+	_set_controls_disabled(true)
+
+
+func _level_has_win_condition() -> bool:
+	if not current_level_definition.has("goal"):
+		return false
+	var goal = current_level_definition["goal"]
+	if goal is Dictionary and goal.is_empty():
+		return false
+	return true
+
+
+func _on_done_retry() -> void:
+	done_overlay.visible = false
+	_set_controls_disabled(false)
+	_on_reset_button_pressed()
+
 
 # Intercepts window close so the subprocess is killed before Godot exits
 func _notification(what: int) -> void:
