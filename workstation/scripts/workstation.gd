@@ -1244,7 +1244,7 @@ func _build_win_report() -> String:
 	report += "Ending world state:\n\n"
 	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing)
 	report += "\n\n"
-	report += "Sequence: " + " ".join(cmd_letters) + "\n"
+	report += "Sequence: " + "".join(cmd_letters) + "\n"
 	report += "Move Count: %d\n" % move_count
 	report += "Key: M=move  T=turn left  U=pick up  D=put down  !=win  #=lose  ?=incomplete\n"
 	return report
