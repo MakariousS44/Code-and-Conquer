@@ -20,6 +20,18 @@ var rotation_state = 0
 var offset_x = 256
 var offset_y = 64
 var is_rotating = false
+const CAMERA_ZOOM_STEP := 0.05
+const CAMERA_ZOOM_MAX := 2.0
+var camera_zoom_min := 0.22
+var camera_start_zoom := 1.0
+const CAMERA_PAN_SPEED := 1700.0
+const CAMERA_DRAG_SPEED := 1.8
+var camera_bounds_min := Vector2.ZERO
+var camera_bounds_max := Vector2.ZERO
+var camera_pan_min := Vector2.ZERO
+var camera_pan_max := Vector2.ZERO
+var camera_bounds_ready := false
+var camera_dragging := false
 # =======================================
 
 
@@ -33,6 +45,87 @@ const chunk_size = 2
 func _ready() -> void:
 	EventManager.rotate_camera_left.connect(rotate_world_left)
 	EventManager.rotate_camera_right.connect(rotate_world_right)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_adjust_camera_zoom(-CAMERA_ZOOM_STEP)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_adjust_camera_zoom(CAMERA_ZOOM_STEP)
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			camera_dragging = true
+	elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		camera_dragging = false
+	elif event is InputEventMouseMotion and camera_dragging:
+		camera.global_position -= event.relative * CAMERA_DRAG_SPEED
+		_clamp_camera_to_bounds()
+
+
+func _process(delta: float) -> void:
+	if not camera_bounds_ready:
+		return
+
+	var move_direction := Vector2.ZERO
+	if Input.is_key_pressed(KEY_ALT):
+		if Input.is_key_pressed(KEY_A):
+			move_direction.x -= 1.0
+		if Input.is_key_pressed(KEY_D):
+			move_direction.x += 1.0
+		if Input.is_key_pressed(KEY_W):
+			move_direction.y -= 1.0
+		if Input.is_key_pressed(KEY_S):
+			move_direction.y += 1.0
+
+	if move_direction != Vector2.ZERO:
+		camera.global_position += move_direction.normalized() * CAMERA_PAN_SPEED * delta
+		_clamp_camera_to_bounds()
+
+
+func _adjust_camera_zoom(delta: float) -> void:
+	var next_zoom = clampf(camera.zoom.x + delta, camera_zoom_min, CAMERA_ZOOM_MAX)
+	camera.zoom = Vector2(next_zoom, next_zoom)
+	_update_camera_pan_bounds()
+
+
+func _clamp_camera_to_bounds() -> void:
+	if not camera_bounds_ready:
+		return
+
+	camera.global_position.x = clampf(camera.global_position.x, camera_pan_min.x, camera_pan_max.x)
+	camera.global_position.y = clampf(camera.global_position.y, camera_pan_min.y, camera_pan_max.y)
+
+
+func _update_camera_pan_bounds() -> void:
+	if not camera_bounds_ready:
+		return
+
+	var viewport_size: Vector2 = get_viewport_rect().size
+	# In this project, larger zoom values correspond to seeing more world space,
+	# so the visible world area scales with zoom.
+	var half_viewport_world: Vector2 = (viewport_size * camera.zoom) / 2.0
+	var zoom_growth := maxf(0.0, camera.zoom.x / maxf(camera_start_zoom, 0.001) - 1.0)
+	var extra_pan_x := (camera_bounds_max.x - camera_bounds_min.x) * 0.5 * zoom_growth
+	var extra_pan_y := (camera_bounds_max.y - camera_bounds_min.y) * 0.5 * zoom_growth
+
+	var left_bound := camera_bounds_min.x + half_viewport_world.x - extra_pan_x
+	var right_bound := camera_bounds_max.x - half_viewport_world.x + extra_pan_x
+	var top_bound := camera_bounds_min.y + half_viewport_world.y - extra_pan_y
+	var bottom_bound := camera_bounds_max.y - half_viewport_world.y + extra_pan_y
+
+	if left_bound > right_bound:
+		var center_x := (camera_bounds_min.x + camera_bounds_max.x) / 2.0
+		left_bound = center_x
+		right_bound = center_x
+
+	if top_bound > bottom_bound:
+		var center_y := (camera_bounds_min.y + camera_bounds_max.y) / 2.0
+		top_bound = center_y
+		bottom_bound = center_y
+
+	camera_pan_min = Vector2(left_bound, top_bound)
+	camera_pan_max = Vector2(right_bound, bottom_bound)
+	_clamp_camera_to_bounds()
 
 
 # ======= MAIN POINT: Build Rendition =======
@@ -460,34 +553,28 @@ func _center_camera(cols: int, rows: int) -> void:
 	# 4. Center the camera
 	var center_x = (min_x + max_x) / 2.0
 	var center_y = (min_y + max_y) / 2.0
+
+	camera_bounds_min = FloorTiles.to_global(Vector2(min_x, min_y))
+	camera_bounds_max = FloorTiles.to_global(Vector2(max_x, max_y))
+	camera_bounds_ready = true
 	
 	# Convert local coordinates back to global just in case the Node2D is moved
 	camera.global_position = FloorTiles.to_global(Vector2(center_x, center_y))
 
-	# Hardcode the zoom depending on the grid size
-	# - Determine the zoom size byt an incresing grid interval of 5
-	# - The starting zoom is 0.5
-	# - The max zoom is 0.1
-	var max_grid_size = max(cols, rows)
-	
-	# Determine on what interval of 5 we are on
-	@warning_ignore("integer_division")
-	var step = (int(max_grid_size) - 1) / 5
-	
-	# Determine a proper zoom between grid sizes
-	var final_zoom = 1
-	print("Grid Size Level: ", step)
-	if step < 5:
-		final_zoom = 0.15 - (step * 0.03)
-	else:
-		final_zoom = 0.1 - (step * 0.01)
-	
-	# CRITICAL: Put a floor. Camera zoom cannot be 0
-	final_zoom = max(final_zoom, 0.01) 
-	
-	# Apply the zoom
-	# # CRITICAL: Since this camera zoom is fixed recomend no bigger than 35X35 grid size
-	camera.zoom = Vector2(final_zoom, final_zoom)
+	# Fit the map to the viewport so every level starts with the whole grid visible.
+	var viewport_size: Vector2 = get_viewport_rect().size
+	var map_width: float = maxf(max_x - min_x, 1.0)
+	var map_height: float = maxf(max_y - min_y, 1.0)
+	var fit_zoom_x: float = map_width / viewport_size.x
+	var fit_zoom_y: float = map_height / viewport_size.y
+	var fit_zoom: float = minf(fit_zoom_x, fit_zoom_y)
+
+	# Leave a little room for the player to zoom further out without losing the map.
+	fit_zoom = maxf(fit_zoom * 0.9, CAMERA_ZOOM_STEP)
+	camera.zoom = Vector2(fit_zoom, fit_zoom)
+	camera_zoom_min = maxf(fit_zoom * 0.75, CAMERA_ZOOM_STEP)
+	camera_start_zoom = fit_zoom
+	_update_camera_pan_bounds()
 
 # === grid overlay ===
 # visual helper for readability and debugging (not gameplay logic)
