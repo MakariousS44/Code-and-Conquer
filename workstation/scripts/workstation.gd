@@ -535,11 +535,19 @@ func _on_reset_button_pressed() -> void:
 	rotate_right_btn.disabled = false
 	prev_button.disabled = true
 
+	# Preserve camera zoom/pan across reset
+	var saved_camera_state: Dictionary = {}
+	if game_instance and game_instance.has_method("get_camera_state"):
+		saved_camera_state = game_instance.get_camera_state()
+
 	output_box.clear()
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
 	_load_level_scene(false)
+
+	if not saved_camera_state.is_empty() and game_instance and game_instance.has_method("apply_camera_state"):
+		game_instance.apply_camera_state(saved_camera_state)
 
 func _on_speed_change(value: float) -> void:
 	exec_speed = value

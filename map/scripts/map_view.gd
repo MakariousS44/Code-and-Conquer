@@ -51,9 +51,9 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_adjust_camera_zoom(-CAMERA_ZOOM_STEP)
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
 			_adjust_camera_zoom(CAMERA_ZOOM_STEP)
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			camera_dragging = true
@@ -83,7 +83,21 @@ func _process(delta: float) -> void:
 		camera.global_position += move_direction.normalized() * CAMERA_PAN_SPEED * delta
 		_clamp_camera_to_bounds()
 
+func get_camera_state() -> Dictionary:
+	return {"zoom": camera.zoom, "position": camera.global_position}
 
+
+func apply_camera_state(state: Dictionary) -> void:
+	if state.is_empty():
+		return
+	if state.has("zoom"):
+		camera.zoom = state["zoom"]
+	if state.has("position"):
+		camera.global_position = state["position"]
+	_update_camera_pan_bounds()
+	_clamp_camera_to_bounds()
+	
+	
 func _adjust_camera_zoom(delta: float) -> void:
 	var next_zoom = clampf(camera.zoom.x + delta, camera_zoom_min, camera_zoom_max)
 	camera.zoom = Vector2(next_zoom, next_zoom)
