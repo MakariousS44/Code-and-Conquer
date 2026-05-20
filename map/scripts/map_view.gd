@@ -34,6 +34,7 @@ var camera_pan_min := Vector2.ZERO
 var camera_pan_max := Vector2.ZERO
 var camera_bounds_ready := false
 var camera_dragging := false
+var _pending_camera_restore: Dictionary = {}
 # =======================================
 
 
@@ -84,12 +85,28 @@ func _process(delta: float) -> void:
 		_clamp_camera_to_bounds()
 
 func get_camera_state() -> Dictionary:
-	return {"zoom": camera.zoom, "position": camera.global_position}
+	return {
+		"zoom": camera.zoom,
+		"position": camera.global_position,
+		"zoom_min": camera_zoom_min,
+		"zoom_max": camera_zoom_max,
+		"start_zoom": camera_start_zoom,
+	}
+
+
+func set_pending_camera_restore(state: Dictionary) -> void:
+	_pending_camera_restore = state
 
 
 func apply_camera_state(state: Dictionary) -> void:
 	if state.is_empty():
 		return
+	if state.has("zoom_min"):
+		camera_zoom_min = state["zoom_min"]
+	if state.has("zoom_max"):
+		camera_zoom_max = state["zoom_max"]
+	if state.has("start_zoom"):
+		camera_start_zoom = state["start_zoom"]
 	if state.has("zoom"):
 		camera.zoom = state["zoom"]
 	if state.has("position"):
@@ -499,7 +516,6 @@ func _place_player(data: Dictionary, cols: int, rows: int) -> void:
 			# CAUTION: mantain chunk_size since floor are scale 2x
 			cols = cols * chunk_size
 			rows = rows * chunk_size
-			var max_grid = max(cols, rows)
 			
 			innit_x = (innit_x * chunk_size) - 2
 			innit_y = (innit_y * chunk_size) - 2
@@ -541,6 +557,13 @@ func _fit_camera_to_level() -> void:
 	camera_bounds_min = FloorTiles.to_global(min_local)
 	camera_bounds_max = FloorTiles.to_global(max_local)
 	camera_bounds_ready = true
+
+	if not _pending_camera_restore.is_empty():
+		var restore_state := _pending_camera_restore
+		_pending_camera_restore = {}
+		apply_camera_state(restore_state)
+		return
+
 	camera.global_position = FloorTiles.to_global(center_local)
 
 	var viewport_size: Vector2 = get_viewport_rect().size
@@ -624,7 +647,6 @@ func _compute_level_pixel_bounds() -> Dictionary:
 func player_grid_position(x_pos: int, y_pos: int) -> Vector2:	
 	var cols = world_x_size * chunk_size
 	var rows = world_y_size * chunk_size
-	var max_grid = max(cols, rows)
 	
 	x_pos = (x_pos * chunk_size) - 2
 	y_pos = (y_pos * chunk_size) - 2
@@ -770,7 +792,6 @@ func _clear_children(node: Node) -> void:
 func object_grid_position(x_pos: int, y_pos: int) -> Vector2:
 	var cols = world_x_size * chunk_size
 	var rows = world_y_size * chunk_size
-	var max_grid = max(cols, rows)
 	
 	x_pos = (x_pos * chunk_size) - 2
 	y_pos = (y_pos * chunk_size) - 2

@@ -150,7 +150,11 @@ func _ready() -> void:
 	_load_level_scene(true)
 
 
-func _load_level_scene(load_editor_text: bool = true) -> void:
+func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
+	var saved_camera_state: Dictionary = {}
+	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
+		saved_camera_state = game_instance.get_camera_state()
+
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
@@ -158,6 +162,10 @@ func _load_level_scene(load_editor_text: bool = true) -> void:
 	# create and attach the playable level scene
 	game_instance = level_scene_resource.instantiate()
 	game_subviewport.add_child(game_instance)
+
+	if preserve_camera and not saved_camera_state.is_empty() \
+			and game_instance.has_method("set_pending_camera_restore"):
+		game_instance.set_pending_camera_restore(saved_camera_state)
 
 	# grab the player node so runtime systems can control it later
 	if not game_instance.has_node("WorldRoot/Player"):
@@ -302,7 +310,7 @@ func _on_language_changed(index: int) -> void:
 		_load_editor_template_for_current_language()
 		_set_status("Ready", "")
 	
-	_load_level_scene(false)
+	_load_level_scene(false, true)
 
 
 # === syntax highlighting ===
@@ -535,19 +543,11 @@ func _on_reset_button_pressed() -> void:
 	rotate_right_btn.disabled = false
 	prev_button.disabled = true
 
-	# Preserve camera zoom/pan across reset
-	var saved_camera_state: Dictionary = {}
-	if game_instance and game_instance.has_method("get_camera_state"):
-		saved_camera_state = game_instance.get_camera_state()
-
 	output_box.clear()
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene(false)
-
-	if not saved_camera_state.is_empty() and game_instance and game_instance.has_method("apply_camera_state"):
-		game_instance.apply_camera_state(saved_camera_state)
+	_load_level_scene(false, true)
 
 func _on_speed_change(value: float) -> void:
 	exec_speed = value
