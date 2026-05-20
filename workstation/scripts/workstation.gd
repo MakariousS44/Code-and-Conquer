@@ -16,6 +16,7 @@ extends Control
 @onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
 @onready var speed_slider: HSlider = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedSlider
 @onready var speed_value_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedValueLabel
+@onready var grid_2d_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/Grid2DButton
 
 # Compass HUD - Index order matches player.gd DIRS
 @onready var compass: TextureRect = $Compass
@@ -43,6 +44,16 @@ const COMPASS_TEXTURES: Array[Texture2D] = [
 @onready var win_clipboard_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/CopyButton
 @onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
 var pending_report_text: String = ""
+@onready var win_screenshot_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/WinScreenshotButton
+@onready var lose_screenshot_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseScreenshotButton
+@onready var screenshot_save_dialog: FileDialog = $ScreenshotSaveDialog
+var _pending_screenshot: Image = null
+
+# Done overlay (for levels without a win condition)
+@onready var done_overlay: Control = $DoneOverlay
+@onready var done_retry_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneRetryButton
+@onready var done_menu_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneMenuButton
+@onready var done_screenshot_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneScreenshotRow/DoneScreenshotButton
 
 
 # Library overlay
@@ -72,6 +83,10 @@ var current_level_definition: Dictionary = {}
 # cached runtime refs so this screen can hand commands to the live player
 var game_instance: Node = null
 var player_node: Node = null
+
+# 2D flat grid view toggle
+var flat_grid_node: Node2D = null
+var _is_2d_mode: bool = false
 
 # === IPC state ===
 var _ipc_server = null
@@ -140,6 +155,19 @@ func _ready() -> void:
 	if not report_save_dialog.file_selected.is_connected(_on_report_save_selected):
 		report_save_dialog.file_selected.connect(_on_report_save_selected)
 
+	win_screenshot_button.pressed.connect(_take_screenshot)
+	lose_screenshot_button.pressed.connect(_take_screenshot)
+	done_retry_button.pressed.connect(_on_done_retry)
+	done_menu_button.pressed.connect(_on_go_to_menu)
+	done_screenshot_button.pressed.connect(_take_screenshot)
+	screenshot_save_dialog.hide()
+	screenshot_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
+	screenshot_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	screenshot_save_dialog.clear_filters()
+	screenshot_save_dialog.add_filter("*.png ; PNG Image")
+	if not screenshot_save_dialog.file_selected.is_connected(_on_screenshot_save_selected):
+		screenshot_save_dialog.file_selected.connect(_on_screenshot_save_selected)
+
 	if rotate_left_btn != null and not rotate_left_btn.pressed.is_connected(l_rotate_button_up):
 		rotate_left_btn.pressed.connect(l_rotate_button_up)
 
@@ -150,6 +178,9 @@ func _ready() -> void:
 		menu_button.pressed.connect(_on_main_menu_button_pressed)
 
 	speed_slider.value_changed.connect(_on_speed_change)
+
+	if grid_2d_button != null:
+		grid_2d_button.pressed.connect(_on_grid_2d_button_pressed)
 
 	library_overlay.visible = false
 
@@ -165,6 +196,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
+	flat_grid_node = null
 
 	# create and attach the playable level scene
 	game_instance = level_scene_resource.instantiate()
@@ -220,6 +252,19 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
+
+	# (re)create the 2D flat grid view alongside the isometric scene
+	var FlatGridScript = load("res://map/scripts/flat_grid_view.gd")
+	flat_grid_node = FlatGridScript.new()
+	game_subviewport.add_child(flat_grid_node)
+	flat_grid_node.setup(game_instance, player_node)
+	flat_grid_node.visible = _is_2d_mode
+	if _is_2d_mode:
+		game_instance.camera.enabled = false
+		flat_grid_node.activate()
+	else:
+		game_instance.camera.enabled = true
+		game_instance.camera.make_current()
 
 
 func _load_editor_template_for_current_language() -> void:
@@ -594,8 +639,8 @@ func _set_controls_disabled(disabled: bool) -> void:
 	reset_button.disabled = disabled
 	language_selector.disabled = disabled
 	editor.editable = not disabled
-	rotate_left_btn.disabled = disabled
-	rotate_right_btn.disabled = disabled
+	rotate_left_btn.disabled = disabled or _is_2d_mode
+	rotate_right_btn.disabled = disabled or _is_2d_mode
 
 
 func _get_funny_lose_message() -> String:
@@ -860,9 +905,13 @@ func _run_ipc_loop() -> void:
 	_ipc_loop_running = false
 	if _ipc_active:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
-		# win or crash. Treat this as an "incomplete" lose.
+		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
-			_trigger_incomplete_lose("Did not reach the goal.")
+			if _level_has_win_condition():
+				_trigger_incomplete_lose("Did not reach the goal.")
+			else:
+				_on_execution_done()
+				return
 		else:
 			_stop_execution()
 
@@ -873,6 +922,32 @@ func _run_ipc_loop() -> void:
 				_set_status("Error", "error")
 			else:
 				_set_status("Done", "ok")
+
+
+func _on_execution_done() -> void:
+	_stop_execution()
+	run_button.text = "▶ Run"
+	run_button.disabled = true
+	step_button.disabled = true
+	_set_status("Done", "ok")
+	done_overlay.visible = true
+	_set_controls_disabled(true)
+
+
+func _level_has_win_condition() -> bool:
+	if not current_level_definition.has("goal"):
+		return false
+	var goal = current_level_definition["goal"]
+	if goal is Dictionary and goal.is_empty():
+		return false
+	return true
+
+
+func _on_done_retry() -> void:
+	done_overlay.visible = false
+	_set_controls_disabled(false)
+	_on_reset_button_pressed()
+
 
 # Intercepts window close so the subprocess is killed before Godot exits
 func _notification(what: int) -> void:
@@ -1010,8 +1085,58 @@ func _re_enable_buttons() -> void:
 	step_button.disabled = false
 	prev_button.disabled = true
 	reset_button.disabled = false
-	rotate_left_btn.disabled = false
-	rotate_right_btn.disabled = false
+	rotate_left_btn.disabled = _is_2d_mode
+	rotate_right_btn.disabled = _is_2d_mode
+
+
+func _on_grid_2d_button_pressed() -> void:
+	_is_2d_mode = not _is_2d_mode
+
+	if flat_grid_node != null and is_instance_valid(flat_grid_node):
+		flat_grid_node.visible = _is_2d_mode
+
+	if game_instance != null and is_instance_valid(game_instance):
+		game_instance.camera.enabled = not _is_2d_mode
+		if not _is_2d_mode:
+			game_instance.camera.make_current()
+
+	if _is_2d_mode and flat_grid_node != null and is_instance_valid(flat_grid_node):
+		flat_grid_node.activate()
+	elif not _is_2d_mode and flat_grid_node != null and is_instance_valid(flat_grid_node):
+		flat_grid_node.deactivate()
+
+	rotate_left_btn.disabled = _is_2d_mode
+	rotate_right_btn.disabled = _is_2d_mode
+	grid_2d_button.text = "3D View" if _is_2d_mode else "2D View"
+
+
+func _take_screenshot() -> void:
+	var was_2d := _is_2d_mode
+	if not was_2d and flat_grid_node != null:
+		game_instance.visible = false
+		game_instance.camera.enabled = false
+		flat_grid_node.visible = true
+		flat_grid_node.activate()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_pending_screenshot = game_subviewport.get_texture().get_image()
+	if not was_2d and flat_grid_node != null:
+		flat_grid_node.deactivate()
+		flat_grid_node.visible = false
+		game_instance.visible = true
+		game_instance.camera.enabled = true
+		game_instance.camera.make_current()
+	var level_name := global_level_name.get_file().get_basename()
+	screenshot_save_dialog.current_file = "%s screenshot.png" % level_name
+	screenshot_save_dialog.popup_centered()
+
+
+func _on_screenshot_save_selected(path: String) -> void:
+	if _pending_screenshot == null:
+		return
+	_pending_screenshot.save_png(path)
+	_pending_screenshot = null
+	log_line("Screenshot saved: " + path)
 
 
 # === logging ===
@@ -1102,7 +1227,15 @@ func _build_win_report() -> String:
 			move_count += 1
 	cmd_letters.append(_run_outcome_marker())
 
-	var report := ""
+	var level_name := global_level_name.get_file().get_basename()
+	var lang_name := "C++" if current_language == Language.CPP else "Python"
+	var date := Time.get_date_string_from_system()
+
+	var report := "=== CODE & CONQUER - LEVEL REPORT ===\n"
+	report += "Level:    %s\n" % level_name
+	report += "Language: %s\n" % lang_name
+	report += "Date:     %s\n" % date
+	report += "\n"
 	report += "Starting position: (%d, %d) - %s\n" % [start_x, start_y, start_facing]
 	report += "Starting world state:\n\n"
 	report += _render_world_text(cols, rows, walls, start_x, start_y, start_facing)
@@ -1111,8 +1244,9 @@ func _build_win_report() -> String:
 	report += "Ending world state:\n\n"
 	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing)
 	report += "\n\n"
-	report += "Commands: " + " ".join(cmd_letters) + "\n"
+	report += "Sequence: " + "".join(cmd_letters) + "\n"
 	report += "Move Count: %d\n" % move_count
+	report += "Key: M=move  T=turn left  U=pick up  D=put down  !=win  #=lose  ?=incomplete\n"
 	return report
 
 

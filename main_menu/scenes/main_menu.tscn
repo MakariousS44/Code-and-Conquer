@@ -1,341 +1,227 @@
 [gd_scene format=3 uid="uid://bjd1nmwoya47g"]
 
-[ext_resource type="Texture2D" uid="uid://d31doyrvmadig" path="res://assets/images/finalMenu.png" id="2_6hyfw"]
-[ext_resource type="VideoStream" uid="uid://cybkjg56q828f" path="res://assets/videos/bgvideo.ogv" id="2_nu78t"]
+[ext_resource type="Texture2D" uid="uid://bydbiv2fb30ic" path="res://assets/images/BackgoundWithLogo.png" id="2_6hyfw"]
 [ext_resource type="AudioStream" uid="uid://76wvxkahxvx" path="res://assets/audio/start.mp3" id="2_suspn"]
 [ext_resource type="Script" uid="uid://bacjqpx0lstd4" path="res://main_menu/scripts/level_loader.gd" id="5_1iqtg"]
 [ext_resource type="AudioStream" uid="uid://c54t0khjgkxeg" path="res://assets/audio/menumove.mp3" id="5_6hyfw"]
 [ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://assets/audio/quitsound.mp3" id="7_nu78t"]
-
-[sub_resource type="GDScript" id="GDScript_1iqtg"]
-script/source = "extends Control
-
-const CUSTOM_LEVELS_DIR := \"user://custom_levels/\"
-
-@onready var scene_root: Node = get_tree().current_scene
-
-@onready var level_popup: Window = scene_root.get_node_or_null(\"MenuBG/LevelSelectPopup\")
-@onready var options_popup: Control = scene_root.get_node_or_null(\"MenuBG/OptionsTab\")
-@onready var level_file_dialog: FileDialog = scene_root.get_node_or_null(\"MenuBG/UploadLevelButtonContainer/VBoxContainer/FileDialog\")
-
-# main menu buttons
-@onready var main_menu_start_button: Button = scene_root.get_node_or_null(\"MenuBG/PlayButtonContainer/VBoxContainer/StartButton\")
-@onready var upload_button: Button = scene_root.get_node_or_null(\"MenuBG/UploadLevelButtonContainer/VBoxContainer/Upload\")
-@onready var options_button: Button = scene_root.get_node_or_null(\"MenuBG/OptionsMarginContainer/VBoxContainer/OptionsButton\")
-@onready var quit_button: Button = scene_root.get_node_or_null(\"MenuBG/QuitButtonContainer/VBoxContainer/QuitButton\")
-
-# popup controls
-@onready var popup_play_button: Button = scene_root.get_node_or_null(\"MenuBG/LevelSelectPopup/VBoxContainer/PlayButton\")
-@onready var level_dropdown: OptionButton = scene_root.get_node_or_null(\"MenuBG/LevelSelectPopup/VBoxContainer/MenuButton\")
-
-@onready var start_sound: AudioStreamPlayer = scene_root.get_node_or_null(\"MenuBG/StartSound\")
-@onready var tab_move_sound: AudioStreamPlayer = scene_root.get_node_or_null(\"MenuBG/TabMoveSound\")
-@onready var quit_sound: AudioStreamPlayer = scene_root.get_node_or_null(\"MenuBG/QuitSound\")
-@onready var mask: CanvasItem = scene_root.get_node_or_null(\"MenuBG/Mask\")
-
-
-func _ready() -> void:
-	print(\"MAIN MENU READY\")
-	print(\"scene_root: \", scene_root)
-	print(\"level_popup: \", level_popup)
-	print(\"options_popup: \", options_popup)
-	print(\"level_file_dialog: \", level_file_dialog)
-	print(\"main_menu_start_button: \", main_menu_start_button)
-	print(\"upload_button: \", upload_button)
-	print(\"options_button: \", options_button)
-	print(\"quit_button: \", quit_button)
-	print(\"popup_play_button: \", popup_play_button)
-	print(\"level_dropdown: \", level_dropdown)
-
-	if level_popup == null:
-		push_error(\"LevelSelectPopup node not found.\")
-		return
-
-	if level_file_dialog == null:
-		push_error(\"FileDialog node not found.\")
-		return
-
-	var real_custom_dir := ProjectSettings.globalize_path(CUSTOM_LEVELS_DIR)
-	DirAccess.make_dir_recursive_absolute(real_custom_dir)
-
-	level_popup.hide()
-
-	if options_popup != null:
-		options_popup.hide()
-
-	level_file_dialog.hide()
-	level_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	level_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	level_file_dialog.clear_filters()
-	level_file_dialog.add_filter(\"*.json ; JSON Level Files\")
-
-	if not level_file_dialog.file_selected.is_connected(_on_level_file_selected):
-		level_file_dialog.file_selected.connect(_on_level_file_selected)
-
-	if main_menu_start_button != null and not main_menu_start_button.pressed.is_connected(_on_button_start_pressed):
-		main_menu_start_button.pressed.connect(_on_button_start_pressed)
-
-	if upload_button != null and not upload_button.pressed.is_connected(_on_upload_level_button_pressed):
-		upload_button.pressed.connect(_on_upload_level_button_pressed)
-
-	if options_button != null and not options_button.pressed.is_connected(_on_options_button_pressed):
-		options_button.pressed.connect(_on_options_button_pressed)
-
-	if quit_button != null and not quit_button.pressed.is_connected(_on_quit_button_pressed):
-		quit_button.pressed.connect(_on_quit_button_pressed)
-
-	if popup_play_button != null and not popup_play_button.pressed.is_connected(_on_play_button_pressed):
-		popup_play_button.pressed.connect(_on_play_button_pressed)
-
-	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
-		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
-		
-	if level_dropdown != null:
-		level_dropdown.item_selected.connect(func(_i: int): _update_play_button())
-
-	_update_play_button()
-
-
-func _update_play_button() -> void:
-	if popup_play_button != null:
-		popup_play_button.disabled = SelectedLevel.path.is_empty()
-
-
-func _on_button_start_pressed() -> void:
-	print(\"MAIN MENU START PRESSED\")
-	$TabMoveSound.play()
-
-	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
-		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
-
-	if level_popup != null:
-		level_popup.popup_centered()
-
-
-func _on_options_button_pressed() -> void:
-	print(\"OPTIONS PRESSED\")
-	$TabMoveSound.play()
-
-	if options_popup != null:
-		options_popup.show()
-
-
-func _on_quit_button_pressed() -> void:
-	print(\"QUIT PRESSED\")
-	$QuitSound.play()
-	await get_tree().create_timer(2.0).timeout
-	get_tree().quit()
-
-
-func _on_upload_level_button_pressed() -> void:
-	print(\"UPLOAD PRESSED\")
-	$TabMoveSound.play()
-
-	if level_file_dialog != null:
-		level_file_dialog.popup_centered_ratio(0.75)
-
-
-func _on_level_file_selected(path: String) -> void:
-	print(\"=== FILE SELECTED ===\")
-	print(\"Original selected path: \", path)
-
-	var real_custom_dir := ProjectSettings.globalize_path(CUSTOM_LEVELS_DIR)
-	DirAccess.make_dir_recursive_absolute(real_custom_dir)
-
-	var file_name := path.get_file()
-	var dest_path := CUSTOM_LEVELS_DIR.path_join(file_name)
-
-	var source_file := FileAccess.open(path, FileAccess.READ)
-	if source_file == null:
-		push_error(\"Could not open selected file: \" + path)
-		return
-
-	var contents := source_file.get_as_text()
-	source_file.close()
-
-	var dest_file := FileAccess.open(dest_path, FileAccess.WRITE)
-	if dest_file == null:
-		push_error(\"Could not save imported level to: \" + dest_path)
-		return
-
-	dest_file.store_string(contents)
-	dest_file.close()
-
-	if level_dropdown != null and level_dropdown.has_method(\"populate_from_folder\"):
-		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
-
-	if level_dropdown != null and level_dropdown.has_method(\"select_path\"):
-		level_dropdown.select_path(dest_path)
-	else:
-		SelectedLevel.path = dest_path
-
-	print(\"SelectedLevel.path set to: \", SelectedLevel.path)
-
-
-func _on_play_button_pressed() -> void:
-	if SelectedLevel.path.is_empty():
-		return
-
-	print(\"POPUP PLAY PRESSED\")
-	print(\"SelectedLevel.path = \", SelectedLevel.path)
-
-	$StartSound.play()
-
-	if level_popup != null:
-		level_popup.hide()
-
-	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.tween_property($Mask, \"modulate:a\", 0.0, 1.0)
-
-	tween.set_parallel(false)
-	tween.tween_property($Mask, \"modulate:a\", 255.0, 1.2)
-
-	await get_tree().create_timer(2.2).timeout
-	get_tree().change_scene_to_file(\"res://workstation/scenes/workstation.tscn\")
-
-
-func _on_level_select_popup_close_requested() -> void:
-	if level_popup != null:
-		level_popup.hide()
-"
+[ext_resource type="Script" uid="uid://ku1jvvw0a25w" path="res://main_menu/scripts/main_menu.gd" id="9_main"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nu78t"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 8
-border_width_top = 8
-border_width_right = 8
-border_width_bottom = 8
-border_color = Color(0.219, 1.388, 1.479, 1)
-border_blend = true
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-corner_detail = 20
-shadow_color = Color(0.544, 1.387, 1.479, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(8.644513e-06, 0.90487874, 1.2574692, 1)
+corner_detail = 10
+shadow_color = Color(0.797, 1.408, 1.479, 1)
+shadow_size = 4
 anti_aliasing_size = 4.9
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6hyfw"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_n"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(0.20784314, 0.84705883, 1, 1)
-border_blend = true
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 2
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1iqtg"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_p"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.04, 0.08, 0.12, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_h"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.06, 0.12, 0.16, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_n"]
+bg_color = Color(0.06, 0.1, 0.13, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_p"]
+bg_color = Color(0.04, 0.08, 0.12, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_h"]
+bg_color = Color(0.06, 0.13, 0.17, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_n"]
+bg_color = Color(0.06, 0.1, 0.13, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_p"]
+bg_color = Color(0.04, 0.08, 0.12, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_h"]
+bg_color = Color(0.06, 0.13, 0.17, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0, 0.65, 0.88, 1)
+corner_detail = 1
+shadow_color = Color(0, 0.5, 0.72, 1)
+shadow_size = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(0.219, 1.388, 1.479, 1)
-border_blend = true
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.88, 0.65, 0, 1)
+corner_detail = 1
+shadow_color = Color(0.72, 0.5, 0, 1)
+shadow_size = 3
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q11ey"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_p"]
+bg_color = Color(0.09, 0.08, 0.03, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.88, 0.65, 0, 1)
+corner_detail = 1
+shadow_color = Color(0.72, 0.5, 0, 1)
+shadow_size = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_h"]
+bg_color = Color(0.11, 0.09, 0.04, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.88, 0.65, 0, 1)
+corner_detail = 1
+shadow_color = Color(0.72, 0.5, 0, 1)
+shadow_size = 7
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(0.219, 1.388, 1.479, 1)
-border_blend = true
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.48, 0, 0.62, 1)
+corner_detail = 1
+shadow_color = Color(0.38, 0, 0.5, 1)
+shadow_size = 3
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_jngmj"]
-bg_color = Color(0.043137256, 0.0627451, 0.13333334, 1)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(0.219, 1.388, 1.479, 1)
-border_blend = true
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_p"]
+bg_color = Color(0.07, 0.04, 0.1, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.48, 0, 0.62, 1)
+corner_detail = 1
+shadow_color = Color(0.38, 0, 0.5, 1)
+shadow_size = 2
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_u8wm4"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_h"]
+bg_color = Color(0.09, 0.05, 0.12, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.48, 0, 0.62, 1)
+corner_detail = 1
+shadow_color = Color(0.38, 0, 0.5, 1)
+shadow_size = 7
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.21960784, 0.21960784, 0.24705882, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.82, 0.1, 0.06, 1)
+corner_detail = 1
+shadow_color = Color(0.65, 0.05, 0, 1)
+shadow_size = 3
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_x4m68"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.21960784, 0.21960784, 0.24705882, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_p"]
+bg_color = Color(0.1, 0.04, 0.04, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.82, 0.1, 0.06, 1)
+corner_detail = 1
+shadow_color = Color(0.65, 0.05, 0, 1)
+shadow_size = 2
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hlq1f"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.21960784, 0.21960784, 0.24705882, 1)
-border_blend = true
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_s5wn1"]
-bg_color = Color(0.6, 0.6, 0.6, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_m1dxy"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_w3j10"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-corner_radius_top_left = 8
-corner_radius_top_right = 8
-corner_radius_bottom_right = 8
-corner_radius_bottom_left = 8
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7qxd0"]
-bg_color = Color(0.6, 0.6, 0.6, 0.007843138)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_o2cxy"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3gh4j"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mlgik"]
-bg_color = Color(0.6, 0.6, 0.6, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_66avt"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1jfob"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_v6sta"]
-bg_color = Color(0.6, 0.6, 0.6, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_q5jsx"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_7avo6"]
-bg_color = Color(0.6, 0.6, 0.6, 0.10980392)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_h"]
+bg_color = Color(0.13, 0.05, 0.04, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.82, 0.1, 0.06, 1)
+corner_detail = 1
+shadow_color = Color(0.65, 0.05, 0, 1)
+shadow_size = 7
 
 [node name="main_menu" type="Control" unique_id=1538571169]
 layout_mode = 3
@@ -344,7 +230,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = SubResource("GDScript_1iqtg")
+script = ExtResource("9_main")
 
 [node name="MenuBG" type="TextureRect" parent="." unique_id=1857734009]
 layout_mode = 1
@@ -353,14 +239,14 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+texture = ExtResource("2_6hyfw")
 
 [node name="LevelSelectPopup" type="Popup" parent="MenuBG" unique_id=1886837316]
 handle_input_locally = false
 oversampling_override = 1.0
-title = "Level Select"
 position = Vector2i(318, 170)
 size = Vector2i(644, 380)
-borderless = false
+exclusive = true
 
 [node name="ColorRect" type="Panel" parent="MenuBG/LevelSelectPopup" unique_id=2038610881]
 anchors_preset = 15
@@ -371,45 +257,54 @@ grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_nu78t")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/LevelSelectPopup" unique_id=324351412]
-y_sort_enabled = true
 clip_contents = true
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 123.0
-offset_right = -124.0
-offset_bottom = -64.0
+offset_left = 80.0
+offset_top = 48.0
+offset_right = -80.0
+offset_bottom = -48.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 27
+theme_override_constants/separation = 20
 alignment = 1
 
-[node name="PlayButton" type="Button" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=1443204992]
-custom_minimum_size = Vector2(200, 40)
+[node name="Title" type="Label" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=300000001]
 layout_mode = 2
 size_flags_horizontal = 4
-theme_type_variation = &"FlatButton"
-theme_override_styles/normal = SubResource("StyleBoxFlat_6hyfw")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_1iqtg")
-theme_override_styles/hover = SubResource("StyleBoxFlat_q11ey")
-theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_jngmj")
-text = "Play
-"
+theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
+theme_override_font_sizes/font_size = 20
+text = "SELECT LEVEL"
+horizontal_alignment = 1
 
 [node name="MenuButton" type="OptionButton" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=1253441802]
-custom_minimum_size = Vector2(0, 40)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
-size_flags_stretch_ratio = 0.0
-theme_override_styles/normal = SubResource("StyleBoxFlat_u8wm4")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_x4m68")
-theme_override_styles/hover = SubResource("StyleBoxFlat_hlq1f")
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_dd_n")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_dd_p")
+theme_override_styles/hover = SubResource("StyleBoxFlat_dd_h")
 script = ExtResource("5_1iqtg")
+
+[node name="PlayButton" type="Button" parent="MenuBG/LevelSelectPopup/VBoxContainer" unique_id=1443204992]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"FlatButton"
+theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
+theme_override_colors/font_hover_color = Color(0.6, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_pop_play_n")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_pop_play_p")
+theme_override_styles/hover = SubResource("StyleBoxFlat_pop_play_h")
+text = "PLAY"
 
 [node name="TextureRect" type="TextureRect" parent="MenuBG" unique_id=1629830998]
 layout_mode = 0
 offset_right = 1920.0
 offset_bottom = 1080.0
-texture = ExtResource("2_6hyfw")
 expand_mode = 1
 
 [node name="CloseButton" type="Button" parent="MenuBG/TextureRect" unique_id=1730237620]
@@ -421,111 +316,75 @@ offset_bottom = 40.0
 size_flags_horizontal = 4
 size_flags_vertical = 8
 
-[node name="PlayButtonContainer" type="MarginContainer" parent="MenuBG" unique_id=49013344]
+[node name="ButtonsContainer" type="VBoxContainer" parent="MenuBG" unique_id=100000001]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -418.0
-offset_top = -228.0
-offset_right = 421.0
-offset_bottom = -126.0
+offset_left = -370.0
+offset_top = -58.0
+offset_right = 370.0
+offset_bottom = 334.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/separation = 24
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/PlayButtonContainer" unique_id=1656775911]
+[node name="StartButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1499396833]
+custom_minimum_size = Vector2(0, 88)
 layout_mode = 2
-
-[node name="StartButton" type="Button" parent="MenuBG/PlayButtonContainer/VBoxContainer" unique_id=1499396833]
-layout_mode = 2
-size_flags_vertical = 3
+size_flags_horizontal = 3
 theme_type_variation = &"FlatButton"
-theme_override_styles/normal = SubResource("StyleBoxFlat_s5wn1")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_m1dxy")
-theme_override_styles/hover = SubResource("StyleBoxFlat_w3j10")
+theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
+theme_override_colors/font_hover_color = Color(0.6, 0.92, 1, 1)
+theme_override_font_sizes/font_size = 30
+theme_override_styles/normal = SubResource("StyleBoxFlat_play_n")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_play_p")
+theme_override_styles/hover = SubResource("StyleBoxFlat_play_h")
+text = "PLAY"
 
-[node name="UploadLevelButtonContainer" type="MarginContainer" parent="MenuBG" unique_id=1445314058]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -426.0
-offset_top = -82.0
-offset_right = 427.0
-offset_bottom = 15.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/UploadLevelButtonContainer" unique_id=1383072699]
+[node name="Upload" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2111853005]
+custom_minimum_size = Vector2(0, 68)
 layout_mode = 2
-
-[node name="Upload" type="Button" parent="MenuBG/UploadLevelButtonContainer/VBoxContainer" unique_id=2111853005]
-layout_mode = 2
-size_flags_vertical = 3
+size_flags_horizontal = 3
 theme_type_variation = &"FlatButton"
-theme_override_styles/normal = SubResource("StyleBoxFlat_7qxd0")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_o2cxy")
-theme_override_styles/hover = SubResource("StyleBoxFlat_3gh4j")
+theme_override_colors/font_color = Color(0.85, 0.68, 0.18, 1)
+theme_override_colors/font_hover_color = Color(0.95, 0.82, 0.38, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_upload_n")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_upload_p")
+theme_override_styles/hover = SubResource("StyleBoxFlat_upload_h")
+text = "UPLOAD LEVEL"
 
-[node name="FileDialog" type="FileDialog" parent="MenuBG/UploadLevelButtonContainer/VBoxContainer" unique_id=2018251452]
+[node name="OptionsButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2013621979]
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"FlatButton"
+theme_override_colors/font_color = Color(0.58, 0.22, 0.82, 1)
+theme_override_colors/font_hover_color = Color(0.74, 0.42, 0.95, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_opts_n")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_opts_p")
+theme_override_styles/hover = SubResource("StyleBoxFlat_opts_h")
+text = "OPTIONS"
+
+[node name="QuitButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1837881485]
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"FlatButton"
+theme_override_colors/font_color = Color(0.85, 0.22, 0.18, 1)
+theme_override_colors/font_hover_color = Color(0.95, 0.42, 0.38, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_quit_n")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_quit_p")
+theme_override_styles/hover = SubResource("StyleBoxFlat_quit_h")
+text = "QUIT"
+
+[node name="FileDialog" type="FileDialog" parent="MenuBG" unique_id=2018251452]
 oversampling_override = 1.0
-position = Vector2i(0, 36)
-
-[node name="OptionsMarginContainer" type="MarginContainer" parent="MenuBG" unique_id=1557115278]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -428.0
-offset_top = 49.0
-offset_right = 432.0
-offset_bottom = 144.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/OptionsMarginContainer" unique_id=516003802]
-layout_mode = 2
-
-[node name="OptionsButton" type="Button" parent="MenuBG/OptionsMarginContainer/VBoxContainer" unique_id=2013621979]
-layout_mode = 2
-size_flags_vertical = 3
-theme_type_variation = &"FlatButton"
-theme_override_styles/normal = SubResource("StyleBoxFlat_mlgik")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_66avt")
-theme_override_styles/hover = SubResource("StyleBoxFlat_1jfob")
-
-[node name="QuitButtonContainer" type="MarginContainer" parent="MenuBG" unique_id=1129521710]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -429.0
-offset_top = 181.0
-offset_right = 431.0
-offset_bottom = 280.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBoxContainer" type="VBoxContainer" parent="MenuBG/QuitButtonContainer" unique_id=141939731]
-layout_mode = 2
-
-[node name="QuitButton" type="Button" parent="MenuBG/QuitButtonContainer/VBoxContainer" unique_id=1837881485]
-layout_mode = 2
-size_flags_vertical = 3
-theme_type_variation = &"FlatButton"
-theme_override_styles/normal = SubResource("StyleBoxFlat_v6sta")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_q5jsx")
-theme_override_styles/hover = SubResource("StyleBoxFlat_7avo6")
-text = "
-"
 
 [node name="OptionsTab" type="TextureRect" parent="MenuBG" unique_id=1632772630]
 layout_mode = 0
@@ -556,30 +415,10 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 0.003921569)
 
-[node name="AspectRatioContainer" type="AspectRatioContainer" parent="." unique_id=1843367750]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -7.0
-offset_right = 645.8357
-offset_bottom = 360.0
-grow_horizontal = 2
-grow_vertical = 2
-scale = Vector2(0.67, 0.67)
-mouse_filter = 2
-
-[node name="VideoBG" type="VideoStreamPlayer" parent="AspectRatioContainer" unique_id=1733741840]
-layout_mode = 2
-mouse_filter = 2
-stream = ExtResource("2_nu78t")
-autoplay = true
-loop = true
-
-[connection signal="pressed" from="MenuBG/LevelSelectPopup/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
+[connection signal="close_requested" from="MenuBG/LevelSelectPopup" to="." method="_on_level_select_popup_close_requested"]
 [connection signal="item_selected" from="MenuBG/LevelSelectPopup/VBoxContainer/MenuButton" to="MenuBG/LevelSelectPopup/VBoxContainer/MenuButton" method="_on_item_selected"]
-[connection signal="pressed" from="MenuBG/PlayButtonContainer/VBoxContainer/StartButton" to="." method="_on_button_start_pressed"]
-[connection signal="pressed" from="MenuBG/UploadLevelButtonContainer/VBoxContainer/Upload" to="." method="_on_upload_level_button_pressed"]
-[connection signal="pressed" from="MenuBG/OptionsMarginContainer/VBoxContainer/OptionsButton" to="." method="_on_options_button_pressed"]
-[connection signal="pressed" from="MenuBG/QuitButtonContainer/VBoxContainer/QuitButton" to="." method="_on_quit_button_pressed"]
+[connection signal="pressed" from="MenuBG/LevelSelectPopup/VBoxContainer/PlayButton" to="." method="_on_play_button_pressed"]
+[connection signal="pressed" from="MenuBG/ButtonsContainer/StartButton" to="." method="_on_button_start_pressed"]
+[connection signal="pressed" from="MenuBG/ButtonsContainer/Upload" to="." method="_on_upload_level_button_pressed"]
+[connection signal="pressed" from="MenuBG/ButtonsContainer/OptionsButton" to="." method="_on_options_button_pressed"]
+[connection signal="pressed" from="MenuBG/ButtonsContainer/QuitButton" to="." method="_on_quit_button_pressed"]

@@ -2,50 +2,19 @@
 
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://assets/new_theme.tres" id="1_lbqgw"]
 [ext_resource type="Script" uid="uid://ql66d3cwpege" path="res://workstation/scripts/workstation.gd" id="2_0u7pg"]
-[ext_resource type="StyleBox" path="res://assets/simple_btn.tres" id="3_0u7pg"]
+[ext_resource type="StyleBox" uid="uid://dblkeatk0cpe6" path="res://assets/simple_btn.tres" id="3_0u7pg"]
 [ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 [ext_resource type="Texture2D" uid="uid://djbi7c38k38jv" path="res://assets/images/compass_east.png" id="6_1bmh4"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
-content_margin_top = 8.0
+content_margin_left = 8.0
+content_margin_top = 10.0
 content_margin_right = 8.0
-content_margin_bottom = 8.0
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_bottom = 1
-border_color = Color(0.22, 0.22, 0.28, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.22, 0.18, 0.1, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.7, 0.52, 0.18, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step_hover"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.28, 0.22, 0.12, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.88, 0.65, 0.22, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+content_margin_bottom = 10.0
+bg_color = Color(0.04, 0.05, 0.09, 1)
+border_width_bottom = 2
+border_color = Color(0.11, 0.85, 1, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
 content_margin_left = 16.0
@@ -74,6 +43,38 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.3, 0.75, 0.46, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.22, 0.18, 0.1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.7, 0.52, 0.18, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.28, 0.22, 0.12, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.88, 0.65, 0.22, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -111,49 +112,60 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_section_header"]
+content_margin_left = 8.0
+content_margin_top = 2.0
+content_margin_right = 6.0
+content_margin_bottom = 2.0
+bg_color = Color(0.07, 0.09, 0.12, 0.9)
+border_width_left = 3
+border_color = Color(0.11, 0.85, 1, 0.65)
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_editor"]
-bg_color = Color(0.082, 0.086, 0.106, 1)
+bg_color = Color(0.04, 0.05, 0.09, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.2, 0.2, 0.26, 1)
+border_color = Color(0.08, 0.42, 0.55, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_output"]
-bg_color = Color(0.075, 0.078, 0.094, 1)
+bg_color = Color(0.04, 0.05, 0.08, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.28, 0.3, 0.42, 1)
+border_color = Color(0.08, 0.42, 0.55, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_game"]
-bg_color = Color(0.082, 0.086, 0.106, 1)
+bg_color = Color(0.1, 0.11, 0.14, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.2, 0.2, 0.26, 1)
+border_color = Color(0.08, 0.42, 0.55, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lose_card"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 2
-border_width_top = 2
+bg_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
+border_width_left = 13
+border_width_top = 13
 border_width_right = 2
 border_width_bottom = 2
-border_color = Color(0.07843249, 0.081858315, 0.098991044, 1)
+border_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
@@ -219,6 +231,18 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_done_card"]
+bg_color = Color(0.05, 0.1, 0.2, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.28, 0.78, 0.92, 0.7)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
 [node name="MainUI" type="Control" unique_id=638120049]
 layout_mode = 3
 anchors_preset = 15
@@ -228,6 +252,15 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_lbqgw")
 script = ExtResource("2_0u7pg")
+
+[node name="Background" type="ColorRect" parent="." unique_id=100000001]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.11, 0.14, 1)
 
 [node name="RootMargin" type="MarginContainer" parent="." unique_id=1846377266]
 layout_mode = 1
@@ -275,7 +308,6 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
 text = "◀◀"
 
 [node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=1989659408]
-custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.55, 0.95, 0.65, 1)
 theme_override_font_sizes/font_size = 14
@@ -285,14 +317,13 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_run_hover")
 text = "Run"
 
 [node name="StepButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=333333331]
-custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
 theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_step")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
 theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
-text = "▶▶"
+text = "Step"
 
 [node name="ResetButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=444444441]
 layout_mode = 2
@@ -306,7 +337,7 @@ text = "Reset"
 [node name="StatusLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=341284063]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.72, 0.76, 0.81, 1)
+theme_override_colors/font_color = Color(0.11, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 13
 text = "Ready"
 
@@ -352,6 +383,11 @@ layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
 text = "Turn Right"
 
+[node name="Grid2DButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=999111222]
+layout_mode = 2
+theme_override_styles/normal = ExtResource("3_0u7pg")
+text = "2D View"
+
 [node name="LibraryButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1410462227]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
@@ -396,9 +432,10 @@ theme_override_constants/separation = 4
 
 [node name="EditorLabel" type="Label" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection" unique_id=670561619]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.5, 0.62, 1)
-theme_override_font_sizes/font_size = 11
-text = "  EDITOR"
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_section_header")
+text = "EDITOR"
 
 [node name="EditorPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection" unique_id=670561621]
 layout_mode = 2
@@ -431,9 +468,10 @@ theme_override_constants/separation = 4
 
 [node name="OutputLabel" type="Label" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection" unique_id=509212680]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.5, 0.5, 0.62, 1)
-theme_override_font_sizes/font_size = 11
-text = "  OUTPUT"
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 12
+theme_override_styles/normal = SubResource("StyleBoxFlat_section_header")
+text = "OUTPUT"
 
 [node name="OutputPanel" type="PanelContainer" parent="RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection" unique_id=509212682]
 layout_mode = 2
@@ -472,22 +510,22 @@ size_flags_vertical = 3
 stretch = true
 
 [node name="SubViewport" type="SubViewport" parent="RootMargin/MainColumn/WorkspaceSplit/GameViewPanel/GameView" unique_id=1934654988]
+transparent_bg = true
 handle_input_locally = false
-size = Vector2i(1430, 1024)
+size = Vector2i(1430, 1020)
 render_target_update_mode = 4
 
 [node name="LibraryOverlay" type="Control" parent="." unique_id=1223608090]
-visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = 417.0
-offset_top = -482.0
-offset_right = 706.0
-offset_bottom = -326.0
+offset_left = 427.0
+offset_top = -478.0
+offset_right = 651.0
+offset_bottom = -66.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -496,23 +534,23 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="LibraryOverlay/FunctionCard" unique_id=1543404544]
 layout_mode = 2
+theme_override_constants/separation = 15
 
 [node name="CommandLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=521573179]
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
-text = "Robot Commands"
-horizontal_alignment = 1
+text = "Action Commands:"
 
 [node name="RichTextLabel2" type="RichTextLabel" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=961984308]
 layout_mode = 2
 size_flags_vertical = 3
+size_flags_stretch_ratio = 0.38
 text = "move()
 turn_left()
 pick_object()
@@ -520,9 +558,9 @@ put_object()"
 
 [node name="ConditionLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=117519483]
 layout_mode = 2
+theme_override_constants/line_spacing = 3
 theme_override_font_sizes/font_size = 20
-text = "Condition Checker"
-horizontal_alignment = 1
+text = "Conditional Checks:"
 
 [node name="RichTextLabel" type="RichTextLabel" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=583956929]
 layout_mode = 2
@@ -536,9 +574,7 @@ wall_on_right()
 wall_on_left()
 object_here()
 carries_object()
-is_facing_north()
-is_facing_east()
-is_facing_west()"
+is_facing_north()"
 
 [node name="LoseOverlay" type="Control" parent="." unique_id=800000001]
 visible = false
@@ -560,8 +596,6 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -48.0
-offset_right = 48.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
@@ -585,13 +619,13 @@ theme_override_font_sizes/font_size = 11
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="LoseButtons" type="VBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=1362105537]
+[node name="LoseButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=800000006]
 layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
 
 [node name="LoseRetryButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000007]
-custom_minimum_size = Vector2(107, 0)
 layout_mode = 2
-size_flags_horizontal = 4
 theme_override_colors/font_color = Color(1, 0.65, 0.65, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_red")
@@ -599,11 +633,17 @@ text = "Try Again"
 
 [node name="LoseMenuButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000009]
 layout_mode = 2
-size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[node name="LoseScreenshotButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000010]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Screenshot"
 
 [node name="ReportButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
 layout_mode = 2
@@ -670,7 +710,6 @@ autowrap_mode = 3
 layout_mode = 2
 
 [node name="WinRetryButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000007]
-custom_minimum_size = Vector2(107, 0)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.6, 1, 0.7, 1)
@@ -703,8 +742,14 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Clipboard"
 
+[node name="WinScreenshotButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=900000010]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Screenshot"
+
 [node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
-oversampling_override = 1.0
 
 [node name="Compass" type="TextureRect" parent="." unique_id=532882177]
 layout_mode = 1
@@ -720,6 +765,73 @@ mouse_filter = 2
 texture = ExtResource("6_1bmh4")
 expand_mode = 1
 stretch_mode = 5
+
+[node name="DoneOverlay" type="Control" parent="." unique_id=700000001]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -180.0
+offset_top = -90.0
+offset_right = 180.0
+offset_bottom = 90.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DoneCard" type="PanelContainer" parent="DoneOverlay" unique_id=700000002]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_done_card")
+
+[node name="DoneContent" type="VBoxContainer" parent="DoneOverlay/DoneCard" unique_id=700000003]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DoneTitle" type="Label" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000004]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 22
+text = "Code Finished"
+horizontal_alignment = 1
+
+[node name="DoneButtons" type="HBoxContainer" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000005]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="DoneRetryButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000006]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Run Again"
+
+[node name="DoneMenuButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000007]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Main Menu"
+
+[node name="DoneScreenshotRow" type="HBoxContainer" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000008]
+layout_mode = 2
+alignment = 1
+
+[node name="DoneScreenshotButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneScreenshotRow" unique_id=700000009]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Screenshot"
+
+[node name="ScreenshotSaveDialog" type="FileDialog" parent="." unique_id=600000001]
 
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LibraryButton" to="." method="_on_library_button_pressed"]
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
