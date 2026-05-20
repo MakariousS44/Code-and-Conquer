@@ -5,6 +5,7 @@
 [ext_resource type="StyleBox" uid="uid://dblkeatk0cpe6" path="res://assets/simple_btn.tres" id="3_0u7pg"]
 [ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
+[ext_resource type="Texture2D" uid="uid://djbi7c38k38jv" path="res://assets/images/compass_east.png" id="6_1bmh4"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
 content_margin_left = 8.0
@@ -295,6 +296,16 @@ expand_mode = 3
 [node name="LeftButtons" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=222222221]
 layout_mode = 2
 theme_override_constants/separation = 6
+
+[node name="PrevButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=352291800]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.8, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_step")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
+theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
+text = "◀◀"
 
 [node name="RunButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=1989659408]
 layout_mode = 2
@@ -634,6 +645,23 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Screenshot"
 
+[node name="ReportButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="PrintButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1693447111]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Print Report"
+
+[node name="CopyButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1950236881]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Clipboard"
+
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
 layout_mode = 1
@@ -722,6 +750,21 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Screenshot"
 
 [node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
+
+[node name="Compass" type="TextureRect" parent="." unique_id=532882177]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_top = 56.0
+offset_right = -16.0
+offset_bottom = 177.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("6_1bmh4")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="DoneOverlay" type="Control" parent="." unique_id=700000001]
 visible = false
