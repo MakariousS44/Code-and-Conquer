@@ -44,7 +44,11 @@ func update_animation(is_running: bool = false) -> void:
 		"west":  suffix = "W"
 		
 	$AnimatedSprite2D.play(prefix + suffix)
+
+	# Notify compass of the player's logical direction index
+	EventManager.player_facing_changed.emit(current_idx)
 	
+
 ## Initialize player at proper location and face direction
 func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, is_rotating: bool) -> void:
 	# Prevent the tween from fighting the sudden camera snap

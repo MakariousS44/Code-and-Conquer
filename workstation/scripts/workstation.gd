@@ -17,6 +17,15 @@ extends Control
 @onready var speed_slider: HSlider = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedSlider
 @onready var speed_value_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedValueLabel
 
+# Compass HUD - Index order matches player.gd DIRS
+@onready var compass: TextureRect = $Compass
+const COMPASS_TEXTURES: Array[Texture2D] = [
+	preload("res://assets/images/compass_east.png"),	# 0 = east
+	preload("res://assets/images/compass_south.png"),	# 1 = south
+	preload("res://assets/images/compass_west.png"),	# 2 = west
+	preload("res://assets/images/compass_north.png"),	# 3 = north
+]
+
 # Popups -------------------------------------------+
 # Lose overlay
 @onready var lose_overlay: Control = $LoseOverlay
@@ -99,6 +108,9 @@ func _ready() -> void:
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
+
+	# compass updates whenever the player's logical facing changes
+	EventManager.player_facing_changed.connect(_on_player_facing_changed)
 	
 	run_button.text = "▶ Run"
 	run_button.pressed.connect(_on_run_button_pressed)
@@ -1007,3 +1019,7 @@ func _on_report_save_selected(path: String) -> void:
 	file.store_string(pending_report_text)
 	file.close()
 	log_success("Report saved to: " + path)
+
+
+func _on_player_facing_changed(facing_index: int) -> void:
+	compass.texture = COMPASS_TEXTURES[facing_index]
