@@ -16,6 +16,7 @@ extends Control
 @onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
 @onready var speed_slider: HSlider = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedSlider
 @onready var speed_value_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedValueLabel
+@onready var grid_2d_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/Grid2DButton
 
 # Compass HUD - Index order matches player.gd DIRS
 @onready var compass: TextureRect = $Compass
@@ -72,6 +73,10 @@ var current_level_definition: Dictionary = {}
 # cached runtime refs so this screen can hand commands to the live player
 var game_instance: Node = null
 var player_node: Node = null
+
+# 2D flat grid view toggle
+var flat_grid_node: Node2D = null
+var _is_2d_mode: bool = false
 
 # === IPC state ===
 var _ipc_server = null
@@ -151,6 +156,9 @@ func _ready() -> void:
 
 	speed_slider.value_changed.connect(_on_speed_change)
 
+	if grid_2d_button != null:
+		grid_2d_button.pressed.connect(_on_grid_2d_button_pressed)
+
 	library_overlay.visible = false
 
 	await get_tree().process_frame
@@ -165,6 +173,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
+	flat_grid_node = null
 
 	# create and attach the playable level scene
 	game_instance = level_scene_resource.instantiate()
@@ -220,6 +229,19 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
+
+	# (re)create the 2D flat grid view alongside the isometric scene
+	var FlatGridScript = load("res://map/scripts/flat_grid_view.gd")
+	flat_grid_node = FlatGridScript.new()
+	game_subviewport.add_child(flat_grid_node)
+	flat_grid_node.setup(game_instance, player_node)
+	flat_grid_node.visible = _is_2d_mode
+	if _is_2d_mode:
+		game_instance.camera.enabled = false
+		flat_grid_node.activate()
+	else:
+		game_instance.camera.enabled = true
+		game_instance.camera.make_current()
 
 
 func _load_editor_template_for_current_language() -> void:
@@ -594,8 +616,8 @@ func _set_controls_disabled(disabled: bool) -> void:
 	reset_button.disabled = disabled
 	language_selector.disabled = disabled
 	editor.editable = not disabled
-	rotate_left_btn.disabled = disabled
-	rotate_right_btn.disabled = disabled
+	rotate_left_btn.disabled = disabled or _is_2d_mode
+	rotate_right_btn.disabled = disabled or _is_2d_mode
 
 
 func _get_funny_lose_message() -> String:
@@ -1010,8 +1032,29 @@ func _re_enable_buttons() -> void:
 	step_button.disabled = false
 	prev_button.disabled = true
 	reset_button.disabled = false
-	rotate_left_btn.disabled = false
-	rotate_right_btn.disabled = false
+	rotate_left_btn.disabled = _is_2d_mode
+	rotate_right_btn.disabled = _is_2d_mode
+
+
+func _on_grid_2d_button_pressed() -> void:
+	_is_2d_mode = not _is_2d_mode
+
+	if flat_grid_node != null and is_instance_valid(flat_grid_node):
+		flat_grid_node.visible = _is_2d_mode
+
+	if game_instance != null and is_instance_valid(game_instance):
+		game_instance.camera.enabled = not _is_2d_mode
+		if not _is_2d_mode:
+			game_instance.camera.make_current()
+
+	if _is_2d_mode and flat_grid_node != null and is_instance_valid(flat_grid_node):
+		flat_grid_node.activate()
+	elif not _is_2d_mode and flat_grid_node != null and is_instance_valid(flat_grid_node):
+		flat_grid_node.deactivate()
+
+	rotate_left_btn.disabled = _is_2d_mode
+	rotate_right_btn.disabled = _is_2d_mode
+	grid_2d_button.text = "3D View" if _is_2d_mode else "2D View"
 
 
 # === logging ===
