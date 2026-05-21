@@ -367,12 +367,23 @@ func _draw_deposits() -> void:
 		# small circle: bright object color when empty, dulled when filled
 		var circle_col := Color(obj_col, 0.28) if filled else Color(obj_col, 0.85)
 		draw_circle(c, CELL_SIZE * 0.22, circle_col)
-		# count inside the circle when objects have been deposited
-		if actual > 0:
-			var font      := ThemeDB.fallback_font
-			var font_size := int(CELL_SIZE * 0.24)
-			draw_string(font, c + Vector2(-font_size * 0.3, font_size * 0.38),
-				str(actual), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.95))
+
+		# have / needed counts — black on left, cyan on right
+		var font       := ThemeDB.fallback_font
+		var font_size  := int(CELL_SIZE * 0.22)
+		var have_w     := font.get_string_size(str(actual), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var slash_w    := font.get_string_size("/", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var needed_w   := font.get_string_size(str(expected), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		var total_w    := have_w + slash_w + needed_w
+		var baseline_y := c.y + font_size * 0.38
+		var x0         := c.x - total_w * 0.5
+		
+		draw_string(font, Vector2(x0, baseline_y), str(actual),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0, 0, 0, 0.95))
+		draw_string(font, Vector2(x0 + have_w, baseline_y), "/",
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1, 1, 1, 0.9))
+		draw_string(font, Vector2(x0 + have_w + slash_w, baseline_y), str(expected),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.046, 0.649, 0.924, 1.0))
 
 
 func _draw_objects() -> void:

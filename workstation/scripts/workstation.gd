@@ -1254,7 +1254,7 @@ func _build_win_report() -> String:
 	report += "\n\n"
 	report += "Sequence: " + "".join(cmd_letters) + "\n"
 	report += "Move Count: %d\n" % move_count
-	report += "Key: M=move  T=turn left  U=pick up  D=put down  !=win  #=lose  ?=incomplete\n"
+	report += "Key: M=move  T=turn left  U=pick up  D=put down  !=win  #=lose  ?=incomplete $=surpassed move limit\n"
 	return report
 
 

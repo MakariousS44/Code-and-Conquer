@@ -576,7 +576,9 @@ wall_on_right()
 wall_on_left()
 object_here()
 carries_object()
-is_facing_north()"
+is_facing_north()
+is_facing_east()
+is_facing_west()"
 
 [node name="LoseOverlay" type="Control" parent="." unique_id=800000001]
 visible = false
