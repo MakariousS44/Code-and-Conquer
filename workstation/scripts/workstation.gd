@@ -12,11 +12,20 @@ extends Control
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
-@onready var language_selector: OptionButton = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LanguageSelector
-@onready var menu_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton
-@onready var speed_slider: HSlider = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedSlider
-@onready var speed_value_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer/SpeedValueLabel
 @onready var grid_2d_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/Grid2DButton
+
+# Settings overlay
+@onready var settings_overlay: Control = $SettingsOverlay
+@onready var settings_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SettingsButton
+@onready var speed_slider: HSlider = $SettingsOverlay/SettingsCard/SettingsContent/SpeedRow/SpeedSlider
+@onready var speed_value_label: Label = $SettingsOverlay/SettingsCard/SettingsContent/SpeedRow/SpeedValueLabel
+@onready var settings_font_slider: HSlider = $SettingsOverlay/SettingsCard/SettingsContent/FontRow/FontSlider
+@onready var settings_font_label: Label = $SettingsOverlay/SettingsCard/SettingsContent/FontRow/FontValueLabel
+@onready var language_selector: OptionButton = $SettingsOverlay/SettingsCard/SettingsContent/LanguageRow/LanguageSelector
+@onready var menu_button: Button = $SettingsOverlay/SettingsCard/SettingsContent/SettingsMenuButton
+@onready var menu_confirm_overlay: Control = $MenuConfirmOverlay
+@onready var menu_confirm_leave: Button = $MenuConfirmOverlay/ConfirmCard/ConfirmContent/ConfirmButtons/ConfirmLeaveButton
+@onready var menu_confirm_stay: Button = $MenuConfirmOverlay/ConfirmCard/ConfirmContent/ConfirmButtons/ConfirmStayButton
 
 # Compass HUD - Index order matches player.gd DIRS
 @onready var compass: TextureRect = $Compass
@@ -174,14 +183,18 @@ func _ready() -> void:
 	if rotate_right_btn != null and not rotate_right_btn.pressed.is_connected(r_rotate_button_up):
 		rotate_right_btn.pressed.connect(r_rotate_button_up)
 
-	if menu_button != null and not menu_button.pressed.is_connected(_on_main_menu_button_pressed):
-		menu_button.pressed.connect(_on_main_menu_button_pressed)
-
+	menu_button.pressed.connect(_on_main_menu_button_pressed)
+	menu_confirm_leave.pressed.connect(_on_go_to_menu)
+	menu_confirm_stay.pressed.connect(func(): menu_confirm_overlay.hide())
 	speed_slider.value_changed.connect(_on_speed_change)
+	settings_font_slider.value_changed.connect(_on_font_size_changed)
+	settings_button.pressed.connect(_on_settings_button_pressed)
 
 	if grid_2d_button != null:
 		grid_2d_button.pressed.connect(_on_grid_2d_button_pressed)
 
+	settings_overlay.visible = false
+	menu_confirm_overlay.visible = false
 	library_overlay.visible = false
 
 	await get_tree().process_frame
@@ -621,6 +634,19 @@ func _on_speed_change(value: float) -> void:
 	speed_value_label.text = "%.2fs" % value
 
 
+func _on_font_size_changed(value: float) -> void:
+	var size := int(value)
+	editor.add_theme_font_size_override("font_size", size)
+	output_box.add_theme_font_size_override("normal_font_size", size)
+	settings_font_label.text = "%dpt" % size
+
+
+func _on_settings_button_pressed() -> void:
+	settings_overlay.visible = not settings_overlay.visible
+	if settings_overlay.visible:
+		library_overlay.visible = false
+
+
 # === funny lose messages ===
 const LOSE_MESSAGES := [
 	"The robot has left the chat.",
@@ -647,8 +673,8 @@ func _set_controls_disabled(disabled: bool) -> void:
 	reset_button.disabled = disabled
 	language_selector.disabled = disabled
 	editor.editable = not disabled
-	rotate_left_btn.disabled = disabled or _is_2d_mode
-	rotate_right_btn.disabled = disabled or _is_2d_mode
+	rotate_left_btn.disabled = disabled
+	rotate_right_btn.disabled = disabled
 
 
 func _get_funny_lose_message() -> String:
@@ -1093,8 +1119,8 @@ func _re_enable_buttons() -> void:
 	step_button.disabled = false
 	prev_button.disabled = true
 	reset_button.disabled = false
-	rotate_left_btn.disabled = _is_2d_mode
-	rotate_right_btn.disabled = _is_2d_mode
+	rotate_left_btn.visible = not _is_2d_mode
+	rotate_right_btn.visible = not _is_2d_mode
 
 
 func _on_grid_2d_button_pressed() -> void:
@@ -1113,8 +1139,8 @@ func _on_grid_2d_button_pressed() -> void:
 	elif not _is_2d_mode and flat_grid_node != null and is_instance_valid(flat_grid_node):
 		flat_grid_node.deactivate()
 
-	rotate_left_btn.disabled = _is_2d_mode
-	rotate_right_btn.disabled = _is_2d_mode
+	rotate_left_btn.visible = not _is_2d_mode
+	rotate_right_btn.visible = not _is_2d_mode
 	grid_2d_button.text = "3D View" if _is_2d_mode else "2D View"
 
 
@@ -1180,23 +1206,23 @@ func r_rotate_button_up() -> void:
 func _on_library_button_pressed() -> void:
 	library_overlay.visible = not library_overlay.visible
 
-# switches the library_overlay to invisible when clicked outside the the overlay
+# switches overlays invisible when clicking outside them
 func _input(event) -> void:
-	# filter for left click only
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# run the logic only if the overlay is visible
 		if library_overlay.visible:
-			# var to hold the overlay's position
 			var clicked_overlay = library_overlay.get_global_rect().has_point(event.position)
-			# var to hold the oberlay button's position
 			var clicked_button = library_button.get_global_rect().has_point(event.position)
-			# if the click is outside the overlay and the button's position
 			if not clicked_overlay and not clicked_button:
-				# toggle the overlay to invisible
 				library_overlay.hide()
+		if settings_overlay.visible:
+			var clicked_overlay = settings_overlay.get_global_rect().has_point(event.position)
+			var clicked_button = settings_button.get_global_rect().has_point(event.position)
+			if not clicked_overlay and not clicked_button:
+				settings_overlay.hide()
 
 func _on_main_menu_button_pressed() -> void:
-	_on_go_to_menu()
+	settings_overlay.hide()
+	menu_confirm_overlay.visible = true
 
 func _build_win_report() -> String:
 	var cols := int(current_level_definition.get("cols", 0))

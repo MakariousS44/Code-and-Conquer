@@ -2,7 +2,7 @@
 
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://assets/new_theme.tres" id="1_lbqgw"]
 [ext_resource type="Script" uid="uid://ql66d3cwpege" path="res://workstation/scripts/workstation.gd" id="2_0u7pg"]
-[ext_resource type="StyleBox" path="res://assets/simple_btn.tres" id="3_0u7pg"]
+[ext_resource type="StyleBox" uid="uid://dblkeatk0cpe6" path="res://assets/simple_btn.tres" id="3_0u7pg"]
 [ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 [ext_resource type="Texture2D" uid="uid://djbi7c38k38jv" path="res://assets/images/compass_east.png" id="6_1bmh4"]
@@ -160,16 +160,18 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lose_card"]
-bg_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
+bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
+border_width_left = 12
+border_width_top = 12
+border_width_right = 12
+border_width_bottom = 12
+border_color = Color(0.039215688, 0.050980393, 0.09019608, 1)
 corner_radius_top_left = 10
 corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1bmh4"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_red"]
 content_margin_left = 20.0
@@ -348,33 +350,6 @@ layout_mode = 2
 theme_override_constants/separation = 4
 alignment = 2
 
-[node name="SpeedContainer" type="HBoxContainer" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1938898629]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="SpeedLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer" unique_id=315367129]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.82483774, 0.8507098, 0.8844092, 1)
-theme_override_font_sizes/font_size = 14
-text = "Speed:"
-vertical_alignment = 1
-
-[node name="SpeedSlider" type="HSlider" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer" unique_id=336836318]
-custom_minimum_size = Vector2(90, 0)
-layout_mode = 2
-size_flags_vertical = 4
-min_value = 0.1
-max_value = 1.0
-step = 0.05
-value = 0.5
-
-[node name="SpeedValueLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/SpeedContainer" unique_id=1580749198]
-custom_minimum_size = Vector2(38, 0)
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "0.50s"
-vertical_alignment = 1
-
 [node name="LeftRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1748109493]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
@@ -395,19 +370,10 @@ layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
 text = "Library"
 
-[node name="LanguageSelector" type="OptionButton" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=666666661]
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = ExtResource("3_0u7pg")
-
-[node name="Divider1" type="VSeparator" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=111111112]
-layout_mode = 2
-
-[node name="MainMenuButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=383666023]
+[node name="SettingsButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=2000000001]
 layout_mode = 2
 theme_override_styles/normal = ExtResource("3_0u7pg")
-text = "Main Menu"
+text = "Options"
 
 [node name="WorkspaceSplit" type="HSplitContainer" parent="RootMargin/MainColumn" unique_id=1965162052]
 layout_mode = 2
@@ -517,6 +483,188 @@ handle_input_locally = false
 size = Vector2i(1430, 1020)
 render_target_update_mode = 4
 
+[node name="SettingsOverlay" type="Control" parent="." unique_id=2000000002]
+visible = false
+z_index = 10
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -300.0
+offset_top = 45.0
+offset_right = -10.0
+offset_bottom = 285.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="SettingsCard" type="PanelContainer" parent="SettingsOverlay" unique_id=2000000003]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
+
+[node name="SettingsContent" type="VBoxContainer" parent="SettingsOverlay/SettingsCard" unique_id=2000000004]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SettingsTitle" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000005]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 16
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="SpeedRow" type="HBoxContainer" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000006]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="SpeedLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/SpeedRow" unique_id=2000000007]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Speed:"
+vertical_alignment = 1
+
+[node name="SpeedSlider" type="HSlider" parent="SettingsOverlay/SettingsCard/SettingsContent/SpeedRow" unique_id=2000000008]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.1
+max_value = 1.0
+step = 0.05
+value = 0.5
+
+[node name="SpeedValueLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/SpeedRow" unique_id=2000000009]
+custom_minimum_size = Vector2(42, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "0.50s"
+vertical_alignment = 1
+
+[node name="FontRow" type="HBoxContainer" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000010]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FontLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/FontRow" unique_id=2000000011]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Font Size:"
+vertical_alignment = 1
+
+[node name="FontSlider" type="HSlider" parent="SettingsOverlay/SettingsCard/SettingsContent/FontRow" unique_id=2000000012]
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 10.0
+max_value = 24.0
+step = 1.0
+value = 14.0
+
+[node name="FontValueLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/FontRow" unique_id=2000000013]
+custom_minimum_size = Vector2(42, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "14pt"
+vertical_alignment = 1
+
+[node name="LanguageRow" type="HBoxContainer" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000014]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LanguageLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/LanguageRow" unique_id=2000000015]
+custom_minimum_size = Vector2(90, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Language:"
+vertical_alignment = 1
+
+[node name="LanguageSelector" type="OptionButton" parent="SettingsOverlay/SettingsCard/SettingsContent/LanguageRow" unique_id=666666661]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 13
+
+[node name="HSeparator" type="HSeparator" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000016]
+layout_mode = 2
+
+[node name="SettingsMenuButton" type="Button" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000017]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 0.65, 0.65, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_red")
+text = "Return to Main Menu"
+
+[node name="MenuConfirmOverlay" type="Control" parent="." unique_id=2000000018]
+visible = false
+z_index = 20
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -80.0
+offset_right = 160.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ConfirmCard" type="PanelContainer" parent="MenuConfirmOverlay" unique_id=2000000019]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
+
+[node name="ConfirmContent" type="VBoxContainer" parent="MenuConfirmOverlay/ConfirmCard" unique_id=2000000020]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ConfirmTitle" type="Label" parent="MenuConfirmOverlay/ConfirmCard/ConfirmContent" unique_id=2000000021]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 18
+text = "Leave Level?"
+horizontal_alignment = 1
+
+[node name="ConfirmMessage" type="Label" parent="MenuConfirmOverlay/ConfirmCard/ConfirmContent" unique_id=2000000022]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 12
+text = "Are you sure? All progress will be lost!"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ConfirmButtons" type="HBoxContainer" parent="MenuConfirmOverlay/ConfirmCard/ConfirmContent" unique_id=2000000023]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ConfirmLeaveButton" type="Button" parent="MenuConfirmOverlay/ConfirmCard/ConfirmContent/ConfirmButtons" unique_id=2000000024]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.65, 0.65, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_red")
+text = "Leave"
+
+[node name="ConfirmStayButton" type="Button" parent="MenuConfirmOverlay/ConfirmCard/ConfirmContent/ConfirmButtons" unique_id=2000000025]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Stay"
+
 [node name="LibraryOverlay" type="Control" parent="." unique_id=1223608090]
 layout_mode = 1
 anchors_preset = 8
@@ -546,7 +694,8 @@ theme_override_constants/separation = 15
 
 [node name="CommandLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=521573179]
 layout_mode = 2
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_font_sizes/font_size = 16
 text = "Action Commands:"
 
 [node name="RichTextLabel2" type="RichTextLabel" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=961984308]
@@ -560,8 +709,9 @@ put_object()"
 
 [node name="ConditionLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=117519483]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
 theme_override_constants/line_spacing = 3
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 16
 text = "Conditional Checks:"
 
 [node name="RichTextLabel" type="RichTextLabel" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=583956929]
@@ -835,4 +985,3 @@ text = "Screenshot"
 oversampling_override = 1.0
 
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LibraryButton" to="." method="_on_library_button_pressed"]
-[connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton" to="." method="_on_main_menu_button_pressed"]
