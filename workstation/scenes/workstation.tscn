@@ -790,29 +790,13 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
-[node name="ReportButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
+[node name="LoseSaveButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
 layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="PrintButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1693447111]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Print Report"
-
-[node name="CopyButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1950236881]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Clipboard"
-
-[node name="LoseScreenshotButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=800000010]
-layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Screenshot"
+text = "Save Report"
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
@@ -875,31 +859,13 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
-[node name="ReportButtons" type="HBoxContainer" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
+[node name="WinSaveButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
 layout_mode = 2
-theme_override_constants/separation = 14
-alignment = 1
-
-[node name="PrintButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=1841593373]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Print Report"
-
-[node name="CopyButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=852844279]
-layout_mode = 2
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Clipboard"
-
-[node name="WinScreenshotButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=900000010]
-layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Screenshot"
-
-[node name="ReportSaveDialog" type="FileDialog" parent="WinOverlay" unique_id=1047035001]
+text = "Save Report"
 
 [node name="Compass" type="TextureRect" parent="." unique_id=532882177]
 layout_mode = 1
@@ -970,18 +936,16 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
-[node name="DoneScreenshotRow" type="HBoxContainer" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000008]
+[node name="DoneSaveButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000009]
 layout_mode = 2
-alignment = 1
-
-[node name="DoneScreenshotButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneScreenshotRow" unique_id=700000009]
-layout_mode = 2
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Screenshot"
+text = "Save Report"
 
-[node name="ScreenshotSaveDialog" type="FileDialog" parent="." unique_id=600000001]
-oversampling_override = 1.0
+[node name="ReportFolderDialog" type="FileDialog" parent="." unique_id=600000001]
+file_mode = 3
+access = 2
 
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LibraryButton" to="." method="_on_library_button_pressed"]

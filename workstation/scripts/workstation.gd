@@ -42,27 +42,20 @@ const COMPASS_TEXTURES: Array[Texture2D] = [
 @onready var lose_message: Label = $LoseOverlay/LoseCard/LoseContent/LoseMessage
 @onready var lose_retry_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseRetryButton
 @onready var lose_menu_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseMenuButton
-@onready var lose_report_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/PrintButton
-@onready var lose_clipboard_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/CopyButton
+@onready var lose_save_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseSaveButton
 
 # Win overlay
 @onready var win_overlay: Control = $WinOverlay
 @onready var win_retry_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinRetryButton
 @onready var win_menu_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinMenuButton
-@onready var win_report_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/PrintButton
-@onready var win_clipboard_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/CopyButton
-@onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
-var pending_report_text: String = ""
-@onready var win_screenshot_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/WinScreenshotButton
-@onready var lose_screenshot_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/LoseScreenshotButton
-@onready var screenshot_save_dialog: FileDialog = $ScreenshotSaveDialog
-var _pending_screenshot: Image = null
+@onready var win_save_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/WinSaveButton
+@onready var report_folder_dialog: FileDialog = $ReportFolderDialog
 
 # Done overlay (for levels without a win condition)
 @onready var done_overlay: Control = $DoneOverlay
 @onready var done_retry_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneRetryButton
 @onready var done_menu_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneMenuButton
-@onready var done_screenshot_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneScreenshotRow/DoneScreenshotButton
+@onready var done_save_button: Button = $DoneOverlay/DoneCard/DoneContent/DoneButtons/DoneSaveButton
 
 
 # Library overlay
@@ -151,31 +144,15 @@ func _ready() -> void:
 	win_retry_button.pressed.connect(_on_win_retry)
 	lose_menu_button.pressed.connect(_on_go_to_menu)
 	win_menu_button.pressed.connect(_on_go_to_menu)
-	win_report_button.pressed.connect(_on_win_report_save)
-	win_clipboard_button.pressed.connect(_on_win_report_copy)
-	lose_report_button.pressed.connect(_on_win_report_save)
-	lose_clipboard_button.pressed.connect(_on_win_report_copy)
-	
-	report_save_dialog.hide()
-	report_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	report_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	report_save_dialog.clear_filters()
-	report_save_dialog.add_filter("*.txt ; Text Report")
-	if not report_save_dialog.file_selected.is_connected(_on_report_save_selected):
-		report_save_dialog.file_selected.connect(_on_report_save_selected)
-
-	win_screenshot_button.pressed.connect(_take_screenshot)
-	lose_screenshot_button.pressed.connect(_take_screenshot)
+	win_save_button.pressed.connect(_on_save_report)
+	lose_save_button.pressed.connect(_on_save_report)
 	done_retry_button.pressed.connect(_on_done_retry)
 	done_menu_button.pressed.connect(_on_go_to_menu)
-	done_screenshot_button.pressed.connect(_take_screenshot)
-	screenshot_save_dialog.hide()
-	screenshot_save_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
-	screenshot_save_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	screenshot_save_dialog.clear_filters()
-	screenshot_save_dialog.add_filter("*.png ; PNG Image")
-	if not screenshot_save_dialog.file_selected.is_connected(_on_screenshot_save_selected):
-		screenshot_save_dialog.file_selected.connect(_on_screenshot_save_selected)
+	done_save_button.pressed.connect(_on_save_report)
+
+	report_folder_dialog.hide()
+	if not report_folder_dialog.dir_selected.is_connected(_on_report_folder_selected):
+		report_folder_dialog.dir_selected.connect(_on_report_folder_selected)
 
 	if rotate_left_btn != null and not rotate_left_btn.pressed.is_connected(l_rotate_button_up):
 		rotate_left_btn.pressed.connect(l_rotate_button_up)
@@ -1144,7 +1121,28 @@ func _on_grid_2d_button_pressed() -> void:
 	grid_2d_button.text = "3D View" if _is_2d_mode else "2D View"
 
 
-func _take_screenshot() -> void:
+func _on_save_report() -> void:
+	report_folder_dialog.popup_centered_ratio(0.75)
+
+
+func _on_report_folder_selected(folder: String) -> void:
+	var level_name := global_level_name.get_file().get_basename()
+	var dir_name := "<CompletionReport>_%s" % level_name
+	var dir_path := folder.path_join(dir_name)
+	DirAccess.make_dir_recursive_absolute(dir_path)
+
+	# save text report
+	var report := _build_win_report()
+	var txt_path := dir_path.path_join("%s_report.txt" % level_name)
+	var file := FileAccess.open(txt_path, FileAccess.WRITE)
+	if file:
+		file.store_string(report)
+		file.close()
+	else:
+		log_error("Could not save report to: " + txt_path)
+		return
+
+	# capture screenshot (switch to 2D view momentarily if needed)
 	var was_2d := _is_2d_mode
 	if not was_2d and flat_grid_node != null:
 		game_instance.visible = false
@@ -1153,24 +1151,18 @@ func _take_screenshot() -> void:
 		flat_grid_node.activate()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_pending_screenshot = game_subviewport.get_texture().get_image()
+	var screenshot := game_subviewport.get_texture().get_image()
 	if not was_2d and flat_grid_node != null:
 		flat_grid_node.deactivate()
 		flat_grid_node.visible = false
 		game_instance.visible = true
 		game_instance.camera.enabled = true
 		game_instance.camera.make_current()
-	var level_name := global_level_name.get_file().get_basename()
-	screenshot_save_dialog.current_file = "%s screenshot.png" % level_name
-	screenshot_save_dialog.popup_centered()
 
+	var png_path := dir_path.path_join("%s_screenshot.png" % level_name)
+	screenshot.save_png(png_path)
 
-func _on_screenshot_save_selected(path: String) -> void:
-	if _pending_screenshot == null:
-		return
-	_pending_screenshot.save_png(path)
-	_pending_screenshot = null
-	log_line("Screenshot saved: " + path)
+	log_success("Report saved to: " + dir_path)
 
 
 # === logging ===
@@ -1375,25 +1367,6 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 
 	return "\n".join(lines)
 
-func _on_win_report_copy() -> void:
-	var report := _build_win_report()
-	DisplayServer.clipboard_set(report)
-	log_success("Report copied to clipboard.")
-	
-func _on_win_report_save() -> void:
-	pending_report_text = _build_win_report()
-	var stamp := Time.get_datetime_string_from_system().replace(":", "-").replace(" ", "")
-	report_save_dialog.current_file = "report%s.txt" % stamp
-	report_save_dialog.popup_centered_ratio(0.75)
-	
-func _on_report_save_selected(path: String) -> void:
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		log_error("Could not save report to: " + path)
-		return
-	file.store_string(pending_report_text)
-	file.close()
-	log_success("Report saved to: " + path)
 
 
 func _on_player_facing_changed(facing_index: int) -> void:
