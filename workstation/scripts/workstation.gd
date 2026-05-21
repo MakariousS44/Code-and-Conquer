@@ -652,6 +652,12 @@ func _set_controls_disabled(disabled: bool) -> void:
 	editor.editable = not disabled
 	rotate_left_btn.disabled = disabled
 	rotate_right_btn.disabled = disabled
+	settings_button.disabled = disabled
+	library_button.disabled = disabled
+	if disabled:
+		settings_overlay.hide()
+		library_overlay.hide()
+		menu_confirm_overlay.hide()
 
 
 func _get_funny_lose_message() -> String:

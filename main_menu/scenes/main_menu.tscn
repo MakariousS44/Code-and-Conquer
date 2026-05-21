@@ -92,15 +92,20 @@ border_color = Color(0, 0.65, 0.88, 1)
 corner_detail = 1
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_n"]
-bg_color = Color(0.06, 0.1, 0.13, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
+bg_color = Color(0.043137256, 0.0627451, 0.13333334, 1)
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(3.080368e-06, 0.69580835, 0.9377014, 1)
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+corner_detail = 4
 shadow_color = Color(0, 0.5, 0.72, 1)
-shadow_size = 5
+shadow_size = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_p"]
 bg_color = Color(0.04, 0.08, 0.12, 1)
@@ -126,14 +131,19 @@ shadow_size = 10
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
 border_color = Color(0.88, 0.65, 0, 1)
-corner_detail = 1
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+corner_detail = 4
 shadow_color = Color(0.72, 0.5, 0, 1)
-shadow_size = 3
+shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_p"]
 bg_color = Color(0.09, 0.08, 0.03, 1)
@@ -159,14 +169,19 @@ shadow_size = 7
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
 border_color = Color(0.48, 0, 0.62, 1)
-corner_detail = 1
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+corner_detail = 4
 shadow_color = Color(0.38, 0, 0.5, 1)
-shadow_size = 3
+shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_p"]
 bg_color = Color(0.07, 0.04, 0.1, 1)
@@ -192,14 +207,19 @@ shadow_size = 7
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_n"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
 border_color = Color(0.82, 0.1, 0.06, 1)
-corner_detail = 1
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+corner_detail = 4
 shadow_color = Color(0.65, 0.05, 0, 1)
-shadow_size = 3
+shadow_size = 4
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_p"]
 bg_color = Color(0.1, 0.04, 0.04, 1)
@@ -317,22 +337,23 @@ size_flags_horizontal = 4
 size_flags_vertical = 8
 
 [node name="ButtonsContainer" type="VBoxContainer" parent="MenuBG" unique_id=100000001]
+custom_minimum_size = Vector2(700, 0)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -370.0
-offset_top = -58.0
-offset_right = 370.0
-offset_bottom = 334.0
+offset_left = -82.0
+offset_top = -88.0
+offset_right = 82.0
+offset_bottom = 276.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 24
 
 [node name="StartButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1499396833]
-custom_minimum_size = Vector2(0, 88)
+custom_minimum_size = Vector2(0, 95)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"FlatButton"
@@ -345,9 +366,9 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_play_h")
 text = "PLAY"
 
 [node name="Upload" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2111853005]
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(670, 68)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
 theme_override_colors/font_color = Color(0.85, 0.68, 0.18, 1)
 theme_override_colors/font_hover_color = Color(0.95, 0.82, 0.38, 1)
@@ -358,9 +379,9 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_upload_h")
 text = "UPLOAD LEVEL"
 
 [node name="OptionsButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2013621979]
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(670, 68)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
 theme_override_colors/font_color = Color(0.58, 0.22, 0.82, 1)
 theme_override_colors/font_hover_color = Color(0.74, 0.42, 0.95, 1)
@@ -371,9 +392,9 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_opts_h")
 text = "OPTIONS"
 
 [node name="QuitButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1837881485]
-custom_minimum_size = Vector2(0, 68)
+custom_minimum_size = Vector2(670, 68)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
 theme_override_colors/font_color = Color(0.85, 0.22, 0.18, 1)
 theme_override_colors/font_hover_color = Color(0.95, 0.42, 0.38, 1)
@@ -388,8 +409,8 @@ oversampling_override = 1.0
 
 [node name="OptionsTab" type="TextureRect" parent="MenuBG" unique_id=1632772630]
 layout_mode = 0
-offset_left = 1280.0
-offset_right = 1880.0
+offset_left = 1922.0
+offset_right = 2522.0
 offset_bottom = 720.0
 
 [node name="StartSound" type="AudioStreamPlayer" parent="." unique_id=398680422]
