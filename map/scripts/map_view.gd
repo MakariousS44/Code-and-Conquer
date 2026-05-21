@@ -860,7 +860,7 @@ func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 	sprite.scale = Vector2(5.0, 5.0)
 	var grid_pos = object_grid_position(gx, gy + 1)
 	sprite.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
-	sprite.z_index = 1
+	sprite.z_index = 0
 	objects_node.add_child(sprite)
 
 
