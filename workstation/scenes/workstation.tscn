@@ -2,7 +2,7 @@
 
 [ext_resource type="Theme" uid="uid://bmsvgwufowecn" path="res://assets/new_theme.tres" id="1_lbqgw"]
 [ext_resource type="Script" uid="uid://ql66d3cwpege" path="res://workstation/scripts/workstation.gd" id="2_0u7pg"]
-[ext_resource type="StyleBox" uid="uid://dblkeatk0cpe6" path="res://assets/simple_btn.tres" id="3_0u7pg"]
+[ext_resource type="StyleBox" path="res://assets/simple_btn.tres" id="3_0u7pg"]
 [ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 [ext_resource type="Texture2D" uid="uid://djbi7c38k38jv" path="res://assets/images/compass_east.png" id="6_1bmh4"]
@@ -15,38 +15,6 @@ content_margin_bottom = 10.0
 bg_color = Color(0.04, 0.05, 0.09, 1)
 border_width_bottom = 2
 border_color = Color(0.11, 0.85, 1, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.13, 0.26, 0.18, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.25, 0.6, 0.38, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run_hover"]
-content_margin_left = 16.0
-content_margin_top = 7.0
-content_margin_right = 16.0
-content_margin_bottom = 7.0
-bg_color = Color(0.16, 0.32, 0.22, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.3, 0.75, 0.46, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_step"]
 content_margin_left = 16.0
@@ -75,6 +43,38 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.88, 0.65, 0.22, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.13, 0.26, 0.18, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.25, 0.6, 0.38, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_run_hover"]
+content_margin_left = 16.0
+content_margin_top = 7.0
+content_margin_right = 16.0
+content_margin_bottom = 7.0
+bg_color = Color(0.16, 0.32, 0.22, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.75, 0.46, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -161,8 +161,8 @@ corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lose_card"]
 bg_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
-border_width_left = 13
-border_width_top = 13
+border_width_left = 2
+border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 border_color = Color(0.10980392, 0.15294118, 0.21960784, 1)
@@ -323,7 +323,7 @@ theme_override_font_sizes/font_size = 14
 theme_override_styles/normal = SubResource("StyleBoxFlat_step")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_step")
 theme_override_styles/hover = SubResource("StyleBoxFlat_step_hover")
-text = "Step"
+text = "▶▶"
 
 [node name="ResetButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=444444441]
 layout_mode = 2
@@ -619,10 +619,8 @@ theme_override_font_sizes/font_size = 11
 horizontal_alignment = 1
 autowrap_mode = 3
 
-[node name="LoseButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=800000006]
+[node name="LoseButtons" type="VBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=442718333]
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
 
 [node name="LoseRetryButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000007]
 layout_mode = 2
@@ -638,16 +636,9 @@ theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
-[node name="LoseScreenshotButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000010]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
-theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Screenshot"
-
 [node name="ReportButtons" type="HBoxContainer" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 alignment = 1
 
 [node name="PrintButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=1693447111]
@@ -661,6 +652,13 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Clipboard"
+
+[node name="LoseScreenshotButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons" unique_id=800000010]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
+theme_override_font_sizes/font_size = 13
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Screenshot"
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
@@ -711,7 +709,6 @@ layout_mode = 2
 
 [node name="WinRetryButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000007]
 layout_mode = 2
-size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.6, 1, 0.7, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_green")
@@ -719,7 +716,6 @@ text = "Play Again"
 
 [node name="WinMenuButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000009]
 layout_mode = 2
-size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 13
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
@@ -727,7 +723,7 @@ text = "Main Menu"
 
 [node name="ReportButtons" type="HBoxContainer" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 alignment = 1
 
 [node name="PrintButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons/ReportButtons" unique_id=1841593373]
@@ -832,6 +828,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Screenshot"
 
 [node name="ScreenshotSaveDialog" type="FileDialog" parent="." unique_id=600000001]
+oversampling_override = 1.0
 
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LibraryButton" to="." method="_on_library_button_pressed"]
 [connection signal="pressed" from="RootMargin/MainColumn/TopBarPanel/TopBar/MainMenuButton" to="." method="_on_main_menu_button_pressed"]

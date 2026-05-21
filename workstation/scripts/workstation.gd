@@ -45,7 +45,7 @@ const COMPASS_TEXTURES: Array[Texture2D] = [
 @onready var report_save_dialog: FileDialog = $WinOverlay/ReportSaveDialog
 var pending_report_text: String = ""
 @onready var win_screenshot_button: Button = $WinOverlay/WinCard/WinContent/WinButtons/ReportButtons/WinScreenshotButton
-@onready var lose_screenshot_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/LoseScreenshotButton
+@onready var lose_screenshot_button: Button = $LoseOverlay/LoseCard/LoseContent/LoseButtons/ReportButtons/LoseScreenshotButton
 @onready var screenshot_save_dialog: FileDialog = $ScreenshotSaveDialog
 var _pending_screenshot: Image = null
 
