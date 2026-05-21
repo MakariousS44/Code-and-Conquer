@@ -160,6 +160,10 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_lose_card"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
 border_width_left = 12
 border_width_top = 12
@@ -204,6 +208,10 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_win_card"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
 bg_color = Color(0.05, 0.12, 0.07, 0.88)
 border_width_left = 2
 border_width_top = 2
@@ -231,7 +239,27 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_teal"]
+content_margin_left = 20.0
+content_margin_top = 8.0
+content_margin_right = 20.0
+content_margin_bottom = 8.0
+bg_color = Color(0.07, 0.2, 0.28, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.78, 0.92, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_done_card"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
 bg_color = Color(0.05, 0.1, 0.2, 0.97)
 border_width_left = 2
 border_width_top = 2
@@ -889,9 +917,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -180.0
-offset_top = -90.0
+offset_top = -110.0
 offset_right = 180.0
-offset_bottom = 90.0
+offset_bottom = 110.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -915,16 +943,24 @@ theme_override_font_sizes/font_size = 22
 text = "Code Finished"
 horizontal_alignment = 1
 
-[node name="DoneButtons" type="HBoxContainer" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000005]
+[node name="DoneMessage" type="Label" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000008]
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 11
+text = "Your code ran to completion."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="DoneButtons" type="VBoxContainer" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000005]
 layout_mode = 2
 theme_override_constants/separation = 8
-alignment = 1
 
 [node name="DoneRetryButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000006]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
 theme_override_font_sizes/font_size = 13
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_teal")
 text = "Run Again"
 
 [node name="DoneMenuButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000007]
