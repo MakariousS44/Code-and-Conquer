@@ -2,21 +2,26 @@
 
 [ext_resource type="Texture2D" uid="uid://bydbiv2fb30ic" path="res://assets/images/BackgoundWithLogo.png" id="2_6hyfw"]
 [ext_resource type="AudioStream" uid="uid://76wvxkahxvx" path="res://assets/audio/start.mp3" id="2_suspn"]
+[ext_resource type="StyleBox" uid="uid://ca66rtxg32pd7" path="res://assets/themes/blue_button.tres" id="4_1iqtg"]
 [ext_resource type="Script" uid="uid://bacjqpx0lstd4" path="res://main_menu/scripts/level_loader.gd" id="5_1iqtg"]
 [ext_resource type="AudioStream" uid="uid://c54t0khjgkxeg" path="res://assets/audio/menumove.mp3" id="5_6hyfw"]
+[ext_resource type="StyleBox" uid="uid://m07piekpagsq" path="res://assets/themes/blue_buttonHover.tres" id="5_q11ey"]
 [ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://assets/audio/quitsound.mp3" id="7_nu78t"]
 [ext_resource type="Script" uid="uid://ku1jvvw0a25w" path="res://main_menu/scripts/main_menu.gd" id="9_main"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nu78t"]
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(8.644513e-06, 0.90487874, 1.2574692, 1)
-corner_detail = 10
-shadow_color = Color(0.797, 1.408, 1.479, 1)
-shadow_size = 4
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(0.20784314, 0.84705883, 1, 1)
+border_blend = true
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+corner_detail = 1
 anti_aliasing_size = 4.9
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_n"]
@@ -25,14 +30,15 @@ content_margin_top = 6.0
 content_margin_right = 10.0
 content_margin_bottom = 6.0
 bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
 border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-shadow_color = Color(0, 0.5, 0.72, 1)
-shadow_size = 2
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dd_p"]
 content_margin_left = 10.0
@@ -64,185 +70,6 @@ corner_detail = 1
 shadow_color = Color(0, 0.5, 0.72, 1)
 shadow_size = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_n"]
-bg_color = Color(0.06, 0.1, 0.13, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_p"]
-bg_color = Color(0.04, 0.08, 0.12, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pop_play_h"]
-bg_color = Color(0.06, 0.13, 0.17, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_n"]
-bg_color = Color(0.043137256, 0.0627451, 0.13333334, 1)
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(3.080368e-06, 0.69580835, 0.9377014, 1)
-border_blend = true
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-corner_detail = 4
-shadow_color = Color(0, 0.5, 0.72, 1)
-shadow_size = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_p"]
-bg_color = Color(0.04, 0.08, 0.12, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-shadow_color = Color(0, 0.5, 0.72, 1)
-shadow_size = 3
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_play_h"]
-bg_color = Color(0.06, 0.13, 0.17, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0, 0.65, 0.88, 1)
-corner_detail = 1
-shadow_color = Color(0, 0.5, 0.72, 1)
-shadow_size = 10
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_n"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.88, 0.65, 0, 1)
-border_blend = true
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-corner_detail = 4
-shadow_color = Color(0.72, 0.5, 0, 1)
-shadow_size = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_p"]
-bg_color = Color(0.09, 0.08, 0.03, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.88, 0.65, 0, 1)
-corner_detail = 1
-shadow_color = Color(0.72, 0.5, 0, 1)
-shadow_size = 2
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_upload_h"]
-bg_color = Color(0.11, 0.09, 0.04, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.88, 0.65, 0, 1)
-corner_detail = 1
-shadow_color = Color(0.72, 0.5, 0, 1)
-shadow_size = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_n"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.48, 0, 0.62, 1)
-border_blend = true
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-corner_detail = 4
-shadow_color = Color(0.38, 0, 0.5, 1)
-shadow_size = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_p"]
-bg_color = Color(0.07, 0.04, 0.1, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.48, 0, 0.62, 1)
-corner_detail = 1
-shadow_color = Color(0.38, 0, 0.5, 1)
-shadow_size = 2
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_opts_h"]
-bg_color = Color(0.09, 0.05, 0.12, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.48, 0, 0.62, 1)
-corner_detail = 1
-shadow_color = Color(0.38, 0, 0.5, 1)
-shadow_size = 7
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_n"]
-bg_color = Color(0.09803922, 0.101960786, 0.12156863, 1)
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.82, 0.1, 0.06, 1)
-border_blend = true
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-corner_detail = 4
-shadow_color = Color(0.65, 0.05, 0, 1)
-shadow_size = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_p"]
-bg_color = Color(0.1, 0.04, 0.04, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.82, 0.1, 0.06, 1)
-corner_detail = 1
-shadow_color = Color(0.65, 0.05, 0, 1)
-shadow_size = 2
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_quit_h"]
-bg_color = Color(0.13, 0.05, 0.04, 1)
-border_width_left = 3
-border_width_top = 3
-border_width_right = 3
-border_width_bottom = 3
-border_color = Color(0.82, 0.1, 0.06, 1)
-corner_detail = 1
-shadow_color = Color(0.65, 0.05, 0, 1)
-shadow_size = 7
-
 [node name="main_menu" type="Control" unique_id=1538571169]
 layout_mode = 3
 anchors_preset = 15
@@ -262,6 +89,7 @@ grow_vertical = 2
 texture = ExtResource("2_6hyfw")
 
 [node name="LevelSelectPopup" type="Popup" parent="MenuBG" unique_id=1886837316]
+transparent_bg = true
 handle_input_locally = false
 oversampling_override = 1.0
 position = Vector2i(318, 170)
@@ -316,9 +144,9 @@ theme_type_variation = &"FlatButton"
 theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
 theme_override_colors/font_hover_color = Color(0.6, 0.92, 1, 1)
 theme_override_font_sizes/font_size = 20
-theme_override_styles/normal = SubResource("StyleBoxFlat_pop_play_n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_pop_play_p")
-theme_override_styles/hover = SubResource("StyleBoxFlat_pop_play_h")
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
 text = "PLAY"
 
 [node name="TextureRect" type="TextureRect" parent="MenuBG" unique_id=1629830998]
@@ -357,12 +185,12 @@ custom_minimum_size = Vector2(0, 95)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"FlatButton"
-theme_override_colors/font_color = Color(0.38, 0.82, 0.95, 1)
-theme_override_colors/font_hover_color = Color(0.6, 0.92, 1, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 30
-theme_override_styles/normal = SubResource("StyleBoxFlat_play_n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_play_p")
-theme_override_styles/hover = SubResource("StyleBoxFlat_play_h")
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
 text = "PLAY"
 
 [node name="Upload" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2111853005]
@@ -370,12 +198,12 @@ custom_minimum_size = Vector2(670, 68)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
-theme_override_colors/font_color = Color(0.85, 0.68, 0.18, 1)
-theme_override_colors/font_hover_color = Color(0.95, 0.82, 0.38, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 22
-theme_override_styles/normal = SubResource("StyleBoxFlat_upload_n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_upload_p")
-theme_override_styles/hover = SubResource("StyleBoxFlat_upload_h")
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
 text = "UPLOAD LEVEL"
 
 [node name="OptionsButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2013621979]
@@ -383,12 +211,12 @@ custom_minimum_size = Vector2(670, 68)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
-theme_override_colors/font_color = Color(0.58, 0.22, 0.82, 1)
-theme_override_colors/font_hover_color = Color(0.74, 0.42, 0.95, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 22
-theme_override_styles/normal = SubResource("StyleBoxFlat_opts_n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_opts_p")
-theme_override_styles/hover = SubResource("StyleBoxFlat_opts_h")
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
 text = "OPTIONS"
 
 [node name="QuitButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1837881485]
@@ -396,12 +224,12 @@ custom_minimum_size = Vector2(670, 68)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
-theme_override_colors/font_color = Color(0.85, 0.22, 0.18, 1)
-theme_override_colors/font_hover_color = Color(0.95, 0.42, 0.38, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 22
-theme_override_styles/normal = SubResource("StyleBoxFlat_quit_n")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_quit_p")
-theme_override_styles/hover = SubResource("StyleBoxFlat_quit_h")
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
 text = "QUIT"
 
 [node name="FileDialog" type="FileDialog" parent="MenuBG" unique_id=2018251452]

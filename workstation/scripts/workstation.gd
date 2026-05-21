@@ -12,7 +12,7 @@ extends Control
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
-@onready var grid_2d_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/Grid2DButton
+@onready var grid_2d_button: Button = $SettingsOverlay/SettingsCard/SettingsContent/ViewRow/Grid2DButton
 
 # Settings overlay
 @onready var settings_overlay: Control = $SettingsOverlay
@@ -162,13 +162,14 @@ func _ready() -> void:
 
 	menu_button.pressed.connect(_on_main_menu_button_pressed)
 	menu_confirm_leave.pressed.connect(_on_go_to_menu)
-	menu_confirm_stay.pressed.connect(func(): menu_confirm_overlay.hide())
+	menu_confirm_stay.pressed.connect(func():
+		menu_confirm_overlay.hide()
+		_set_controls_disabled(false))
 	speed_slider.value_changed.connect(_on_speed_change)
 	settings_font_slider.value_changed.connect(_on_font_size_changed)
 	settings_button.pressed.connect(_on_settings_button_pressed)
 
-	if grid_2d_button != null:
-		grid_2d_button.pressed.connect(_on_grid_2d_button_pressed)
+	grid_2d_button.pressed.connect(_on_grid_2d_button_pressed)
 
 	settings_overlay.visible = false
 	menu_confirm_overlay.visible = false
@@ -507,7 +508,7 @@ func _on_prev_button_pressed() -> void:
 	_restore_snapshot(_cmd_history[_step_index].snap)
 	if flat_grid_node != null and is_instance_valid(flat_grid_node):
 		# Build path: every snapshot up to and including the restored one is a
-		# (gx, gy, facing) point the player has actually stood at, oldest first.
+		# (gx, gy, facing) point the player has actually stood at, oldest first
 		var positions: Array = []
 		for i in range(_step_index + 1):
 			var s = _cmd_history[i].snap
@@ -560,7 +561,7 @@ func _replay_step_forward() -> void:
 
 	log_line("✓ %s" % entry.cmd.to_lower())
 	if _step_index >= _cmd_history.size():
-		# Caught up to live position; next step will be a real live step via _resume.
+		# Caught up to live position... next step will be a real live step via _resume.
 		_in_replay = false
 
 	_set_status("Paused", "")
@@ -657,7 +658,6 @@ func _set_controls_disabled(disabled: bool) -> void:
 	if disabled:
 		settings_overlay.hide()
 		library_overlay.hide()
-		menu_confirm_overlay.hide()
 
 
 func _get_funny_lose_message() -> String:
@@ -1114,6 +1114,7 @@ func _on_grid_2d_button_pressed() -> void:
 
 	if game_instance != null and is_instance_valid(game_instance):
 		game_instance.camera.enabled = not _is_2d_mode
+		game_instance.visible = not _is_2d_mode
 		if not _is_2d_mode:
 			game_instance.camera.make_current()
 
@@ -1143,7 +1144,7 @@ func _on_report_folder_selected(folder: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir_path)
 
 	# save text report
-	var report := _build_win_report()
+	var report := _build_report()
 	var txt_path := dir_path.path_join("%s_report.txt" % level_name)
 	var file := FileAccess.open(txt_path, FileAccess.WRITE)
 	if file:
@@ -1225,9 +1226,10 @@ func _input(event) -> void:
 
 func _on_main_menu_button_pressed() -> void:
 	settings_overlay.hide()
+	_set_controls_disabled(true)
 	menu_confirm_overlay.visible = true
 
-func _build_win_report() -> String:
+func _build_report() -> String:
 	var cols := int(current_level_definition.get("cols", 0))
 	var rows := int(current_level_definition.get("rows", 0))
 	var walls: Dictionary = current_level_definition.get("walls", {})
