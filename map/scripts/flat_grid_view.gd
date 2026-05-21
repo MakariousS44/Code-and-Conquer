@@ -94,6 +94,19 @@ func _record_trail(gx: int, gy: int, facing: String) -> void:
 	_trail_facing = facing
 
 
+## Rebuild the trail from a list of {gx, gy, facing} entries (oldest first).
+## Used by step-back so the trail shows only the path up to the current state,
+## with later segments trimmed off.
+func rebuild_trail(positions: Array) -> void:
+	_trail.clear()
+	_trail_gx = -1
+	_trail_gy = -1
+	_trail_facing = ""
+	for p in positions:
+		_record_trail(int(p.gx), int(p.gy), String(p.facing))
+	queue_redraw()
+
+
 func activate() -> void:
 	_camera.enabled = true
 	_camera.make_current()

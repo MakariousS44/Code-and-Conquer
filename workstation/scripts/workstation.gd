@@ -515,6 +515,14 @@ func _on_prev_button_pressed() -> void:
 	_step_index -= 1
 	_in_replay = true
 	_restore_snapshot(_cmd_history[_step_index].snap)
+	if flat_grid_node != null and is_instance_valid(flat_grid_node):
+		# Build path: every snapshot up to and including the restored one is a
+		# (gx, gy, facing) point the player has actually stood at, oldest first.
+		var positions: Array = []
+		for i in range(_step_index + 1):
+			var s = _cmd_history[i].snap
+			positions.append({gx = s.grid_x, gy = s.grid_y, facing = s.facing})
+		flat_grid_node.rebuild_trail(positions)
 	step_button.disabled = false
 	prev_button.disabled = _step_index <= 0
 
