@@ -612,10 +612,10 @@ func _on_speed_change(value: float) -> void:
 
 
 func _on_font_size_changed(value: float) -> void:
-	var size := int(value)
-	editor.add_theme_font_size_override("font_size", size)
-	output_box.add_theme_font_size_override("normal_font_size", size)
-	settings_font_label.text = "%dpt" % size
+	var font_size := int(value)
+	editor.add_theme_font_size_override("font_size", font_size)
+	output_box.add_theme_font_size_override("normal_font_size", font_size)
+	settings_font_label.text = "%dpt" % font_size
 
 
 func _on_settings_button_pressed() -> void:
@@ -626,21 +626,21 @@ func _on_settings_button_pressed() -> void:
 
 # === funny lose messages ===
 const LOSE_MESSAGES := [
-	"The robot has left the chat.",
-	"Have you tried turning it off and on again?",
-	"Your robot took an unscheduled vacation.",
-	"The robot says: I quit.",
+	"Your player has left the chat.",
+	"Have you...tried turning it off and on again?",
+	"Your player took an unscheduled vacation.",
+	"Your player says: \"I quit.\"",
 	"404: Success not found.",
-	"Instructions unclear. Robot now in another dimension.",
-	"Your robot walked into a wall. Impressive dedication.",
-	"The robot has filed a complaint with HR.",
+	"Instructions unclear. Your player now in another dimension.",
+	"Your player walked into a wall. Impressive dedication!",
+	"Your player has filed a complaint with HR.",
 	"Maybe try fewer walls next time?",
-	"Your robot called in sick.",
+	"Your player called in sick.",
 	"The matrix has rejected your code.",
-	"Skill issue detected. Try again.",
-	"Your robot tripped over its own code.",
-	"The robot is on strike. Have you tried negotiating?",
-	"Oops! Your robot is now a wall decoration.",
+	"Skill issue detected.",
+	"Your player tripped over their own code.",
+	"Your player is on strike. Have you tried negotiating?",
+	"Splat. Your player is now wall decor.",
 ]
 
 func _set_controls_disabled(disabled: bool) -> void:
@@ -669,7 +669,7 @@ func _trigger_move_limit_lose() -> void:
 	log_error("Move Limit Reached")
 	_set_status("You lost", "error")
 
-	lose_message.text = "Move Limit Reached"
+	lose_message.text = _get_funny_lose_message()
 	lose_overlay.visible = true
 	_set_controls_disabled(true)
 
@@ -688,7 +688,7 @@ func _trigger_incomplete_lose(reason: String) -> void:
 	log_error(reason)
 	_set_status("You lost", "error")
 
-	lose_message.text = reason
+	lose_message.text = _get_funny_lose_message()
 	lose_overlay.visible = true
 	_set_controls_disabled(true)
 
@@ -1126,8 +1126,13 @@ func _on_save_report() -> void:
 
 
 func _on_report_folder_selected(folder: String) -> void:
-	var level_name := global_level_name.get_file().get_basename()
-	var dir_name := "<CompletionReport>_%s" % level_name
+	var level_name := global_level_name.get_file().get_basename().replace(" ", "_")
+	var base_name := "%s_CompletionReport" % level_name
+	var dir_name := base_name
+	var counter := 1
+	while DirAccess.dir_exists_absolute(folder.path_join(dir_name)):
+		dir_name = "%s_%d" % [base_name, counter]
+		counter += 1
 	var dir_path := folder.path_join(dir_name)
 	DirAccess.make_dir_recursive_absolute(dir_path)
 

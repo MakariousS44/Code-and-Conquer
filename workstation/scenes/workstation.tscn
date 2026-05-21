@@ -207,6 +207,22 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card_red"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
+bg_color = Color(0.14, 0.05, 0.05, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.78, 0.25, 0.3, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_win_card"]
 content_margin_left = 20.0
 content_margin_top = 20.0
@@ -239,6 +255,22 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_done_card"]
+content_margin_left = 20.0
+content_margin_top = 20.0
+content_margin_right = 20.0
+content_margin_bottom = 20.0
+bg_color = Color(0.04, 0.13, 0.17, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.28, 0.78, 0.92, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_teal"]
 content_margin_left = 20.0
 content_margin_top = 8.0
@@ -254,22 +286,6 @@ corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_done_card"]
-content_margin_left = 20.0
-content_margin_top = 20.0
-content_margin_right = 20.0
-content_margin_bottom = 20.0
-bg_color = Color(0.05, 0.1, 0.2, 0.97)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.28, 0.78, 0.92, 0.7)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
 
 [node name="MainUI" type="Control" unique_id=638120049]
 layout_mode = 3
@@ -448,7 +464,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_fonts/font = ExtResource("3_hu8hj")
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 18
 gutters_draw_line_numbers = true
 gutters_line_numbers_min_digits = 2
 gutters_draw_fold_gutter = true
@@ -484,7 +500,7 @@ layout_mode = 2
 focus_mode = 2
 theme_override_colors/default_color = Color(0.72, 0.76, 0.81, 1)
 theme_override_fonts/normal_font = ExtResource("3_hu8hj")
-theme_override_font_sizes/normal_font_size = 13
+theme_override_font_sizes/normal_font_size = 18
 bbcode_enabled = true
 scroll_following = true
 context_menu_enabled = true
@@ -588,14 +604,14 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 min_value = 10.0
-max_value = 24.0
-value = 14.0
+max_value = 32.0
+value = 18.0
 
 [node name="FontValueLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/FontRow" unique_id=2000000013]
 custom_minimum_size = Vector2(42, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "14pt"
+text = "18pt"
 vertical_alignment = 1
 
 [node name="LanguageRow" type="HBoxContainer" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000014]
@@ -690,6 +706,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Stay"
 
 [node name="LibraryOverlay" type="Control" parent="." unique_id=1223608090]
+visible = false
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -764,10 +781,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -100.0
-offset_right = 180.0
-offset_bottom = 100.0
+offset_left = -220.0
+offset_top = -125.0
+offset_right = 220.0
+offset_bottom = 125.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -778,7 +795,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
+theme_override_styles/panel = SubResource("StyleBoxFlat_card_red")
 
 [node name="LoseContent" type="VBoxContainer" parent="LoseOverlay/LoseCard" unique_id=800000003]
 layout_mode = 2
@@ -787,40 +804,44 @@ theme_override_constants/separation = 12
 [node name="LoseTitle" type="Label" parent="LoseOverlay/LoseCard/LoseContent" unique_id=800000004]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.45, 0.45, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 28
 text = "You Lost!"
 horizontal_alignment = 1
 
 [node name="LoseMessage" type="Label" parent="LoseOverlay/LoseCard/LoseContent" unique_id=800000005]
-custom_minimum_size = Vector2(280, 0)
+custom_minimum_size = Vector2(340, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 14
+text = "Have you tried turning it off and back on?"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="LoseButtons" type="VBoxContainer" parent="LoseOverlay/LoseCard/LoseContent" unique_id=442718333]
 layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="LoseRetryButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000007]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(1, 0.65, 0.65, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_red")
 text = "Try Again"
 
 [node name="LoseMenuButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000009]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
 [node name="LoseSaveButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
 
@@ -832,10 +853,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -100.0
-offset_right = 180.0
-offset_bottom = 100.0
+offset_left = -220.0
+offset_top = -125.0
+offset_right = 220.0
+offset_bottom = 125.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -855,41 +876,44 @@ theme_override_constants/separation = 12
 [node name="WinTitle" type="Label" parent="WinOverlay/WinCard/WinContent" unique_id=900000004]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.4, 0.95, 0.55, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_font_sizes/font_size = 28
 text = "Level Complete!"
 horizontal_alignment = 1
 
 [node name="WinMessage" type="Label" parent="WinOverlay/WinCard/WinContent" unique_id=900000005]
-custom_minimum_size = Vector2(280, 0)
+custom_minimum_size = Vector2(340, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 14
 text = "Your robot reached the goal!"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="WinButtons" type="VBoxContainer" parent="WinOverlay/WinCard/WinContent" unique_id=742020946]
 layout_mode = 2
+theme_override_constants/separation = 8
 
 [node name="WinRetryButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000007]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.6, 1, 0.7, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_green")
 text = "Play Again"
 
 [node name="WinMenuButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000009]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
 [node name="WinSaveButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
 
@@ -916,10 +940,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -110.0
-offset_right = 180.0
-offset_bottom = 110.0
+offset_left = -220.0
+offset_top = -125.0
+offset_right = 220.0
+offset_bottom = 125.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -939,15 +963,15 @@ theme_override_constants/separation = 12
 [node name="DoneTitle" type="Label" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000004]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
-theme_override_font_sizes/font_size = 22
-text = "Code Finished"
+theme_override_font_sizes/font_size = 28
+text = "Execution Complete"
 horizontal_alignment = 1
 
 [node name="DoneMessage" type="Label" parent="DoneOverlay/DoneCard/DoneContent" unique_id=700000008]
-custom_minimum_size = Vector2(280, 0)
+custom_minimum_size = Vector2(340, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 14
 text = "Your code ran to completion."
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -958,23 +982,25 @@ theme_override_constants/separation = 8
 
 [node name="DoneRetryButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000006]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_teal")
 text = "Run Again"
 
 [node name="DoneMenuButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000007]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
 [node name="DoneSaveButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000009]
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
 
