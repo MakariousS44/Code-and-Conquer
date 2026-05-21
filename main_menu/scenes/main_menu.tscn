@@ -236,6 +236,7 @@ text = "QUIT"
 oversampling_override = 1.0
 
 [node name="OptionsTab" type="TextureRect" parent="MenuBG" unique_id=1632772630]
+visible = false
 layout_mode = 0
 offset_left = 1922.0
 offset_right = 2522.0

@@ -113,6 +113,7 @@ var exec_speed: float = 0.5
 var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit"
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
 const MOVE_LIMIT := 999
+const CMD_LIMIT := 9999
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -883,6 +884,10 @@ func _run_ipc_loop() -> void:
 				cmd = parts[0].strip_edges()
 				src_line = int(parts[1].strip_edges())
 
+			if _cmd_history.size() >= CMD_LIMIT:
+				_trigger_move_limit_lose()
+				break
+
 			var snap = _take_snapshot()
 			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
 			_step_index = _cmd_history.size()
@@ -942,6 +947,7 @@ func _run_ipc_loop() -> void:
 
 
 func _on_execution_done() -> void:
+	_run_outcome = "done"
 	_stop_execution()
 	run_button.text = "▶ Run"
 	run_button.disabled = true
@@ -1266,6 +1272,15 @@ func _build_report() -> String:
 			move_count += 1
 	cmd_letters.append(_run_outcome_marker())
 
+	var deposit_zones: Dictionary = current_level_definition.get("goal", {}).get("objects", {})
+	var start_obj_data: Dictionary = current_level_definition.get("objects", {})
+	var end_obj_data: Dictionary = {}
+	var end_carried := ""
+	if game_instance != null and is_instance_valid(game_instance):
+		end_obj_data = game_instance.object_data
+	if player_node != null:
+		end_carried = player_node.carried_object
+
 	var level_name := global_level_name.get_file().get_basename()
 	var lang_name := "C++" if current_language == Language.CPP else "Python"
 	var date := Time.get_date_string_from_system()
@@ -1277,15 +1292,45 @@ func _build_report() -> String:
 	report += "\n"
 	report += "Starting position: (%d, %d) - %s\n" % [start_x, start_y, start_facing]
 	report += "Starting world state:\n\n"
-	report += _render_world_text(cols, rows, walls, start_x, start_y, start_facing)
-	report += "\n\n"
+	report += _render_world_text(cols, rows, walls, start_x, start_y, start_facing, start_obj_data, deposit_zones)
+	report += "\nCarrying: nothing\n"
+	report += "\n"
 	report += "Ending position: (%d, %d) - %s\n" % [end_x, end_y, end_facing]
 	report += "Ending world state:\n\n"
-	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing)
+	report += _render_world_text(cols, rows, walls, end_x, end_y, end_facing, end_obj_data, deposit_zones)
+	report += "\nCarrying: %s\n" % (end_carried if end_carried != "" else "nothing")
 	report += "\n\n"
 	report += "Sequence: " + "".join(cmd_letters) + "\n"
 	report += "Move Count: %d\n" % move_count
-	report += "Key: M=move  T=turn left  U=pick up  D=put down  !=win  #=lose  ?=incomplete $=surpassed move limit\n"
+	report += "======================================\n"
+	report += "KEY\n"
+	report += "======================================\n"
+	report += "\n"
+	report += "SEQUENCE LETTERS\n"
+	report += "  M  move forward\n"
+	report += "  T  turn left\n"
+	report += "  U  pick up object\n"
+	report += "  D  put down object\n"
+	report += "\n"
+	report += "SEQUENCE OUTCOME\n"
+	report += "  !  win\n"
+	report += "  ?  lose (collision or did not reach goal)\n"
+	report += "  .  finished — no win condition on this level\n"
+	report += "  #  command/move limit hit (%d moves)\n" % MOVE_LIMIT
+	report += "\n"
+	report += "OBJECT LETTERS\n"
+	report += "  A  apple\n"
+	report += "  B  banana\n"
+	report += "  C  carrot\n"
+	report += "  S  star\n"
+	report += "  K  token\n"
+	report += "\n"
+	report += "GRID CELLS  (each cell = one tile, letter + count)\n"
+	report += "  (Xn)  deposit zone needs n of X — not yet satisfied\n"
+	report += "  [Xn]  deposit zone needs n of X — satisfied\n"
+	report += "   Xn   n of object X on the floor\n"
+	report += "   .    empty tile\n"
+	report += "  ^v<>  robot facing north / south / west / east\n"
 	return report
 
 
@@ -1306,10 +1351,12 @@ func _run_outcome_marker() -> String:
 	match _run_outcome:
 		"win":
 			return "!"
-		"lose":
-			return "#"
+		"lose", "incomplete":
+			return "?"
+		"done":
+			return "."
 		"move_limit":
-			return "$"
+			return "#"
 		_:
 			return "?"
 
@@ -1339,25 +1386,53 @@ func _wall_at(walls: Dictionary, x: int, y: int, dir: String) -> bool:
 
 # Sparse-wall ASCII grid. Outer edges always drawn, '+' at every corner,
 # interior walls only where they exist.
-func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: int, facing: String) -> String:
+func _object_letter(obj_name: String) -> String:
+	match obj_name:
+		"apple":  return "A"
+		"banana": return "B"
+		"carrot": return "C"
+		"star":   return "S"
+		"token":  return "K"
+	return "?"
+
+
+func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: int, facing: String, obj_data: Dictionary = {}, deposit_zones: Dictionary = {}) -> String:
 	if cols <= 0 or rows <= 0:
 		return ""
 
-	var arrow := _facing_arrow(facing)
 	var lines: Array = []
 
 	var outer := "   +"
 	for c in range(cols):
-		outer += "---+"
+		outer += "----+"
 	lines.append(outer)
 
 	for row in range(rows, 0, -1):
 		var row_line := "%2d |" % row
 		for col in range(1, cols + 1):
-			var glyph := "."
+			var key := "%d,%d" % [col, row]
+			var glyph: String
 			if col == px and row == py:
-				glyph = arrow
-			row_line += " %s " % glyph
+				glyph = " %s  " % _facing_arrow(facing)
+			elif deposit_zones.has(key) and typeof(deposit_zones[key]) == TYPE_DICTIONARY and not deposit_zones[key].is_empty():
+				var obj_name: String = deposit_zones[key].keys()[0]
+				var required: int = int(deposit_zones[key][obj_name])
+				var n := str(required) if required <= 9 else "+"
+				var have := 0
+				if obj_data.has(key) and typeof(obj_data[key]) == TYPE_DICTIONARY:
+					have = int((obj_data[key] as Dictionary).get(obj_name, 0))
+				if have >= required:
+					glyph = "[%s%s]" % [_object_letter(obj_name), n]
+				else:
+					glyph = "(%s%s)" % [_object_letter(obj_name), n]
+			elif obj_data.has(key) and typeof(obj_data[key]) == TYPE_DICTIONARY and not obj_data[key].is_empty():
+				var obj_name: String = obj_data[key].keys()[0]
+				var count: int = int(obj_data[key][obj_name])
+				var n := str(count) if count <= 9 else "+"
+				glyph = " %s%s " % [_object_letter(obj_name), n]
+			else:
+				glyph = " .  "
+			row_line += glyph
 			if col < cols:
 				row_line += "|" if _wall_at(walls, col, row, "east") else " "
 		row_line += "|"
@@ -1366,16 +1441,18 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 		if row > 1:
 			var sep := "   +"
 			for col in range(1, cols + 1):
-				sep += "---+" if _wall_at(walls, col, row - 1, "north") else "   +"
+				sep += "----+" if _wall_at(walls, col, row - 1, "north") else "    +"
 			lines.append(sep)
 
 	lines.append(outer)
 
-	var label := "     "
-	var parts: Array = []
+	var label := "    "
 	for col in range(1, cols + 1):
-		parts.append(str(col))
-	label += "   ".join(parts)
+		var c := str(col)
+		var pad_l := (4 - c.length()) / 2
+		label += " ".repeat(pad_l) + c + " ".repeat(4 - c.length() - pad_l)
+		if col < cols:
+			label += " "
 	lines.append(label)
 
 	return "\n".join(lines)

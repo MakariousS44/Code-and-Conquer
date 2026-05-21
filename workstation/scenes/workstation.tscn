@@ -914,6 +914,21 @@ is_facing_north()
 is_facing_east()
 is_facing_west()"
 
+[node name="Compass" type="TextureRect" parent="." unique_id=532882177]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_top = 83.0
+offset_right = -16.0
+offset_bottom = 204.0
+grow_horizontal = 0
+mouse_filter = 2
+texture = ExtResource("6_1bmh4")
+expand_mode = 1
+stretch_mode = 5
+
 [node name="LoseOverlay" type="Control" parent="." unique_id=800000001]
 visible = false
 layout_mode = 1
@@ -970,14 +985,6 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_red")
 text = "Try Again"
 
-[node name="LoseMenuButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000009]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Main Menu"
-
 [node name="LoseSaveButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=1585997006]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -985,6 +992,14 @@ theme_override_colors/font_color = Color(0.28, 0.78, 0.92, 1)
 theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
+
+[node name="LoseMenuButton" type="Button" parent="LoseOverlay/LoseCard/LoseContent/LoseButtons" unique_id=800000009]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Main Menu"
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
@@ -1042,14 +1057,6 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_green")
 text = "Play Again"
 
-[node name="WinMenuButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000009]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Main Menu"
-
 [node name="WinSaveButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=817704842]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -1058,20 +1065,13 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
 
-[node name="Compass" type="TextureRect" parent="." unique_id=532882177]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -120.0
-offset_top = 83.0
-offset_right = -16.0
-offset_bottom = 204.0
-grow_horizontal = 0
-mouse_filter = 2
-texture = ExtResource("6_1bmh4")
-expand_mode = 1
-stretch_mode = 5
+[node name="WinMenuButton" type="Button" parent="WinOverlay/WinCard/WinContent/WinButtons" unique_id=900000009]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Main Menu"
 
 [node name="DoneOverlay" type="Control" parent="." unique_id=700000001]
 visible = false
@@ -1129,14 +1129,6 @@ theme_override_font_sizes/font_size = 18
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_teal")
 text = "Run Again"
 
-[node name="DoneMenuButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000007]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
-text = "Main Menu"
-
 [node name="DoneSaveButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000009]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -1145,7 +1137,16 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
 
+[node name="DoneMenuButton" type="Button" parent="DoneOverlay/DoneCard/DoneContent/DoneButtons" unique_id=700000007]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
+text = "Main Menu"
+
 [node name="ReportFolderDialog" type="FileDialog" parent="." unique_id=600000001]
+oversampling_override = 1.0
 title = "Open a File or Directory"
 file_mode = 3
 access = 2

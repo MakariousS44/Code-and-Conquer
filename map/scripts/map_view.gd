@@ -177,7 +177,9 @@ func _update_camera_pan_bounds() -> void:
 func build_level(data: Dictionary) -> void:
 	is_rotating = false
 	level_data = data
-	object_data = data.get("objects", {})
+	object_data = {}
+	for _k in data.get("objects", {}).keys():
+		object_data[_k] = (data["objects"][_k] as Dictionary).duplicate()
 	rotation_state = 0
 	# IF NEEDED: enforce ordering
 	FloorTiles.z_index = 0
