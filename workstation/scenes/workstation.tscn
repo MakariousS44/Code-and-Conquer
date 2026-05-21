@@ -171,8 +171,6 @@ corner_radius_top_right = 10
 corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1bmh4"]
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_red"]
 content_margin_left = 20.0
 content_margin_top = 8.0
@@ -487,10 +485,9 @@ render_target_update_mode = 4
 visible = false
 z_index = 10
 layout_mode = 1
+anchors_preset = 1
 anchor_left = 1.0
-anchor_top = 0.0
 anchor_right = 1.0
-anchor_bottom = 0.0
 offset_left = -300.0
 offset_top = 45.0
 offset_right = -10.0
@@ -513,7 +510,7 @@ theme_override_constants/separation = 10
 
 [node name="SettingsTitle" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent" unique_id=2000000005]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 16
 text = "Settings"
 horizontal_alignment = 1
@@ -564,7 +561,6 @@ size_flags_horizontal = 3
 size_flags_vertical = 4
 min_value = 10.0
 max_value = 24.0
-step = 1.0
 value = 14.0
 
 [node name="FontValueLabel" type="Label" parent="SettingsOverlay/SettingsCard/SettingsContent/FontRow" unique_id=2000000013]
@@ -632,7 +628,7 @@ theme_override_constants/separation = 12
 
 [node name="ConfirmTitle" type="Label" parent="MenuConfirmOverlay/ConfirmCard/ConfirmContent" unique_id=2000000021]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 18
 text = "Leave Level?"
 horizontal_alignment = 1
@@ -684,6 +680,8 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 3.0
+offset_right = 3.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_lose_card")
@@ -694,7 +692,7 @@ theme_override_constants/separation = 15
 
 [node name="CommandLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=521573179]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
 theme_override_font_sizes/font_size = 16
 text = "Action Commands:"
 
@@ -709,7 +707,7 @@ put_object()"
 
 [node name="ConditionLabel" type="Label" parent="LibraryOverlay/FunctionCard/VBoxContainer" unique_id=117519483]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.55, 0.85, 1.0, 1)
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
 theme_override_constants/line_spacing = 3
 theme_override_font_sizes/font_size = 16
 text = "Conditional Checks:"
@@ -872,10 +870,10 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -120.0
-offset_top = 56.0
-offset_right = -16.0
-offset_bottom = 177.0
+offset_left = -133.0
+offset_top = 83.0
+offset_right = -29.0
+offset_bottom = 204.0
 grow_horizontal = 0
 mouse_filter = 2
 texture = ExtResource("6_1bmh4")
@@ -945,6 +943,7 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Save Report"
 
 [node name="ReportFolderDialog" type="FileDialog" parent="." unique_id=600000001]
+title = "Open a File or Directory"
 file_mode = 3
 access = 2
 
