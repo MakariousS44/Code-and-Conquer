@@ -64,6 +64,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and camera_dragging:
 		camera.global_position -= event.relative * CAMERA_DRAG_SPEED
 		_clamp_camera_to_bounds()
+	# Trackpad pinch - event.factor > 1 means zoom in
+	elif event is InputEventMagnifyGesture:
+		_adjust_camera_zoom((event.factor - 1.0) * CAMERA_ZOOM_STEP * 10.0)
+	# Trackpad two-finger scroll - pan the camera
+	elif event is InputEventPanGesture:
+		camera.global_position += event.delta * CAMERA_DRAG_SPEED * 20.0 / camera.zoom.x
+		_clamp_camera_to_bounds()
 
 
 func _process(delta: float) -> void:
