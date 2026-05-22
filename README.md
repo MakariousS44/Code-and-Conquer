@@ -98,8 +98,9 @@ Press **F5** or click the **Play** button in the top-right of the Godot editor.
  
 1. Write C++ or Python code in the **Editor** panel on the left. Use the language selector in the top-right to switch languages.
 2. Click **Run** to compile and execute your code — watch the character move!
-3. Click **Step** to execute one command at a time for debugging.
-4. Click **Reset** to reload the world and start over.
+3. Click **>>** to execute one command at a time.
+4. Click **<<** to go back one command at a time.
+5. Click **Reset** to reload the world and start over.
 ---
  
 ## Available Commands & Sensors
@@ -128,6 +129,8 @@ at_goal();          // Character is standing on the goal tile
 object_here();      // An object is on the current tile
 carries_object();   // Robot is carrying an object
 is_facing_north();  // Robot is currently facing north
+is_facing_east();  // Robot is currently facing east
+is_facing_west();  // Robot is currently facing west
 ```
  
 **Example — walk in a square:**
