@@ -57,6 +57,7 @@ Godot is downloaded as an executable inside a zip file. To start Godot, unzip an
 **GCC (g++)** — Required to compile C++ student code at runtime.
 - Windows: Install via [MinGW](https://www.mingw-w64.org/) or [MSYS2](https://www.msys2.org/)
 - Linux/macOS: Usually pre-installed. Run `g++ --version` to verify.
+
 **Python 3** — Required to run Python student code at runtime.
 - [Download Python](https://www.python.org/downloads/)
 - Run `python3 --version` to verify.
