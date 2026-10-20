@@ -9,6 +9,9 @@ var _validator = preload(Paths.PYTHON_VALIDATOR).new()
 func validate(source: String) -> Dictionary:
 	return _validator.validate(source)
 
+func is_available() -> bool:
+	return _compiler.is_available()
+
 ## Launches student code connecting to the given IPC port. Returns OS PID or -1
 func start(source: String, port: int, token: String) -> int:
 	return _compiler.start(source, port, token)

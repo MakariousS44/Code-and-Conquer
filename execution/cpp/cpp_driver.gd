@@ -24,6 +24,10 @@ func prepare_build_files(source: String, port: int, token: String) -> void:
 	_write_file(ROBOT_CPP,   _commands.get_cpp_source(port, token))
 
 
+func is_available() -> bool:
+	var output: Array = []
+	return OS.execute("g++", ["--version"], output, true) == 0
+
 func compile_program() -> Dictionary:
 	var output: Array = []
 	var student_cpp := ProjectSettings.globalize_path(STUDENT_CPP)
