@@ -17,11 +17,11 @@ func _get_exe_path() -> String:
 	return base
 
 
-func prepare_build_files(source: String, port: int) -> void:
+func prepare_build_files(source: String, port: int, token: String) -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(BUILD_DIR))
 	_write_file(STUDENT_CPP, source)
 	_write_file(ROBOT_HPP,   _commands.get_cpp_header())
-	_write_file(ROBOT_CPP,   _commands.get_cpp_source(port))
+	_write_file(ROBOT_CPP,   _commands.get_cpp_source(port, token))
 
 
 func compile_program() -> Dictionary:

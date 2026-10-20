@@ -1,0 +1,137 @@
+{
+  "robots": [
+    {
+      "x": 1,
+      "y": 1,
+      "_prev_x": 1,
+      "_prev_y": 1,
+      "_prev_orientation": 0,
+      "objects": {},
+      "_orientation": 0,
+      "_is_leaky": true,
+      "_trace_history": [],
+      "_trace_style": "default",
+      "_trace_color": "seagreen",
+      "__id": 5,
+      "model": "solar panel",
+      "possible_initial_positions": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "description": [
+    "Walk the staircase pattern to reach the goal at (9, 9)."
+  ],
+  "hint": "Notice how the staircase pattern repeats. Write out the movement for one pattern, and place it in a loop to repeat it until you reach the goal tile.",
+  "small_tiles": false,
+  "rows": 9,
+  "cols": 9,
+  "walls": {
+    "1,1": [
+      "north"
+    ],
+    "1,2": [
+      "east"
+    ],
+    "2,2": [
+      "north"
+    ],
+    "2,3": [
+      "east"
+    ],
+    "3,3": [
+      "north"
+    ],
+    "3,4": [
+      "east"
+    ],
+    "4,4": [
+      "north"
+    ],
+    "4,5": [
+      "east"
+    ],
+    "5,5": [
+      "north"
+    ],
+    "5,6": [
+      "east"
+    ],
+    "6,6": [
+      "north"
+    ],
+    "6,7": [
+      "east"
+    ],
+    "7,7": [
+      "north"
+    ],
+    "7,8": [
+      "east"
+    ],
+    "8,8": [
+      "north"
+    ],
+    "2,1": [
+      "east"
+    ],
+    "3,1": [
+      "north"
+    ],
+    "3,2": [
+      "east"
+    ],
+    "4,2": [
+      "north"
+    ],
+    "4,3": [
+      "east"
+    ],
+    "5,3": [
+      "north"
+    ],
+    "5,4": [
+      "east"
+    ],
+    "6,4": [
+      "north"
+    ],
+    "6,5": [
+      "east"
+    ],
+    "7,5": [
+      "north"
+    ],
+    "7,6": [
+      "east"
+    ],
+    "8,6": [
+      "north"
+    ],
+    "8,7": [
+      "east"
+    ],
+    "9,7": [
+      "north"
+    ],
+    "8,9": [
+      "east"
+    ]
+  },
+  "goal": {
+    "possible_final_positions": [
+      [
+        9,
+        9
+      ]
+    ],
+    "position": {
+      "image": "green_home_tile",
+      "x": 9,
+      "y": 9
+    }
+  }
+}

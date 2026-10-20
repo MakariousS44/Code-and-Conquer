@@ -21,6 +21,7 @@ config/icon="res://assets/images/icon.png"
 
 SelectedLevel="*uid://dc3jimritl1hh"
 EventManager="*uid://cl00riv6kfaao"
+SettingsManager="*res://config/settings_manager.gd"
 
 [display]
 

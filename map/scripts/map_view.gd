@@ -787,6 +787,13 @@ func check_win_condition(gx: int, gy: int) -> void:
 	if not at_position:
 		return
 
+	# --- object carry check ---
+	if goal.has("require_carry_object"):
+		var required_obj = goal["require_carry_object"]
+		if player.carried_object != required_obj:
+			level_incomplete.emit("Reached the goal without carrying " + required_obj + ".")
+			return
+
 	# --- object goal check ---
 	if not are_goal_objects_satisfied():
 		level_incomplete.emit("Reached the goal without completing all the objectives.")

@@ -10,5 +10,5 @@ func validate(source: String) -> Dictionary:
 	return _validator.validate(source)
 
 ## Launches student code connecting to the given IPC port. Returns OS PID or -1
-func start(source: String, port: int) -> int:
-	return _compiler.start(source, port)
+func start(source: String, port: int, token: String) -> int:
+	return _compiler.start(source, port, token)
