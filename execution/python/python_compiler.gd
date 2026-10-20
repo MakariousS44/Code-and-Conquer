@@ -32,6 +32,9 @@ func start(player_code: String, port: int, token: String) -> int:
 	run_args.append(tmp_path)
 	return OS.create_process(python_exe, run_args)
 
+func is_available() -> bool:
+	return not _find_python().is_empty()
+
 func _find_python() -> Dictionary:
 	var candidates: Array[Dictionary] = [
 		{ "exe": "python3", "args": [] },
