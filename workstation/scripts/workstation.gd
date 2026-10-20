@@ -964,7 +964,7 @@ func _run_pipeline() -> void:
 		_re_enable_buttons()
 		return
 
-	if current_language == Language.CPP and not py_pipeline.is_available():
+	if current_language == Language.CPP and not compiler.is_available():
 		log_error("A C++ compiler(g++) was not found. Please install C++ first, then restart the game.")
 		_set_status("C++ Compiler unavailable", "error")
 		_re_enable_buttons()

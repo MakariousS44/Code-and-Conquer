@@ -116,8 +116,20 @@ func _on_save_button_pressed() -> void:
 
 	DirAccess.make_dir_recursive_absolute(full_folder_path)
 
-	var save_path := folder_path.path_join(_make_level_filename(level_name) + ".json")
-	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	var file_name := _make_level_filename(level_name) + ".json"
+	var save_path := folder_path.path_join(file_name)
+	if FileAccess.file_exists(save_path):
+		var existing := FileAccess.open(save_path, FileAccess.READ)
+		var existing_json := JSON.new()
+		if existing == null or existing_json.parse(existing.get_as_text()) != OK or typeof(existing_json.data) != TYPE_DICTIONARY or str(existing_json.data.get("name", "")) != level_name:
+			status_label.text = "Choose a different name; this filename is already used."
+			return
+
+	var temporary_path := folder_path.path_join(file_name + ".tmp")
+	var backup_path := folder_path.path_join(file_name + ".bak")
+	if FileAccess.file_exists(backup_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_path))
+	var file := FileAccess.open(temporary_path, FileAccess.WRITE)
 
 	if file == null:
 		push_error("Could not save level.")
@@ -125,6 +137,17 @@ func _on_save_button_pressed() -> void:
 
 	file.store_string(JSON.stringify(document.data, "\t"))
 	file.close()
+	# Keep a recoverable copy until the completed temporary file replaces it.
+	if FileAccess.file_exists(save_path):
+		DirAccess.rename_absolute(ProjectSettings.globalize_path(save_path), ProjectSettings.globalize_path(backup_path))
+	var rename_error := DirAccess.rename_absolute(ProjectSettings.globalize_path(temporary_path), ProjectSettings.globalize_path(save_path))
+	if rename_error != OK:
+		if FileAccess.file_exists(backup_path):
+			DirAccess.rename_absolute(ProjectSettings.globalize_path(backup_path), ProjectSettings.globalize_path(save_path))
+		status_label.text = "Could not finish saving level."
+		return
+	if FileAccess.file_exists(backup_path):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(backup_path))
 
 	save_button.text = "Saved!"
 	status_label.text = "Saved: %s" % level_name
@@ -140,7 +163,8 @@ func _on_level_name_changed(new_name: String) -> void:
 func _on_load_button_pressed() -> void:
 	var dialog := FileDialog.new()
 	dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	dialog.access = FileDialog.ACCESS_RESOURCES
+	dialog.access = FileDialog.ACCESS_FILESYSTEM
+	dialog.current_dir = ProjectSettings.globalize_path(PROJECT_CUSTOM_LEVELS_DIR if OS.has_feature("editor") else PLAYER_CUSTOM_LEVELS_DIR)
 	dialog.add_filter("*.json ; Level files")
 	add_child(dialog)
 	dialog.file_selected.connect(_load_level_from_path.bind(dialog))
@@ -154,13 +178,19 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		return
 	var json := JSON.new()
 	if json.parse(file.get_as_text()) == OK and typeof(json.data) == TYPE_DICTIONARY:
-		document.data = json.data
+		var result := document.load_level(json.data)
+		if not result.get("ok", false):
+			status_label.text = "Could not load level: %s" % result.get("error", "Invalid level")
+			dialog.queue_free()
+			return
 		level_name_input.text = str(document.data.get("name", path.get_file().get_basename()))
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
 		grid.set_document(document)
 		_center_grid()
+	else:
+		status_label.text = "Could not load level: invalid JSON."
 	dialog.queue_free()
 
 
@@ -187,13 +217,14 @@ func _on_new_button_pressed() -> void:
 	grid.set_document(document)
 	_center_grid()
 	level_name_input.clear()
+	description_input.clear()
 	save_button.text = "Save Level"
 	
 func _on_resize_button_pressed() -> void:
 	var cols := int(columns_input.value)
 	var rows := int(rows_input.value)
 
-	document.create_blank(cols, rows)
+	document.resize(cols, rows)
 	grid.set_document(document)
 	_center_grid()
 	save_button.text = "Save Level"
