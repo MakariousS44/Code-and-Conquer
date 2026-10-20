@@ -16,6 +16,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 boot_splash/bg_color=Color(0.97055286, 0.75035083, 0.88283765, 1)
 boot_splash/stretch_mode=0
 config/icon="res://assets/images/icon.png"
+default_bus_layout="res://default_bus_layout.tres"
 
 [autoload]
 

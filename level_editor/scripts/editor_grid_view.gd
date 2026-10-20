@@ -82,6 +82,9 @@ func _draw() -> void:
 		if tile_objects.has("apple"):
 			var apple_center := _cell_center(object_x, object_y, rows)
 			draw_circle(apple_center, CELL_SIZE * 0.16, Color("#e74c3c"))
+			var apple_count := int(tile_objects["apple"])
+			if apple_count > 1:
+				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 	
 	# Draw robot.
 	var robot: Dictionary = document.data["robots"][0]
@@ -138,6 +141,8 @@ func _input(event: InputEvent) -> void:
 	elif active_tool == Tool.GOAL:
 		var goal: Dictionary = document.data["goal"]
 		goal["possible_final_positions"] = [[gx, gy]]
+		# Do not leave an old legacy goal tile active after moving the goal.
+		goal.erase("position")
 		document.data["goal"] = goal
 
 	elif active_tool == Tool.WALL or active_tool == Tool.EAST_WALL:

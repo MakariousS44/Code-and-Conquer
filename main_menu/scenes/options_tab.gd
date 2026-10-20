@@ -71,12 +71,22 @@ func _load_settings() -> void:
 		music_slider.value = 1.0
 		sfx_slider.value = 1.0
 		fullscreen_check.button_pressed = false
+		ui_scale_option.select(1)
+		code_font_size_option.select(1)
+		editor_theme_option.select(0)
+		animation_speed_option.select(0)
+		grid_coordinates_check.button_pressed = false
+		command_trail_check.button_pressed = true
+		beginner_hints_check.button_pressed = true
+		default_language_option.select(0)
 
 	_apply_settings()
 
 
 func _apply_settings() -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(volume_slider.value))
+	_set_bus_volume("Music", music_slider.value)
+	_set_bus_volume("SFX", sfx_slider.value)
 
 	if fullscreen_check.button_pressed:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
@@ -119,7 +129,14 @@ func _add_choices(option: OptionButton, choices: Array[String]) -> void:
 
 
 func _on_preference_changed(_value: float) -> void:
+	_apply_settings()
 	_save_settings()
+
+
+func _set_bus_volume(bus_name: String, value: float) -> void:
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index >= 0:
+		AudioServer.set_bus_volume_db(bus_index, linear_to_db(value))
 
 
 func _on_option_selected(_index: int) -> void:
