@@ -7,7 +7,7 @@ var campaign_hint: Label
 var campaign_panel: VBoxContainer
 var campaign_next_button: Button
 var campaign_hint_button: Button
-
+var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").new()
 # === UI references ===
 # all the workspace pieces live here: editor, output, controls, and level viewport
 @onready var editor: CodeEdit = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection/EditorPanel/EditorMargin/Editor
@@ -153,6 +153,13 @@ func _ready() -> void:
 		OS.execute("pkill", ["-f", "student_program"], [], true)
 
 	_set_status("Ready", "")
+
+	var worker_check: Dictionary = sandbox_worker.ping()
+	if worker_check.get("ok", false):
+		print(worker_check.get("message", "Worker connected."))
+	else:
+		push_warning(worker_check.get("message", "Worker connection failed."))
+
 	editor.text = "#include \"robot.hpp\"\n\nint main() {\n    move();\n}\n"
 	editor.grab_focus()
 
@@ -160,6 +167,7 @@ func _ready() -> void:
 	_setup_syntax_highlighting()
 	_setup_language_selector()
 	_setup_campaign_ui()
+	_apply_saved_preferences()
 
 	# compass updates whenever the player's logical facing changes
 	EventManager.player_facing_changed.connect(_on_player_facing_changed)
@@ -222,6 +230,7 @@ func _setup_campaign_ui() -> void:
 	campaign_hint_button = Button.new()
 	campaign_hint_button.text = "Show Hint"
 	campaign_hint_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
 	campaign_hint_button.pressed.connect(func():
 		campaign_hint.visible = not campaign_hint.visible
 		campaign_hint_button.text = "Hide Hint" if campaign_hint.visible else "Show Hint")
@@ -239,6 +248,35 @@ func _setup_campaign_ui() -> void:
 	buttons.add_child(campaign_next_button)
 	buttons.move_child(campaign_next_button, 0)
 	campaign_next_button.hide()
+
+
+func _apply_saved_preferences() -> void:
+	var font_sizes := [14, 18, 24]
+	var font_index := clampi(int(_saved_setting("editor", "font_size", 1)), 0, font_sizes.size() - 1)
+	_on_font_size_changed(font_sizes[font_index])
+
+	var language_setting := int(_saved_setting("editor", "default_language", 0))
+	language_selector.select(1 if language_setting == 0 else 0)
+	_on_language_changed(language_selector.selected)
+
+	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
+	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
+
+	var use_light_theme := int(_saved_setting("editor", "theme", 0)) == 1
+	if use_light_theme:
+		editor.add_theme_color_override("background_color", Color("#f2f4f8"))
+		editor.add_theme_color_override("font_color", Color("#1b2430"))
+
+	var hints_enabled := bool(_saved_setting("learning", "beginner_hints", true))
+	if campaign_hint_button != null:
+		campaign_hint_button.visible = hints_enabled
+
+
+func _saved_setting(section: String, key: String, fallback):
+	var config := ConfigFile.new()
+	if config.load("user://settings.cfg") == OK:
+		return config.get_value(section, key, fallback)
+	return fallback
 
 
 func _refresh_campaign_instructions() -> void:
@@ -920,6 +958,18 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 
+	if current_language == Language.PYTHON and not py_pipeline.is_available():
+		log_error("Python 3 was not found. Please install Python 3 first, then restart the game.")
+		_set_status("Python unavailable", "error")
+		_re_enable_buttons()
+		return
+
+	if current_language == Language.CPP and not py_pipeline.is_available():
+		log_error("A C++ compiler(g++) was not found. Please install C++ first, then restart the game.")
+		_set_status("C++ Compiler unavailable", "error")
+		_re_enable_buttons()
+		return
+
 	# start IPC server
 	var IPCServer = preload(Paths.IPC_SERVER)
 	_ipc_server = IPCServer.new()
@@ -1597,7 +1647,7 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 	var label := "    "
 	for col in range(1, cols + 1):
 		var c := str(col)
-		var pad_l := (4 - c.length()) / 2
+		var pad_l := int((4 - c.length()) / 2)
 		label += " ".repeat(pad_l) + c + " ".repeat(4 - c.length() - pad_l)
 		if col < cols:
 			label += " "

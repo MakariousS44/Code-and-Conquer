@@ -1,0 +1,167 @@
+[gd_scene format=3 uid="uid://bl7sn587v3vgf"]
+
+[ext_resource type="Script" uid="uid://d73mgft27kc8" path="res://level_editor/scripts/level_editor.gd" id="1_bwncy"]
+[ext_resource type="Script" uid="uid://8jwyqdors2sj" path="res://level_editor/scripts/editor_grid_view.gd" id="2_vaajg"]
+
+[node name="LevelEditor" type="Control" unique_id=1046537004]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_bwncy")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.055, 0.07, 0.105, 1)
+
+[node name="SidebarBackground" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 13
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_right = 280.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.09, 0.12, 0.18, 1)
+
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1487721157]
+layout_mode = 1
+anchors_preset = 13
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = 22.0
+offset_right = 262.0
+offset_bottom = -22.0
+grow_vertical = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer" unique_id=1353306269]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 26
+text = "LEVEL EDITOR
+"
+
+[node name="LevelNameLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "LEVEL NAME"
+
+[node name="LevelNameInput" type="LineEdit" parent="VBoxContainer"]
+layout_mode = 2
+placeholder_text = "Example: Apple Maze"
+clear_button_enabled = true
+
+[node name="DescriptionLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "LEVEL INSTRUCTIONS"
+
+[node name="DescriptionInput" type="TextEdit" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+placeholder_text = "Tell players what they need to solve."
+
+[node name="GridSetupLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "GRID SETUP"
+
+[node name="PlacementLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "PLACE"
+
+[node name="WallsLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "WALLS"
+
+[node name="ObjectsLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "OBJECTS"
+
+[node name="ActionsLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "LEVEL ACTIONS"
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+autowrap_mode = 2
+text = "Active tool: Robot"
+
+[node name="NewButton" type="Button" parent="VBoxContainer" unique_id=1135570829]
+layout_mode = 2
+text = "New Level"
+
+[node name="LoadButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Load Level"
+
+[node name="RobotButton" type="Button" parent="VBoxContainer" unique_id=2106580057]
+layout_mode = 2
+text = "Place robot"
+
+[node name="GoalButton" type="Button" parent="VBoxContainer" unique_id=1081014911]
+layout_mode = 2
+text = "Place Goal"
+
+[node name="WallButton" type="Button" parent="VBoxContainer" unique_id=795082478]
+layout_mode = 2
+text = "Toggle North Wall"
+
+[node name="EastWallButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Toggle East Wall"
+
+[node name="SaveButton" type="Button" parent="VBoxContainer" unique_id=781972552]
+layout_mode = 2
+text = "Save Level"
+
+[node name="AppleButton" type="Button" parent="VBoxContainer" unique_id=676626797]
+layout_mode = 2
+text = "Place Apple"
+
+[node name="EraseButton" type="Button" parent="VBoxContainer" unique_id=826979752]
+layout_mode = 2
+text = "Erase Tile"
+
+[node name="ColumnsLabel" type="Label" parent="VBoxContainer" unique_id=2010761909]
+layout_mode = 2
+text = "Columns"
+
+[node name="ColumnsInput" type="SpinBox" parent="VBoxContainer" unique_id=2116227571]
+layout_mode = 2
+min_value = 2.0
+max_value = 30.0
+value = 10.0
+
+[node name="RowsLabel" type="Label" parent="VBoxContainer" unique_id=1772893611]
+layout_mode = 2
+text = "Rows"
+
+[node name="RowsInput" type="SpinBox" parent="VBoxContainer" unique_id=514100057]
+layout_mode = 2
+min_value = 2.0
+max_value = 30.0
+value = 10.0
+
+[node name="ResizeButton" type="Button" parent="VBoxContainer" unique_id=1777962815]
+layout_mode = 2
+text = "Create Sized Level"
+
+[node name="Spacer" type="Control" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BackButton" type="Button" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "← BACK TO MAIN MENU"
+
+[node name="EditorGrid" type="Node2D" parent="." unique_id=592158666]
+script = ExtResource("2_vaajg")

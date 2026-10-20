@@ -47,9 +47,13 @@ var _trail: Array[Vector2] = []
 var _trail_gx: int    = -1
 var _trail_gy: int    = -1
 var _trail_facing: String = ""
+var show_command_trail := true
 
 
 func _ready() -> void:
+	var config := ConfigFile.new()
+	if config.load("user://settings.cfg") == OK:
+		show_command_trail = bool(config.get_value("learning", "show_command_trail", true))
 	_camera = Camera2D.new()
 	_camera.enabled = false
 	add_child(_camera)
@@ -255,6 +259,8 @@ func _draw_wall_segment(gx: int, gy: int, dir: String) -> void:
 
 
 func _draw_trail() -> void:
+	if not show_command_trail:
+		return
 	if _trail.size() < 2:
 		return
 	# Start dot

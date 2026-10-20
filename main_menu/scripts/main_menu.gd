@@ -25,6 +25,8 @@ var campaign_menu: Window
 # main menu buttons
 @onready var main_menu_start_button: Button = get_node_or_null("MenuBG/ButtonsContainer/StartButton")
 @onready var upload_button: Button = get_node_or_null("MenuBG/ButtonsContainer/Upload")
+@onready var level_editor_button: Button = get_node_or_null("MenuBG/ButtonsContainer/LevelEditorButton")
+@onready var custom_worlds_button: Button = get_node_or_null("MenuBG/ButtonsContainer/CustomWorldsButton")
 @onready var options_button: Button = get_node_or_null("MenuBG/ButtonsContainer/OptionsButton")
 @onready var quit_button: Button = get_node_or_null("MenuBG/ButtonsContainer/QuitButton")
 
@@ -34,6 +36,7 @@ var campaign_menu: Window
 
 
 func _ready() -> void:
+	_arrange_main_menu_actions()
 	# bail early if critical nodes are missing, nothing below will work without them
 	if level_popup == null:
 		push_error("LevelSelectPopup node not found.")
@@ -70,6 +73,12 @@ func _ready() -> void:
 	if upload_button != null and not upload_button.pressed.is_connected(_on_upload_level_button_pressed):
 		upload_button.pressed.connect(_on_upload_level_button_pressed)
 
+	if level_editor_button != null and not level_editor_button.pressed.is_connected(_on_level_editor_button_pressed):
+		level_editor_button.pressed.connect(_on_level_editor_button_pressed)
+
+	if custom_worlds_button != null and not custom_worlds_button.pressed.is_connected(_open_custom_worlds):
+		custom_worlds_button.pressed.connect(_open_custom_worlds)
+
 	if options_button != null and not options_button.pressed.is_connected(_on_options_button_pressed):
 		options_button.pressed.connect(_on_options_button_pressed)
 
@@ -91,6 +100,16 @@ func _ready() -> void:
 		SelectedLevel.path = path
 		_on_play_button_pressed())
 	campaign_menu.custom_worlds_requested.connect(_open_custom_worlds)
+
+
+func _arrange_main_menu_actions() -> void:
+	var container := get_node_or_null("MenuBG/ButtonsContainer") as VBoxContainer
+	if container == null:
+		return
+	for index in range(["StartButton", "CustomWorldsButton", "LevelEditorButton", "Upload", "OptionsButton", "QuitButton"].size()):
+		var action := container.get_node_or_null(["StartButton", "CustomWorldsButton", "LevelEditorButton", "Upload", "OptionsButton", "QuitButton"][index])
+		if action != null:
+			container.move_child(action, index)
 
 
 # keeps the play button greyed out until the user has actually picked a level
@@ -140,6 +159,11 @@ func _on_upload_level_button_pressed() -> void:
 
 	if level_file_dialog != null:
 		level_file_dialog.popup_centered_ratio(0.75)
+
+
+func _on_level_editor_button_pressed() -> void:
+	$TabMoveSound.play()
+	get_tree().change_scene_to_file("res://level_editor/scenes/level_editor.tscn")
 
 
 # this will copy the selected file into the custom levels folder and refreshes the dropdown
