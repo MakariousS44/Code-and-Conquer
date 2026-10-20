@@ -4,6 +4,7 @@ var file_paths: Array[String] = []
 
 # built in campaign levels
 const CAMPAIGN_LEVELS_DIR := "res://data/campaign_levels/"
+const PROJECT_CUSTOM_LEVELS_DIR := "res://data/custom_levels/"
 const CUSTOM_LEVELS_DIR := "user://custom_levels/"
 
 
@@ -42,6 +43,7 @@ func populate_levels() -> void:
 	_add_levels_from_folder(CAMPAIGN_LEVELS_DIR)
 
 	# load custom levels if needed
+	_add_levels_from_folder(PROJECT_CUSTOM_LEVELS_DIR)
 	_add_levels_from_folder(CUSTOM_LEVELS_DIR)
 	
 	print("Dropdown item count: ", item_count)
@@ -64,11 +66,22 @@ func _add_levels_from_folder(path: String) -> void:
 		if file_name.ends_with(".json"):
 			var clean_name := file_name.get_basename()
 			var full_path := path.path_join(file_name)
+			var display_name := _read_level_name(full_path, clean_name)
 
-			print("Adding level: ", clean_name, " -> ", full_path)
+			print("Adding level: ", display_name, " -> ", full_path)
 
-			add_item(clean_name)
+			add_item(display_name)
 			file_paths.append(full_path)
+
+
+func _read_level_name(path: String, fallback: String) -> String:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return fallback
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) != OK or typeof(json.data) != TYPE_DICTIONARY:
+		return fallback
+	return str(json.data.get("name", fallback))
 
 func select_path(path: String) -> void:
 	print("=== SELECTING PATH IN DROPDOWN ===")

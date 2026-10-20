@@ -166,27 +166,27 @@ size_flags_horizontal = 4
 size_flags_vertical = 8
 
 [node name="ButtonsContainer" type="VBoxContainer" parent="MenuBG" unique_id=100000001]
-custom_minimum_size = Vector2(700, 0)
+custom_minimum_size = Vector2(480, 0)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -82.0
-offset_top = -88.0
-offset_right = 82.0
-offset_bottom = 276.0
+offset_left = -280.0
+offset_top = -150.0
+offset_right = 280.0
+offset_bottom = 290.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 24
+theme_override_constants/separation = 14
 
 [node name="StartButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1499396833]
-custom_minimum_size = Vector2(0, 95)
+custom_minimum_size = Vector2(0, 76)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"FlatButton"
-theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_color = Color(0.4, 0.95, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 30
 theme_override_styles/normal = ExtResource("4_1iqtg")
@@ -195,7 +195,7 @@ theme_override_styles/hover = ExtResource("5_q11ey")
 text = "PLAY"
 
 [node name="Upload" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2111853005]
-custom_minimum_size = Vector2(670, 68)
+custom_minimum_size = Vector2(560, 58)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
@@ -207,8 +207,34 @@ theme_override_styles/pressed = ExtResource("4_1iqtg")
 theme_override_styles/hover = ExtResource("5_q11ey")
 text = "UPLOAD LEVEL"
 
+[node name="LevelEditorButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2067717545]
+custom_minimum_size = Vector2(560, 58)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"FlatButton"
+theme_override_colors/font_color = Color(0.72, 0.58, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
+text = "LEVEL EDITOR"
+
+[node name="CustomWorldsButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=606039137]
+custom_minimum_size = Vector2(560, 58)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"FlatButton"
+theme_override_colors/font_color = Color(1, 0.8, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = ExtResource("4_1iqtg")
+theme_override_styles/pressed = ExtResource("4_1iqtg")
+theme_override_styles/hover = ExtResource("5_q11ey")
+text = "CUSTOM WORLDS"
+
 [node name="OptionsButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=2013621979]
-custom_minimum_size = Vector2(670, 68)
+custom_minimum_size = Vector2(560, 58)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
@@ -221,11 +247,11 @@ theme_override_styles/hover = ExtResource("5_q11ey")
 text = "OPTIONS"
 
 [node name="QuitButton" type="Button" parent="MenuBG/ButtonsContainer" unique_id=1837881485]
-custom_minimum_size = Vector2(670, 68)
+custom_minimum_size = Vector2(560, 58)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_type_variation = &"FlatButton"
-theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_color = Color(1, 0.52, 0.52, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 22
 theme_override_styles/normal = ExtResource("4_1iqtg")
@@ -258,7 +284,7 @@ mouse_filter = 1
 color = Color(0, 0, 0, 0.55)
 
 [node name="Panel" type="Panel" parent="MenuBG/OptionsTab" unique_id=1632772632]
-custom_minimum_size = Vector2(620, 500)
+custom_minimum_size = Vector2(620, 880)
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -266,9 +292,9 @@ anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
 offset_left = -310.0
-offset_top = -250.0
+offset_top = -440.0
 offset_right = 310.0
-offset_bottom = 250.0
+offset_bottom = 440.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_nu78t")
@@ -279,12 +305,12 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 70.0
-offset_top = 55.0
+offset_top = 35.0
 offset_right = -70.0
-offset_bottom = -55.0
+offset_bottom = -35.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 28
+theme_override_constants/separation = 10
 
 [node name="Title" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1632772634]
 layout_mode = 2
@@ -306,6 +332,26 @@ max_value = 1.0
 step = 0.05
 value = 1.0
 
+[node name="MusicLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=980625715]
+layout_mode = 2
+text = "MUSIC VOLUME"
+
+[node name="MusicSlider" type="HSlider" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=678517061]
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="SfxLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=507491144]
+layout_mode = 2
+text = "SOUND EFFECTS VOLUME"
+
+[node name="SfxSlider" type="HSlider" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=453734853]
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 1.0
+
 [node name="FullscreenCheck" type="CheckButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1632772636]
 custom_minimum_size = Vector2(0, 50)
 layout_mode = 2
@@ -313,6 +359,57 @@ theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 20
 text = "FULLSCREEN"
+
+[node name="UiScaleLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=572437409]
+layout_mode = 2
+text = "UI SCALE"
+
+[node name="UiScaleOption" type="OptionButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=682985160]
+layout_mode = 2
+
+[node name="CodeFontSizeLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=982564652]
+layout_mode = 2
+text = "CODE FONT SIZE"
+
+[node name="CodeFontSizeOption" type="OptionButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=2020539863]
+layout_mode = 2
+
+[node name="EditorThemeLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=27073366]
+layout_mode = 2
+text = "EDITOR THEME"
+
+[node name="EditorThemeOption" type="OptionButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1500975835]
+layout_mode = 2
+
+[node name="AnimationSpeedLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=206908430]
+layout_mode = 2
+text = "ANIMATION SPEED"
+
+[node name="AnimationSpeedOption" type="OptionButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=234268900]
+layout_mode = 2
+
+[node name="GridCoordinatesCheck" type="CheckButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1859547772]
+layout_mode = 2
+text = "SHOW GRID COORDINATES"
+
+[node name="CommandTrailCheck" type="CheckButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1850340837]
+layout_mode = 2
+text = "SHOW COMMAND TRAIL"
+
+[node name="BeginnerHintsCheck" type="CheckButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1647404327]
+layout_mode = 2
+text = "ENABLE BEGINNER HINTS"
+
+[node name="DefaultLanguageLabel" type="Label" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=381919909]
+layout_mode = 2
+text = "DEFAULT LANGUAGE"
+
+[node name="DefaultLanguageOption" type="OptionButton" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1959620853]
+layout_mode = 2
+
+[node name="ResetButton" type="Button" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1093058412]
+layout_mode = 2
+text = "RESET SETTINGS"
 
 [node name="BackButton" type="Button" parent="MenuBG/OptionsTab/Panel/VBoxContainer" unique_id=1432951235]
 custom_minimum_size = Vector2(0, 60)

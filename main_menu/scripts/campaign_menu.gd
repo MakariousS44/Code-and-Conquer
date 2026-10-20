@@ -31,10 +31,14 @@ func _ready() -> void:
 	column.add_child(heading)
 	_progress = Label.new()
 	column.add_child(_progress)
+	var level_scroll := ScrollContainer.new()
+	level_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	level_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(level_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 12)
-	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	column.add_child(_list)
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	level_scroll.add_child(_list)
 	var worlds := Button.new()
 	worlds.text = "Custom Worlds & Test Templates"
 	worlds.custom_minimum_size.y = 44
