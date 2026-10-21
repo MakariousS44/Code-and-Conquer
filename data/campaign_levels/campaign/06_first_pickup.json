@@ -101,7 +101,7 @@
     ]
   },
   "description": [
-    "The object must be picked up. Walk onto its tile, collect it with pick_object(), then continue to the goal at (7, 10). The goal only counts once the token has been picked up."
+    "The object must be picked up. Walk onto its tile, collect it with pick_object(), then continue to the goal at (7, 9). The goal only counts once the token has been picked up."
   ],
   "hint": "The object is at (7, 5). Also, notice the repeatable pattern to reach the goal.",
   "small_tiles": false,
