@@ -9,6 +9,10 @@ const LEVELS := [
 	{"id": "long_hallway", "title": "Long Hallway", "concept": "A long hallway", "path": "res://data/campaign_levels/campaign/04_long_hallway.json"},
 	{"id": "staircase", "title": "Staircase Pattern", "concept": "A repeatable pattern", "path": "res://data/campaign_levels/campaign/05_staircase.json"},
 	{"id": "first_pickup", "title": "First Pickup", "concept": "An object must be picked up", "path": "res://data/campaign_levels/campaign/06_first_pickup.json"},
+	{"id": "special_delivery", "title": "Special Delivery", "concept": "Pick up and place an object", "path": "res://data/campaign_levels/campaign/07_special_delivery.json"},
+	{"id": "stepping_stones", "title": "Stepping Stones", "concept": "A pattern leftover step", "path": "res://data/campaign_levels/campaign/08_stepping_stones.json"},
+	{"id": "cornern_stones", "title": "Corner Stones", "concept": "Nested loops and your own function", "path": "res://data/campaign_levels/campaign/09_corner_stones.json"},
+	{"id": "spiral_harvest", "title": "Spiral Harvest", "concept": "Using new sensors", "path": "res://data/campaign_levels/campaign/10_spiral_harvest.json"},
 ]
 
 static func index_for_path(path: String) -> int:
