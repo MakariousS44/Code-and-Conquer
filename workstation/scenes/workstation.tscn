@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 [ext_resource type="Texture2D" uid="uid://djbi7c38k38jv" path="res://assets/images/compass_east.png" id="6_1bmh4"]
+[ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://assets/audio/losesound.mp3" id="lose_sound_ref"]
+[ext_resource type="AudioStream" uid="uid://b82side3ocox6" path="res://assets/audio/winsound.mp3" id="win_sound_ref"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
 content_margin_left = 8.0
@@ -1001,6 +1003,12 @@ theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[node name="LoseSound" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("lose_sound_ref")
+
+[node name="WinSound" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("win_sound_ref")
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false

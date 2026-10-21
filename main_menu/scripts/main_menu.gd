@@ -149,7 +149,7 @@ func _on_quit_button_pressed() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	$QuitSound.play()
+	$LoseSound.play()
 	await get_tree().create_timer(2.0).timeout
 	get_tree().quit()
 

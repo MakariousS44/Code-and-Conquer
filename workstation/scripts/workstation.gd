@@ -787,6 +787,7 @@ func _trigger_move_limit_lose() -> void:
 	_run_outcome = "move_limit"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error("Move Limit Reached")
 	_set_status("You lost", "error")
@@ -806,6 +807,7 @@ func _trigger_incomplete_lose(reason: String) -> void:
 	_run_outcome = "incomplete"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -822,6 +824,7 @@ func _on_player_lose(reason: String) -> void:
 	_run_outcome = "lose"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -832,6 +835,7 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	$WinSound.play()
 	_run_outcome = "win"
 	_stop_execution()
 	var campaign_index := Campaign.index_for_path(SelectedLevel.path)
