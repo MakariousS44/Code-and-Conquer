@@ -1125,11 +1125,17 @@ func _run_ipc_loop() -> void:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
-			if _level_has_win_condition():
-				_trigger_incomplete_lose("Did not reach the goal.")
-			else:
-				_on_execution_done()
-				return
+			# Check win condition one final time after all commands complete
+			if game_instance != null and game_instance.has_method("check_win_condition"):
+				game_instance.check_win_condition(player_node.grid_x, player_node.grid_y)
+			
+			# If still incomplete after final check, trigger lose
+			if _run_outcome == "incomplete":
+				if _level_has_win_condition():
+					_trigger_incomplete_lose("Did not reach the goal.")
+				else:
+					_on_execution_done()
+					return
 		else:
 			_stop_execution()
 

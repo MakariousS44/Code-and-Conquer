@@ -127,9 +127,6 @@ func move_forward(duration: float = 0.5) -> void:
 	# Stop running animation
 	update_animation(false)
 
-	if world.has_method("check_win_condition"):
-		world.check_win_condition(grid_x, grid_y)
-
 
 func _trigger_lose(reason: String) -> void:
 	if _has_lost:

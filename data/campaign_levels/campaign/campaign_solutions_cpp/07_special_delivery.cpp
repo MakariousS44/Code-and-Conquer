@@ -12,7 +12,7 @@ int main() {
     move();
     move();
     move();
-    // put_object();
+    put_object();
 
     return 0;
 }
