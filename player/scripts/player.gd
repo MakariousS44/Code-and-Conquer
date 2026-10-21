@@ -10,7 +10,7 @@ const DIRS = ["east", "south", "west", "north"]
 var grid_x: int = 1
 var grid_y: int = 1
 var facing: String = "north"
-var carried_object: String = "" 
+var carried_object: Dictionary = {}
 var _has_lost: bool = false
 var current_tween: Tween
 
@@ -61,12 +61,15 @@ func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, is_rotati
 	if not is_rotating:
 		# BRAND NEW LEVEL: Reset logical variables
 		_has_lost = false
-		carried_object = ""
+		carried_object = {}
+		var robot_objects = robot_data.get("objects", {})
+		if robot_objects is Dictionary:
+			carried_object = robot_objects.duplicate()
 		grid_x = robot_data.get("x", 1)
 		grid_y = robot_data.get("y", 1)
 		
 		var start_face: int = robot_data.get("_orientation", 1)
-		facing = DIRS[start_face] 
+		facing = DIRS[start_face]
 	
 	# Whether brand new or just rotating, update the visual sprite
 	update_animation(false)
@@ -155,13 +158,12 @@ func pick_object() -> void:
 	if world == null:
 		return
 
-	if carried_object != "":
-		return
-
 	if world.has_method("remove_object_at"):
 		var obj = world.remove_object_at(grid_x, grid_y)
 		if obj != "":
-			carried_object = obj
+			if not carried_object.has(obj):
+				carried_object[obj] = 0
+			carried_object[obj] += 1
 
 
 func put_object() -> void:
@@ -169,9 +171,12 @@ func put_object() -> void:
 	if world == null:
 		return
 
-	if carried_object == "":
+	if carried_object.is_empty():
 		return
 
 	if world.has_method("place_object_at"):
-		world.place_object_at(grid_x, grid_y, carried_object)
-		carried_object = ""
+		var obj_name = carried_object.keys()[0]
+		world.place_object_at(grid_x, grid_y, obj_name)
+		carried_object[obj_name] -= 1
+		if carried_object[obj_name] <= 0:
+			carried_object.erase(obj_name)

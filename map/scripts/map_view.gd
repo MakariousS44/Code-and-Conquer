@@ -790,7 +790,7 @@ func check_win_condition(gx: int, gy: int) -> void:
 	# --- object carry check ---
 	if goal.has("require_carry_object"):
 		var required_obj = goal["require_carry_object"]
-		if player.carried_object != required_obj:
+		if not player.carried_object.has(required_obj) or player.carried_object[required_obj] <= 0:
 			level_incomplete.emit("Reached the goal without carrying " + required_obj + ".")
 			return
 

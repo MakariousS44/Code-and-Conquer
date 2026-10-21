@@ -1232,7 +1232,7 @@ func _answer_query(query: String) -> String:
 		"OBJECT_HERE":
 			return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
 		"CARRIES_OBJECT":
-			return _bool(player_node.carried_object != "")
+			return _bool(not player_node.carried_object.is_empty())
 	return "false"
 
 
