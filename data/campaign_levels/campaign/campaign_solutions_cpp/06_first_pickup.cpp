@@ -36,8 +36,7 @@ int main()
     turn_left();
     turn_left();
     
-    // move 5 times
-    move();
+    // move 4 times
     move();
     move();
     move();
