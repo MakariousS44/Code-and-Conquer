@@ -9,7 +9,8 @@
 2. [Download & Play](#download--play)
 3. [Getting Started (Developers)](#getting-started-developers)
 4. [How to Play](#how-to-play)
-5. [Available Commands](#available-commands)
+5. [Available Commands & Sensors](#available-commands--sensors)
+6. [Team](#team)
 ---
  
 ## About the Project
@@ -52,6 +53,7 @@ Before you begin, ensure you have the following installed:
 - [For Windows](https://godotengine.org/download/windows/)
 - [For Linux](https://godotengine.org/download/linux/)
 - [For MacOS](https://godotengine.org/download/macos/)
+
 Godot is downloaded as an executable inside a zip file. To start Godot, unzip and run the executable.
  
 **GCC (g++)** — Required to compile C++ student code at runtime.
@@ -148,4 +150,8 @@ int main() {
  
 ---
  
-*Pickaxe Productions — Spring 2026*
+## Team
+
+Built by **Pickaxe Productions** for CSCI 4700 (Software Engineering), Spring 2026.
+
+[@abjones3768](https://github.com/abjones3768) · [@breck768](https://github.com/breck768) · [@et4v](https://github.com/et4v) · [@hahernandezchang](https://github.com/hahernandezchang) · [@khualmtsu](https://github.com/khualmtsu) · [@lindap-k](https://github.com/lindap-k) · [@MakariousS44](https://github.com/MakariousS44)
