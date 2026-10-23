@@ -1,9 +1,7 @@
 # Code & Conquer
 **A programming game and learning tool built with Godot 4**  
 
-[![Code & Conquer demo video](https://img.youtube.com/vi/V_BUZL9QwRA/hqdefault.jpg)](https://youtu.be/V_BUZL9QwRA)
-
-*▶ Watch the demo on YouTube*
+▶ **[Watch the group demo on YouTube](https://youtu.be/7B9MmFm1CPM)**
 
  
 ---
