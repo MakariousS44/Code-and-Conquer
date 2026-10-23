@@ -156,4 +156,4 @@ int main() {
 
 Built by **Pickaxe Productions** for CSCI 4700 (Software Engineering), Spring 2026.
 
-[@abjones3768](https://github.com/abjones3768) · [@breck768](https://github.com/breck768) · [@et4v](https://github.com/et4v) · [@hahernandezchang](https://github.com/hahernandezchang) · [@khualmtsu](https://github.com/khualmtsu) · [@lindap-k](https://github.com/lindap-k) · [@MakariousS44](https://github.com/MakariousS44)
+[@breck768](https://github.com/breck768) · [@et4v](https://github.com/et4v) · [@hahernandezchang](https://github.com/hahernandezchang) · [@khualmtsu](https://github.com/khualmtsu) · [@lindap-k](https://github.com/lindap-k) · [@MakariousS44](https://github.com/MakariousS44)
