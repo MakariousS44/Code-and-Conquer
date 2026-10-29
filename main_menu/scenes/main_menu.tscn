@@ -7,7 +7,7 @@
 [ext_resource type="AudioStream" uid="uid://c54t0khjgkxeg" path="res://assets/audio/menumove.mp3" id="5_6hyfw"]
 [ext_resource type="StyleBox" uid="uid://m07piekpagsq" path="res://assets/themes/blue_buttonHover.tres" id="5_q11ey"]
 [ext_resource type="Script" uid="uid://8cgjt5y7ayld" path="res://main_menu/scenes/options_tab.gd" id="6_q11ey"]
-[ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://assets/audio/quitsound.mp3" id="7_nu78t"]
+[ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://assets/audio/losesound.mp3" id="7_nu78t"]
 [ext_resource type="Script" uid="uid://ku1jvvw0a25w" path="res://main_menu/scripts/main_menu.gd" id="9_main"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nu78t"]
@@ -429,7 +429,7 @@ stream = ExtResource("2_suspn")
 [node name="TabMoveSound" type="AudioStreamPlayer" parent="." unique_id=142174545]
 stream = ExtResource("5_6hyfw")
 
-[node name="QuitSound" type="AudioStreamPlayer" parent="." unique_id=872956816]
+[node name="LoseSound" type="AudioStreamPlayer" parent="." unique_id=872956816]
 stream = ExtResource("7_nu78t")
 
 [node name="Mask" type="ColorRect" parent="." unique_id=1348239614]

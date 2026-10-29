@@ -1,0 +1,13 @@
+{
+  "rows": 6,
+  "cols": 6,
+  "robots": [{"x": 1, "y": 1, "_orientation": 0, "objects": {"token": 4}}],
+  "walls": {},
+  "goal": {"position": {"x": 1, "y": 1, "image": "green_home_tile"}, "objects": {"6,1": {"token": 1}, "6,6": {"token": 1}, "1,6": {"token": 1}, "1,1": {"token": 1}}},
+  "description": ["You are carrying 4 tokens. Walk the edge of the room and leave one on each corner: (6, 1), (6, 6), (1, 6), and finally your starting tile (1, 1). Every side needs the same steps, so try writing your own function for it."],
+  "hint": "One side = move() five times, put_object(), turn_left(). Write those steps once inside walk_side(), then call walk_side() four times, or put the calls in a loop.",
+  "editor": {
+    "cpp": ["#include \"robot.hpp\"", "", "// Walk one side of the room and leave a token on the corner.", "void walk_side() {", "    // Write the steps for ONE side here.", "}", "", "int main() {", "    // Call walk_side() once for each side of the room.", "", "    return 0;", "}"],
+    "python": ["from robot import *", "", "# Walk one side of the room and leave a token on the corner.", "def walk_side():", "    pass  # Write the steps for ONE side here.", "", "# Call walk_side() once for each side of the room."]
+  }
+}

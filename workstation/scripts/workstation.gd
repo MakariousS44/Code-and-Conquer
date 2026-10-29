@@ -787,6 +787,7 @@ func _trigger_move_limit_lose() -> void:
 	_run_outcome = "move_limit"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error("Move Limit Reached")
 	_set_status("You lost", "error")
@@ -806,6 +807,7 @@ func _trigger_incomplete_lose(reason: String) -> void:
 	_run_outcome = "incomplete"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -822,6 +824,7 @@ func _on_player_lose(reason: String) -> void:
 	_run_outcome = "lose"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -832,6 +835,7 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	$WinSound.play()
 	_run_outcome = "win"
 	_stop_execution()
 	var campaign_index := Campaign.index_for_path(SelectedLevel.path)
@@ -842,7 +846,7 @@ func _on_level_complete() -> void:
 		campaign_next_button.visible = save_error == OK and campaign_index + 1 < Campaign.LEVELS.size()
 		if campaign_index == Campaign.LEVELS.size() - 1:
 			$WinOverlay/WinCard/WinContent/WinTitle.text = "Campaign Complete!"
-			$WinOverlay/WinCard/WinContent/WinMessage.text = "You completed all six levels. Well done!"
+			$WinOverlay/WinCard/WinContent/WinMessage.text = "You completed all ten levels. Well done!"
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
@@ -1125,11 +1129,17 @@ func _run_ipc_loop() -> void:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
-			if _level_has_win_condition():
-				_trigger_incomplete_lose("Did not reach the goal.")
-			else:
-				_on_execution_done()
-				return
+			# Check win condition one final time after all commands complete
+			if game_instance != null and game_instance.has_method("check_win_condition"):
+				game_instance.check_win_condition(player_node.grid_x, player_node.grid_y)
+			
+			# If still incomplete after final check, trigger lose
+			if _run_outcome == "incomplete":
+				if _level_has_win_condition():
+					_trigger_incomplete_lose("Did not reach the goal.")
+				else:
+					_on_execution_done()
+					return
 		else:
 			_stop_execution()
 
@@ -1232,7 +1242,7 @@ func _answer_query(query: String) -> String:
 		"OBJECT_HERE":
 			return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
 		"CARRIES_OBJECT":
-			return _bool(player_node.carried_object != "")
+			return _bool(not player_node.carried_object.is_empty())
 	return "false"
 
 
