@@ -103,6 +103,18 @@ func run_tests() -> void:
 	station._on_lose_retry()
 	await process_frame
 	check(station.player_node.modulate.a == 1.0, "Retry must restore character visibility")
+	for rotation in range(4):
+		world = station.game_instance
+		for turn in range(rotation):
+			world.rotate_world_right()
+		station.player_node.grid_x = 1
+		station.player_node.grid_y = 2
+		station.player_node.facing = "west"
+		check(station._answer_query("FRONT_IS_CLEAR") == "false", "Keep the original boundary sensor behavior for campaign solutions")
+		await station.player_node.move_forward(0.001)
+		check(station.lose_overlay.visible and station.player_node.modulate.a == 0.0, "Outside edges must trigger a visible fall at every rotation")
+		station._on_lose_retry()
+		await process_frame
 	station.queue_free()
 	await process_frame
 	print("WORLD FEATURE TESTS: %d failures" % failures)

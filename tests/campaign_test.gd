@@ -30,8 +30,13 @@ func run_tests() -> void:
 	check(Campaign.index_for_path("user://custom_levels/custom.json") == -1, "Custom worlds must not grant campaign progress")
 	DirAccess.remove_absolute(save_path)
 
-	# M = move, L = turn left. Each route should reach its level's goal.
-	var solutions := ["MMMM", "MMMMLMMMM", "MMMMLMMLMMMMLLLMMLLLMMMM", "M".repeat(11), "MLMLLL".repeat(8), "LMMMLLLMMMLMMMLLLMMMLLLMMPLLMMMM"]
+	# M = move, L = turn left, P = pick, U = put.
+	var solutions := [
+		"MMMM", "MMMMLMMMM", "MMMMLMMLMMMMLLLMMLLLMMMM",
+		"M".repeat(11), "MLMLLL".repeat(8), "LMMMLLLMMMLMMMLLLMMMLLLMMPLLMMMM",
+		"MMPMMMLMMMU", "U" + "MMU".repeat(4), "UMMMMML".repeat(4),
+		"MMPMMLMMMPMLMMMPMLMMPMLMMMPLMMLMMLMLMUUUUU"
+	]
 	for i in range(Campaign.LEVELS.size()):
 		var result: Dictionary = Loader.new().load(Campaign.LEVELS[i].path)
 		check(result.ok, "Campaign JSON must load")
@@ -50,8 +55,11 @@ func run_tests() -> void:
 				await world.player.move_forward(0.001)
 			elif action == "P":
 				world.player.pick_object()
+			elif action == "U":
+				world.player.put_object()
 			else:
 				world.player.turn_left()
+		world.check_win_condition(world.player.grid_x, world.player.grid_y)
 		check(outcome.won and not outcome.lost, "Level %d must be solvable without collisions" % (i + 1))
 		world.queue_free()
 		await process_frame
@@ -85,8 +93,11 @@ func run_tests() -> void:
 				await workstation.player_node.move_forward(0.001)
 			elif action == "P":
 				workstation.player_node.pick_object()
+			elif action == "U":
+				workstation.player_node.put_object()
 			else:
 				workstation.player_node.turn_left()
+		workstation.game_instance.check_win_condition(workstation.player_node.grid_x, workstation.player_node.grid_y)
 		check(workstation.win_overlay.visible, "Campaign victory must show overlay")
 		check(Campaign.LEVELS[i].id in Campaign.completed_ids(save_path), "Workstation victory must save completion")
 		if i + 1 < Campaign.LEVELS.size():

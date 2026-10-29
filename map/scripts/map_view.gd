@@ -696,7 +696,7 @@ func is_in_bounds(gx: int, gy: int) -> bool:
 
 
 func is_void(gx: int, gy: int) -> bool:
-	return preload("res://map/scripts/void_tiles.gd").contains(level_data, gx, gy)
+	return not is_in_bounds(gx, gy) or preload("res://map/scripts/void_tiles.gd").contains(level_data, gx, gy)
 
 ## Check if movement in dir from (gx,gy) is blocked by a wall.
 ## Walls are stored as "east" and "north" only (Reborg format).

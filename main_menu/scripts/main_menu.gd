@@ -123,14 +123,6 @@ func _arrange_main_menu_actions() -> void:
 		button.add_theme_color_override("font_color", accent)
 		button.add_theme_color_override("font_hover_color", Color.WHITE)
 		button.add_theme_color_override("font_pressed_color", accent.lightened(0.2))
-		for state in ["normal", "hover", "pressed", "focus"]:
-			var style := StyleBoxFlat.new()
-			style.bg_color = Color("172333").lerp(accent, 0.22 if state == "hover" else 0.08)
-			style.border_color = accent if state != "normal" else accent.darkened(0.35)
-			style.set_border_width_all(2)
-			style.border_width_left = 6
-			style.set_corner_radius_all(10)
-			button.add_theme_stylebox_override(state, style)
 
 
 # keeps the play button greyed out until the user has actually picked a level

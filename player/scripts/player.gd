@@ -85,6 +85,8 @@ func _get_world() -> Node:
 # ========= Movement =========
 ## Advances the player one step to where its facing
 func move_forward(duration: float = 0.5) -> void:
+	if _has_lost:
+		return
 	var world = _get_world()
 	var next_x = grid_x
 	var next_y = grid_y
@@ -97,12 +99,6 @@ func move_forward(duration: float = 0.5) -> void:
 		"south": next_y -= 1
 
 	# Lose Condition ----------------------------------------
-	# LOSE: if the player attempts to leave the playable floor
-	if world.has_method("is_in_bounds"):
-		if not world.is_in_bounds(next_x, next_y):
-			_trigger_lose("You lose: attempted to move outside the floor.")
-			return
-
 	# LOSE: on attempted move through a wall edge
 	if world.has_method("is_move_blocked"):
 		if world.is_move_blocked(grid_x, grid_y, facing):
