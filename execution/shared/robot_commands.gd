@@ -23,11 +23,12 @@ const SENSORS := [
 	{ "name": "carries_object",  "query": "CARRIES_OBJECT"  },
 	{ "name": "is_facing_north", "query": "IS_FACING_NORTH" },
 	{ "name": "is_facing_east", "query": "IS_FACING_EAST" },
+	{ "name": "is_facing_south", "query": "IS_FACING_SOUTH" },
 	{ "name": "is_facing_west", "query": "IS_FACING_WEST" },
 ]
 
 ## Socket bootstrap + a synthesized 'robot' module containing all commands and sensors.
-func get_python_bootstrap(port: int) -> String:
+func get_python_bootstrap(port: int, token: String) -> String:
 	var lines := [
 		"import socket as _socket, sys, traceback, types",
 		"",
@@ -40,6 +41,8 @@ func get_python_bootstrap(port: int) -> String:
 		"",
 		"def _robot_recv():",
 		"    return _sock_file.readline().decode().strip()",
+		"",
+		"_robot_send('[AUTH] %s')" % token,
 		"",
 		"# Route student print() through the socket to the output panel",
 		"class _SockStdout:",
@@ -117,7 +120,7 @@ func get_cpp_header() -> String:
 
 ## robot_runtime.cpp — cross-platform socket bootstrap + all implementations.
 ## Port is baked in at generation time so no runtime argument is needed.
-func get_cpp_source(port: int) -> String:
+func get_cpp_source(port: int, token: String) -> String:
 	var lines := [
 		"#include \"robot.hpp\"",
 		"#include <string>",
@@ -177,7 +180,7 @@ func get_cpp_source(port: int) -> String:
 		"}",
 		"",
 		"struct __RobotLifetime {",
-		"    __RobotLifetime()  { __robot_connect(); }",
+		"    __RobotLifetime()  { __robot_connect(); __robot_send(\"[AUTH] %s\"); }" % token,
 		"    ~__RobotLifetime() { __robot_send(\"[DONE]\"); __sock_close(__robot_sock); }",
 		"} __robot_lifetime;",
 		"",

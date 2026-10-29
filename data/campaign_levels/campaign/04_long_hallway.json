@@ -1,100 +1,100 @@
 {
   "robots": [
-	{
-	  "x": 1,
-	  "y": 2,
-	  "_prev_x": 1,
-	  "_prev_y": 2,
-	  "_prev_orientation": 0,
-	  "objects": {},
-	  "_orientation": 0,
-	  "_is_leaky": true,
-	  "_trace_history": [],
-	  "_trace_style": "default",
-	  "_trace_color": "seagreen",
-	  "__id": 2,
-	  "model": "solar panel",
-	  "possible_initial_positions": [
-		[
-		  1,
-		  2
-		]
-	  ]
-	}
+    {
+      "x": 1,
+      "y": 2,
+      "_prev_x": 1,
+      "_prev_y": 2,
+      "_prev_orientation": 0,
+      "objects": {},
+      "_orientation": 0,
+      "_is_leaky": true,
+      "_trace_history": [],
+      "_trace_style": "default",
+      "_trace_color": "seagreen",
+      "__id": 2,
+      "model": "solar panel",
+      "possible_initial_positions": [
+        [
+          1,
+          2
+        ]
+      ]
+    }
   ],
   "walls": {
-	"3,1": [
+    "3,1": [
       "north"
-	],
-	"1,1": [
+    ],
+    "1,1": [
       "north"
-	],
-	"2,1": [
+    ],
+    "2,1": [
       "north"
-	],
-	"4,1": [
+    ],
+    "4,1": [
       "north"
-	],
-	"5,1": [
+    ],
+    "5,1": [
       "north"
-	],
-	"6,1": [
+    ],
+    "6,1": [
       "north"
-	],
-	"7,1": [
+    ],
+    "7,1": [
       "north"
-	],
-	"8,1": [
+    ],
+    "8,1": [
       "north"
-	],
-	"9,1": [
+    ],
+    "9,1": [
       "north"
-	],
-	"10,1": [
+    ],
+    "10,1": [
       "north"
-	],
-	"10,2": [
+    ],
+    "10,2": [
       "north"
-	],
-	"9,2": [
+    ],
+    "9,2": [
       "north"
-	],
-	"8,2": [
+    ],
+    "8,2": [
       "north"
-	],
-	"7,2": [
+    ],
+    "7,2": [
       "north"
-	],
-	"5,2": [
+    ],
+    "5,2": [
       "north"
-	],
-	"4,2": [
+    ],
+    "4,2": [
       "north"
-	],
-	"6,2": [
+    ],
+    "6,2": [
       "north"
-	],
-	"3,2": [
+    ],
+    "3,2": [
       "north"
-	],
-	"1,2": [
+    ],
+    "1,2": [
       "north"
-	],
-	"2,2": [
+    ],
+    "2,2": [
       "north"
-	],
-	"11,1": [
+    ],
+    "11,1": [
       "north"
-	],
-	"12,1": [
+    ],
+    "12,1": [
       "north"
-	],
-	"12,2": [
+    ],
+    "12,2": [
       "north"
-	],
-	"11,2": [
+    ],
+    "11,2": [
       "north"
-	]
+    ]
   },
   "description": [
     "The goal at (12, 2) is far away. Writing move() eleven times works, but a loop is much shorter and easier to understand. Use a loop to reach the goal."
@@ -104,16 +104,16 @@
   "rows": 3,
   "cols": 12,
   "goal": {
-	"possible_final_positions": [
-	  [
-		12,
-		2
-	  ]
-	],
-	"position": {
-	  "image": "green_home_tile",
-	  "x": 12,
-	  "y": 2
-	}
+    "possible_final_positions": [
+      [
+        12,
+        2
+      ]
+    ],
+    "position": {
+      "image": "green_home_tile",
+      "x": 12,
+      "y": 2
+    }
   }
 }
