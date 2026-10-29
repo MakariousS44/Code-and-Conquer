@@ -83,6 +83,47 @@ func _ready() -> void:
 		level_dropdown.item_selected.connect(func(_i: int): _update_play_button())
 
 	_update_play_button()
+<<<<<<< Updated upstream
+=======
+	campaign_menu = preload("res://main_menu/scripts/campaign_menu.gd").new()
+	campaign_menu.visible = false
+	add_child(campaign_menu)
+	campaign_menu.level_selected.connect(func(path: String):
+		SelectedLevel.path = path
+		_on_play_button_pressed())
+	campaign_menu.custom_worlds_requested.connect(_open_custom_worlds)
+
+
+func _arrange_main_menu_actions() -> void:
+	var container := get_node_or_null("MenuBG/ButtonsContainer") as VBoxContainer
+	if container == null:
+		return
+	for index in range(["StartButton", "CustomWorldsButton", "LevelEditorButton", "Upload", "OptionsButton", "QuitButton"].size()):
+		var action := container.get_node_or_null(["StartButton", "CustomWorldsButton", "LevelEditorButton", "Upload", "OptionsButton", "QuitButton"][index])
+		if action != null:
+			container.move_child(action, index)
+	var colors := {
+		"StartButton": Color("79dfac"), "CustomWorldsButton": Color("72c9f3"),
+		"LevelEditorButton": Color("c0a0ff"), "Upload": Color("f2c879"),
+		"OptionsButton": Color("f0a6ce"), "QuitButton": Color("f28e91")
+	}
+	for button_name in colors:
+		var button := container.get_node_or_null(button_name) as Button
+		if button == null:
+			continue
+		var accent: Color = colors[button_name]
+		button.add_theme_color_override("font_color", accent)
+		button.add_theme_color_override("font_hover_color", Color.WHITE)
+		button.add_theme_color_override("font_pressed_color", accent.lightened(0.2))
+		for state in ["normal", "hover", "pressed", "focus"]:
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color("172333").lerp(accent, 0.22 if state == "hover" else 0.08)
+			style.border_color = accent if state != "normal" else accent.darkened(0.35)
+			style.set_border_width_all(2)
+			style.border_width_left = 6
+			style.set_corner_radius_all(10)
+			button.add_theme_stylebox_override(state, style)
+>>>>>>> Stashed changes
 
 
 # keeps the play button greyed out until the user has actually picked a level

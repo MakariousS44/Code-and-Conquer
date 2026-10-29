@@ -59,6 +59,7 @@ func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, is_rotati
 	position = world_pos
 
 	if not is_rotating:
+		modulate.a = 1.0
 		# BRAND NEW LEVEL: Reset logical variables
 		_has_lost = false
 		carried_object = ""
@@ -123,6 +124,14 @@ func move_forward(duration: float = 0.5) -> void:
 	
 	# Stop running animation
 	update_animation(false)
+	if world.is_void(grid_x, grid_y):
+		current_tween = create_tween()
+		current_tween.set_parallel(true)
+		current_tween.tween_property(self, "modulate:a", 0.0, maxf(duration, 0.15))
+		current_tween.tween_property(self, "position:y", position.y + 80.0, maxf(duration, 0.15))
+		await current_tween.finished
+		_trigger_lose("You fell into the void. Watch for missing floor tiles!")
+		return
 
 	if world.has_method("check_win_condition"):
 		world.check_win_condition(grid_x, grid_y)

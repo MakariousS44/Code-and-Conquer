@@ -13,13 +13,13 @@ extends Node2D
 const CELL_SIZE       := 64.0
 const WALL_WIDTH      := 7.0
 
-const BG_COLOR        := Color(0.10, 0.11, 0.14, 1)
-const FLOOR_COLOR     := Color(0.17, 0.19, 0.23)
-const FLOOR_ALT_COLOR := Color(0.15, 0.17, 0.21)
-const GOAL_COLOR      := Color(0.964, 0.548, 0.0, 1.0)
+const BG_COLOR        := Color("0b1220")
+const FLOOR_COLOR     := Color("233e4c")
+const FLOOR_ALT_COLOR := Color("294753")
+const GOAL_COLOR      := Color("338c72")
 const GOAL_MARKER     := Color(1.0, 1.0, 1.0, 1.0)
 const WALL_COLOR      := Color(0x8bffffff)
-const GRID_LINE_COLOR := Color(0.544, 1.387, 1.479, 1.0)
+const GRID_LINE_COLOR := Color("456575")
 const PLAYER_COLOR    := Color(0.636, 0.0, 0.822, 1.0)
 const PLAYER_RIM      := Color(0.636, 0.0, 0.822, 1.0)
 const TRAIL_COLOR     := Color(0.78, 0.25, 0.95, 0.72)
@@ -53,6 +53,7 @@ func _ready() -> void:
 	_camera = Camera2D.new()
 	_camera.enabled = false
 	add_child(_camera)
+	get_viewport().size_changed.connect(_fit_camera)
 
 
 func setup(map_instance: Node, player: Node) -> void:
@@ -66,7 +67,7 @@ func setup(map_instance: Node, player: Node) -> void:
 	_trail_facing = ""
 	if player != null:
 		_record_trail(player.grid_x, player.grid_y, player.facing)
-	_fit_camera()
+	call_deferred("_fit_camera")
 	queue_redraw()
 
 
@@ -110,6 +111,7 @@ func rebuild_trail(positions: Array) -> void:
 func activate() -> void:
 	_camera.enabled = true
 	_camera.make_current()
+	call_deferred("_fit_camera")
 
 
 func deactivate() -> void:
@@ -182,8 +184,12 @@ func _draw_background() -> void:
 func _draw_floor() -> void:
 	for gx in range(1, _cols + 1):
 		for gy in range(1, _rows + 1):
+			if _map_ref.is_void(gx, gy):
+				continue
 			var color := FLOOR_COLOR if (gx + gy) % 2 == 0 else FLOOR_ALT_COLOR
 			draw_rect(_cell_rect(gx, gy), color)
+			var inset := _cell_rect(gx, gy).grow(-4.0)
+			draw_line(inset.position, Vector2(inset.end.x, inset.position.y), Color("4a7380"), 1.0)
 
 
 func _draw_goal() -> void:
@@ -213,6 +219,8 @@ func _draw_goal() -> void:
 func _draw_grid_lines() -> void:
 	for gx in range(1, _cols + 1):
 		for gy in range(1, _rows + 1):
+			if _map_ref.is_void(gx, gy):
+				continue
 			draw_rect(_cell_rect(gx, gy), GRID_LINE_COLOR, false, -0.5)
 
 

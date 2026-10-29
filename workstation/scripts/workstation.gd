@@ -361,6 +361,11 @@ func _on_language_changed(index: int) -> void:
 
 # === syntax highlighting ===
 
+func _syntax_color(color: Color) -> Color:
+	if int(_saved_setting("editor", "theme", 0)) == 1:
+		return color.darkened(0.55)
+	return color
+
 func _setup_syntax_highlighting() -> void:
 	var highlighter := CodeHighlighter.new()
 
@@ -370,24 +375,23 @@ func _setup_syntax_highlighting() -> void:
 		"true", "false", "break", "continue"
 	]
 	for word in keywords:
-		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
 
 	for command in _commands.COMMANDS:
-		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
+		highlighter.add_keyword_color(command.name, _syntax_color(Color(0.80, 0.60, 1.00)))
 
 	for sensor in _commands.SENSORS:
-		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+		highlighter.add_keyword_color(sensor.name, _syntax_color(Color(0.60, 0.90, 1.00)))
 
-	highlighter.number_color = Color(0.95, 0.65, 0.30)
-	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
-	highlighter.function_color = Color(0.95, 0.85, 0.45)
-	highlighter.member_variable_color = Color(0.85, 0.85, 0.85)
-	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("//", "", Color(0.50, 0.50, 0.50), true)
-	highlighter.add_color_region("/*", "*/", Color(0.50, 0.50, 0.50), false)
-	highlighter.add_keyword_color("include", Color(0.95, 0.45, 0.75))
-	highlighter.add_color_region("<", ">", Color(1.0, 0.6, 0.25), true)
+	highlighter.number_color = _syntax_color(Color(0.95, 0.65, 0.30))
+	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
+	highlighter.member_variable_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.add_color_region("\"", "\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'", "'", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("//", "", _syntax_color(Color(0.50, 0.50, 0.50)), true)
+	highlighter.add_color_region("/*", "*/", _syntax_color(Color(0.50, 0.50, 0.50)), false)
+	highlighter.add_keyword_color("include", _syntax_color(Color(0.95, 0.45, 0.75)))
 
 	editor.syntax_highlighter = highlighter
 
@@ -401,24 +405,24 @@ func _setup_python_highlighting() -> void:
 		"pass", "break", "continue"
 	]
 	for word in keywords:
-		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
 
 	for command in _commands.COMMANDS:
-		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
+		highlighter.add_keyword_color(command.name, _syntax_color(Color(0.80, 0.60, 1.00)))
 
 	for sensor in _commands.SENSORS:
-		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+		highlighter.add_keyword_color(sensor.name, _syntax_color(Color(0.60, 0.90, 1.00)))
 
-	highlighter.add_keyword_color("from", Color(0.95, 0.45, 0.75))
-	highlighter.add_keyword_color("import", Color(0.95, 0.45, 0.75))
-	highlighter.add_color_region("*", "", Color(0.95, 0.45, 0.75), true)
-	highlighter.number_color = Color(0.95, 0.65, 0.30)
-	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
-	highlighter.function_color = Color(0.95, 0.85, 0.45)
-	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("#", "", Color(0.50, 0.50, 0.50), true)
-	highlighter.add_color_region("\"\"\"", "\"\"\"", Color(0.60, 0.90, 0.60), false)
+	highlighter.add_keyword_color("from", _syntax_color(Color(0.95, 0.45, 0.75)))
+	highlighter.add_keyword_color("import", _syntax_color(Color(0.95, 0.45, 0.75)))
+	highlighter.number_color = _syntax_color(Color(0.95, 0.65, 0.30))
+	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
+	highlighter.add_color_region("\"", "\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'", "'", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("#", "", _syntax_color(Color(0.50, 0.50, 0.50)), true)
+	highlighter.add_color_region("\"\"\"", "\"\"\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'''", "'''", _syntax_color(Color(0.60, 0.90, 0.60)), false)
 
 	editor.syntax_highlighter = highlighter
 
@@ -744,8 +748,18 @@ func _on_win_retry() -> void:
 func _on_win_next() -> void:
 	win_overlay.visible = false
 	_set_controls_disabled(false)
+<<<<<<< Updated upstream
 	log_header("info")
 	log_line("Next level coming soon!")
+=======
+	_on_reset_button_pressed()
+	_load_editor_template_for_current_language()
+	$WinOverlay/WinCard/WinContent/WinTitle.text = "Level Complete!"
+	game_instance.call_deferred("_fit_camera_to_level")
+	$WinOverlay/WinCard/WinContent/WinMessage.text = "Your robot reached the goal!"
+	campaign_next_button.hide()
+	editor.grab_focus()
+>>>>>>> Stashed changes
 
 
 func _on_go_to_menu() -> void:
@@ -1326,6 +1340,7 @@ func _build_report() -> String:
 	report += "  K  token\n"
 	report += "\n"
 	report += "GRID CELLS  (each cell = one tile, letter + count)\n"
+	report += "   ~    void (no floor)\n"
 	report += "  (Xn)  deposit zone needs n of X — not yet satisfied\n"
 	report += "  [Xn]  deposit zone needs n of X — satisfied\n"
 	report += "   Xn   n of object X on the floor\n"
@@ -1414,6 +1429,8 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 			var glyph: String
 			if col == px and row == py:
 				glyph = " %s  " % _facing_arrow(facing)
+			elif preload("res://map/scripts/void_tiles.gd").contains(current_level_definition, col, row):
+				glyph = " ~  "
 			elif deposit_zones.has(key) and typeof(deposit_zones[key]) == TYPE_DICTIONARY and not deposit_zones[key].is_empty():
 				var obj_name: String = deposit_zones[key].keys()[0]
 				var required: int = int(deposit_zones[key][obj_name])
