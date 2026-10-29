@@ -36,6 +36,7 @@ var camera_pan_max := Vector2.ZERO
 var camera_bounds_ready := false
 var camera_dragging := false
 var _pending_camera_restore: Dictionary = {}
+var backdrop: Node2D
 # =======================================
 
 
@@ -47,6 +48,11 @@ const chunk_size = 2
 # runs when this scene is instantiated into the tree
 # this scene owns the camera, so it configures it here
 func _ready() -> void:
+	backdrop = preload("res://map/scripts/world_backdrop.gd").new()
+	backdrop.floor_layer = FloorTiles
+	backdrop.z_index = -2
+	add_child(backdrop)
+	get_viewport().size_changed.connect(func(): call_deferred("_fit_camera_to_level"))
 	EventManager.rotate_camera_left.connect(rotate_world_left)
 	EventManager.rotate_camera_right.connect(rotate_world_right)
 
@@ -251,6 +257,7 @@ func _rotate_world():
 		_build_goal_cells(data, cols, rows)
 		
 		_build_objects()
+		call_deferred("_fit_camera_to_level")
 	else:
 		push_warning("JSON loaded, but 'cols' or 'rows' keys were missing!")
 
@@ -290,9 +297,12 @@ func _build_floor(cols: int,rows: int) -> void:
 	# Loop through every x (column) and y (row) to fill the grid
 	for x in range(cols):
 		for y in range(rows):
-			var grid_pos := _rotate_floor_cell(x, y, cols, rows)
+			if is_void(x + 1, y + 1):
+				continue
+			var grid_pos := _rotate_goal_cell(x + 1, y + 1, cols, rows)
 			# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
 			FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 1))
+	backdrop.queue_redraw()
 
 ## This builds the walls given its coordinate and face
 func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
@@ -581,8 +591,8 @@ func _fit_camera_to_level() -> void:
 	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
 		return
 
-	var map_width: float = maxf(max_local.x - min_local.x, 1.0)
-	var map_height: float = maxf(max_local.y - min_local.y, 1.0)
+	var map_width: float = maxf(camera_bounds_max.x - camera_bounds_min.x, 1.0)
+	var map_height: float = maxf(camera_bounds_max.y - camera_bounds_min.y, 1.0)
 	var fit_zoom_x: float = viewport_size.x / map_width
 	var fit_zoom_y: float = viewport_size.y / map_height
 	var fit_zoom: float = minf(fit_zoom_x, fit_zoom_y)
@@ -603,7 +613,7 @@ func _compute_level_pixel_bounds() -> Dictionary:
 	var max_local := Vector2(-INF, -INF)
 	var found := false
 
-	var half_floor := Vector2(FloorTiles.tile_set.tile_size) * FloorTiles.scale / 2.0
+	var half_floor := Vector2(FloorTiles.tile_set.tile_size) / 2.0
 	for cell in FloorTiles.get_used_cells():
 		found = true
 		var center := FloorTiles.map_to_local(cell)
@@ -683,6 +693,10 @@ func player_grid_position(x_pos: int, y_pos: int) -> Vector2:
 ## simple bounds check so the player doesn't walk off the map like a clown
 func is_in_bounds(gx: int, gy: int) -> bool:
 	return gx >= 1 and gx <= world_x_size and gy >= 1 and gy <= world_y_size
+
+
+func is_void(gx: int, gy: int) -> bool:
+	return not is_in_bounds(gx, gy) or preload("res://map/scripts/void_tiles.gd").contains(level_data, gx, gy)
 
 ## Check if movement in dir from (gx,gy) is blocked by a wall.
 ## Walls are stored as "east" and "north" only (Reborg format).
@@ -786,6 +800,13 @@ func check_win_condition(gx: int, gy: int) -> void:
 
 	if not at_position:
 		return
+
+	# --- object carry check ---
+	if goal.has("require_carry_object"):
+		var required_obj = goal["require_carry_object"]
+		if not player.carried_object.has(required_obj) or player.carried_object[required_obj] <= 0:
+			level_incomplete.emit("Reached the goal without carrying " + required_obj + ".")
+			return
 
 	# --- object goal check ---
 	if not are_goal_objects_satisfied():

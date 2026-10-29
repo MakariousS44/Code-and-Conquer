@@ -344,7 +344,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_g1dw6")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Idle_E",
 "speed": 5.0
 }, {
@@ -352,7 +352,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_qjkh3")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Idle_N",
 "speed": 5.0
 }, {
@@ -360,7 +360,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_rkbax")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Idle_S",
 "speed": 5.0
 }, {
@@ -368,7 +368,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_yw30f")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Idle_W",
 "speed": 5.0
 }, {
@@ -403,7 +403,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_knn7v")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Pick_E",
 "speed": 5.0
 }, {
@@ -438,7 +438,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_j55il")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Pick_N",
 "speed": 5.0
 }, {
@@ -473,7 +473,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_wodsf")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Pick_S",
 "speed": 5.0
 }, {
@@ -508,7 +508,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_q28gw")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Pick_W",
 "speed": 5.0
 }, {
@@ -543,7 +543,7 @@ animations = [{
 "duration": 0.2,
 "texture": SubResource("AtlasTexture_hggc2")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Run_E",
 "speed": 5.0
 }, {
@@ -578,7 +578,7 @@ animations = [{
 "duration": 0.2,
 "texture": SubResource("AtlasTexture_jfgxe")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Run_N",
 "speed": 5.0
 }, {
@@ -613,7 +613,7 @@ animations = [{
 "duration": 0.2,
 "texture": SubResource("AtlasTexture_7crtr")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Run_S",
 "speed": 5.0
 }, {
@@ -648,7 +648,7 @@ animations = [{
 "duration": 0.2,
 "texture": SubResource("AtlasTexture_jdjat")
 }],
-"loop": true,
+"loop": 1,
 "name": &"Run_W",
 "speed": 5.0
 }]
