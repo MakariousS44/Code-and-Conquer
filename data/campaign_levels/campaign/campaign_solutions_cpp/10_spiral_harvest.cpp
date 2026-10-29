@@ -4,7 +4,7 @@ int main() {
     // Collect every token, then drop them all on the goal.
     
     while (!at_goal()) {    // Repeat until at goal:
-        if (object_here) {
+        if (object_here()) {
             pick_object();  // If object on the tile, pick it up
         }
         if (front_is_clear()) {
