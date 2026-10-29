@@ -850,7 +850,7 @@ func _on_level_complete() -> void:
 		campaign_next_button.visible = save_error == OK and campaign_index + 1 < Campaign.LEVELS.size()
 		if campaign_index == Campaign.LEVELS.size() - 1:
 			$WinOverlay/WinCard/WinContent/WinTitle.text = "Campaign Complete!"
-			$WinOverlay/WinCard/WinContent/WinMessage.text = "You completed all ten levels. Well done!"
+			$WinOverlay/WinCard/WinContent/WinMessage.text = "You completed all %d levels. Well done!" % Campaign.LEVELS.size()
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
