@@ -12,6 +12,8 @@ func _ready() -> void:
 	size = Vector2i(640, 520)
 	min_size = Vector2i(520, 480)
 	close_requested.connect(hide)
+	# window_input fires for any input while this window is focused, before the UI sees it
+	window_input.connect(_on_window_input)
 	var panel := PanelContainer.new()
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(panel)
@@ -80,3 +82,9 @@ func _select_level(index: int) -> void:
 		return
 	hide()
 	level_selected.emit(Campaign.LEVELS[index].path)
+
+# Escape closes the campaign menu and returns to the main menu
+func _on_window_input(event: InputEvent) -> void:
+	if visible and event.is_action_pressed("ui_cancel"):
+		hide()
+		set_input_as_handled()

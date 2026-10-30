@@ -40,6 +40,16 @@ func _ready() -> void:
 	if not back_button.pressed.is_connected(hide):
 		back_button.pressed.connect(hide)
 
+# Escape closes the options menu (same as the Back button). Uses _unhandled_input so an open
+# dropdown list gets to consume Escape first and only closes itself.
+func _unhandled_input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
+	if event.is_action_pressed("ui_cancel"):
+		hide()
+		get_viewport().set_input_as_handled()
+
+
 func _on_volume_changed(value: float) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(value))
 	_save_settings()
