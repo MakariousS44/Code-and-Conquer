@@ -141,12 +141,12 @@ is_facing_west();  // Robot is currently facing west
 **Example — walk in a square:**
 ```cpp
 int main() {
-    for (int i = 0; i < 4; i++) {
-        move();
-        move();
-        move();
-        turn_left();
-    }
+	for (int i = 0; i < 4; i++) {
+		move();
+		move();
+		move();
+		turn_left();
+	}
 }
 ```
  
