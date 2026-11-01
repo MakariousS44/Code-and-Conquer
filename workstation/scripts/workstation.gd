@@ -118,11 +118,20 @@ var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
-var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit"
+var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit" | "cmd_limit" | "time_limit" | "done"
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
-const MOVE_LIMIT := 999
-const CMD_LIMIT := 9999
-const PROGRAM_TIMEOUT_SECONDS := 30.0
+
+# === execution limits ===
+# Default limits
+const DEFAULT_MOVE_LIMIT := 999
+const DEFAULT_CMD_LIMIT := 9999
+const DEFAULT_TIME_LIMIT_SECONDS := 300.0
+
+# Runtime limits (loaded from JSON or defaults)
+var _move_limit: int = DEFAULT_MOVE_LIMIT
+var _cmd_limit: int = DEFAULT_CMD_LIMIT
+var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
+
 const ALLOWED_IPC_COMMANDS := ["MOVE", "TURN_LEFT", "PICK_OBJECT", "PUT_OBJECT"]
 const ALLOWED_IPC_QUERIES := [
 	"FRONT_IS_CLEAR",
@@ -349,6 +358,17 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	current_level_definition = raw.definition
 	_refresh_campaign_instructions()
 
+	# load limits from JSON if present, otherwise use defaults
+	var limits_data = current_level_definition.get("limits", {})
+	if limits_data is Dictionary:
+		_move_limit = limits_data.get("move_limit", DEFAULT_MOVE_LIMIT)
+		_cmd_limit = limits_data.get("cmd_limit", DEFAULT_CMD_LIMIT)
+		_time_limit_seconds = limits_data.get("time_limit_seconds", DEFAULT_TIME_LIMIT_SECONDS)
+	else:
+		_move_limit = DEFAULT_MOVE_LIMIT
+		_cmd_limit = DEFAULT_CMD_LIMIT
+		_time_limit_seconds = DEFAULT_TIME_LIMIT_SECONDS
+
 	# preload starter code into editor only when requested
 	if load_editor_text:
 		_load_editor_template_for_current_language()
@@ -479,12 +499,24 @@ func _syntax_color(color: Color) -> Color:
 	return color
 
 func _setup_syntax_highlighting() -> void:
-	var highlighter := CodeHighlighter.new()
+	var highlighter := preload("res://workstation/scripts/cpp_highlighter.gd").new()
 
 	var keywords := [
-		"int", "double", "float", "bool", "char", "void",
-		"if", "else", "while", "for", "return",
-		"true", "false", "break", "continue"
+		"alignas", "alignof", "and", "and_eq", "asm", "auto",
+		"bitand", "bitor", "bool", "break", "case", "catch",
+		"char", "char8_t", "char16_t", "char32_t", "class", "compl",
+		"concept", "const", "consteval", "constexpr", "constinit", "const_cast",
+		"continue", "co_await", "co_return", "co_yield", "decltype", "default",
+		"delete", "do", "double", "dynamic_cast", "else", "enum", "explicit",
+		"export", "extern", "false", "float", "for", "friend", "goto", "if",
+		"inline", "int", "long", "mutable", "namespace", "new", "noexcept",
+		"not", "not_eq", "nullptr", "operator", "or", "or_eq", "private",
+		"protected", "public", "register", "reinterpret_cast", "requires",
+		"return", "short", "signed", "sizeof", "static", "static_assert",
+		"static_cast", "struct", "switch", "template", "this", "thread_local",
+		"throw", "true", "try", "typedef", "typeid", "typename", "union",
+		"unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while",
+		"xor", "xor_eq"
 	]
 	for word in keywords:
 		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
@@ -499,12 +531,10 @@ func _setup_syntax_highlighting() -> void:
 	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
 	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
 	highlighter.member_variable_color = _syntax_color(Color(0.85, 0.85, 0.85))
-	highlighter.add_color_region("\"", "\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
-	highlighter.add_color_region("'", "'", _syntax_color(Color(0.60, 0.90, 0.60)), false)
-	highlighter.add_color_region("//", "", _syntax_color(Color(0.50, 0.50, 0.50)), true)
-	highlighter.add_color_region("/*", "*/", _syntax_color(Color(0.50, 0.50, 0.50)), false)
 	highlighter.add_keyword_color("include", _syntax_color(Color(0.95, 0.45, 0.75)))
 
+	highlighter.string_color = _syntax_color(Color(0.60, 0.90, 0.60))
+	highlighter.comment_color = _syntax_color(Color(0.50, 0.50, 0.50))
 	editor.syntax_highlighter = highlighter
 
 
@@ -512,9 +542,10 @@ func _setup_python_highlighting() -> void:
 	var highlighter := CodeHighlighter.new()
 
 	var keywords := [
-		"def", "if", "elif", "else", "while", "for", "in",
-		"return", "True", "False", "None", "and", "or", "not",
-		"pass", "break", "continue"
+		"False", "None", "True", "and", "as", "assert", "async", "await",
+		"break", "class", "continue", "def", "del", "elif", "else", "except",
+		"finally", "for", "global", "if", "in", "is", "lambda", "nonlocal",
+		"not", "or", "pass", "raise", "return", "try", "while", "with", "yield"
 	]
 	for word in keywords:
 		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
@@ -787,15 +818,51 @@ func _get_funny_lose_message() -> String:
 func _trigger_move_limit_lose() -> void:
 	if _is_handling_lose:
 		return
+	
 	_is_handling_lose = true
 	_run_outcome = "move_limit"
 	_stop_execution()
-
+		
 	$LoseSound.play()
 	log_header("lose")
-	log_error("Move Limit Reached")
+	log_error("Move limit reached (%d moves)" % _move_limit)
 	_set_status("You lost", "error")
+	
+	lose_message.text = _get_funny_lose_message()
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
 
+
+func _trigger_cmd_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	
+	_is_handling_lose = true
+	_run_outcome = "cmd_limit"
+	_stop_execution()
+	
+	$LoseSound.play()
+	log_header("lose")
+	log_error("Command limit reached (%d commands)" % _cmd_limit)
+	_set_status("You lost", "error")
+	
+	lose_message.text = _get_funny_lose_message()
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
+
+
+func _trigger_time_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	
+	_is_handling_lose = true
+	_run_outcome = "time_limit"
+	_stop_execution()
+	$LoseSound.play()
+	log_header("lose")
+	log_error("Time limit reached (%.1f seconds)" % _time_limit_seconds)
+	_set_status("You lost", "error")
+	
 	lose_message.text = _get_funny_lose_message()
 	lose_overlay.visible = true
 	_set_controls_disabled(true)
@@ -912,14 +979,14 @@ func _stop_execution() -> void:
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
-func _enforce_program_timeout(pid: int) -> void:
-	await get_tree().create_timer(PROGRAM_TIMEOUT_SECONDS).timeout
+func _enforce_program_time_limit(pid: int) -> void:
+	if _time_limit_seconds <= 0:
+		return  # No time limit
+	
+	await get_tree().create_timer(_time_limit_seconds).timeout
 
 	if _ipc_active and _subprocess_pid == pid:
-		log_error("Program stopped: it ran longer than %d seconds." % PROGRAM_TIMEOUT_SECONDS)
-		_set_status("Timed out", "error")
-		_stop_execution()
-		_re_enable_buttons()
+		_trigger_time_limit_lose()
 
 func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
@@ -1019,7 +1086,7 @@ func _run_pipeline() -> void:
 		_re_enable_buttons()
 		return
 
-	_enforce_program_timeout(_subprocess_pid)
+	_enforce_program_time_limit(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
@@ -1075,8 +1142,8 @@ func _run_ipc_loop() -> void:
 				_re_enable_buttons()
 				return 
 
-			if _cmd_history.size() >= CMD_LIMIT:
-				_trigger_move_limit_lose()
+			if _cmd_limit > 0 and _cmd_history.size() >= _cmd_limit:
+				_trigger_cmd_limit_lose()
 				break
 
 			var snap = _take_snapshot()
@@ -1201,7 +1268,7 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 			for i in range(min(_step_index, _cmd_history.size())):
 				if _cmd_history[i].cmd == "MOVE":
 					moves_so_far += 1
-			if moves_so_far > MOVE_LIMIT:
+			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
 			await player_node.move_forward(exec_speed)
@@ -1521,7 +1588,7 @@ func _build_report() -> String:
 	report += "\n"
 	report += "SEQUENCE LETTERS\n"
 	report += "  M  move forward\n"
-	report += "  T  turn left\n"
+	report += "  L  turn left\n"
 	report += "  U  pick up object\n"
 	report += "  D  put down object\n"
 	report += "\n"
@@ -1529,7 +1596,9 @@ func _build_report() -> String:
 	report += "  !  win\n"
 	report += "  ?  lose (collision or did not reach goal)\n"
 	report += "  .  finished — no win condition on this level\n"
-	report += "  #  command/move limit hit (%d moves)\n" % MOVE_LIMIT
+	report += "  #  move limit hit (%d moves)\n" % _move_limit
+	report += "  @  command limit hit (%d commands)\n" % _cmd_limit
+	report += "  T  time limit hit (%.1f seconds)\n" % _time_limit_seconds
 	report += "\n"
 	report += "OBJECT LETTERS\n"
 	report += "  A  apple\n"
@@ -1553,7 +1622,7 @@ func _cmd_to_report_letter(cmd: String) -> String:
 		"MOVE":
 			return "M"
 		"TURN_LEFT":
-			return "T"
+			return "L"
 		"PICK_OBJECT":
 			return "U"
 		"PUT_OBJECT":
@@ -1571,6 +1640,10 @@ func _run_outcome_marker() -> String:
 			return "."
 		"move_limit":
 			return "#"
+		"cmd_limit":
+			return "@"
+		"time_limit":
+			return "T"
 		_:
 			return "?"
 

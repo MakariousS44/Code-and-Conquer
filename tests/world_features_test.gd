@@ -67,7 +67,7 @@ func run_tests() -> void:
 	await process_frame
 	station.editor.text = "if (x < 3) move();"
 	station._setup_syntax_highlighting()
-	check(not station.editor.syntax_highlighter.has_color_region("<"), "C++ comparisons must not start string regions")
+	check(station.editor.syntax_highlighter.get_script() == load("res://workstation/scripts/cpp_highlighter.gd"), "C++ must use the literal-aware highlighter")
 	station._setup_python_highlighting()
 	check(not station.editor.syntax_highlighter.has_color_region("*"), "Python multiplication must not start a region")
 	check(station.editor.syntax_highlighter.has_color_region("'''"), "Python triple-quoted strings need coloring")
