@@ -4,6 +4,8 @@ const Campaign = preload("res://config/campaign_levels.gd")
 const Loader = preload("res://map/scripts/map_loader.gd")
 const CppValidator = preload("res://execution/cpp/cpp_validator.gd")
 const PythonValidator = preload("res://execution/python/python_validator.gd")
+const STEPS := [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1)]
+const DIRECTIONS := ["east", "north", "west", "south"]
 var failures := 0
 
 func check(condition: bool, message: String) -> void:
@@ -14,7 +16,59 @@ func check(condition: bool, message: String) -> void:
 func _initialize() -> void:
 	call_deferred("run_tests")
 
+func check_gap_hazards(world) -> void:
+	var void_count: int = world.level_data.get("void_tiles", {}).size()
+	if void_count == 0:
+		return
+	# Reach solid floor first, respecting walls. Only count gap regions that
+	# the player can actually step into from that reachable floor.
+	var start := Vector2i(world.player.grid_x, world.player.grid_y)
+	var reached := {start: true}
+	var pending: Array[Vector2i] = [start]
+	var gaps := {}
+	var gap_pending: Array[Vector2i] = []
+	var approach := {}
+	while not pending.is_empty():
+		var cell: Vector2i = pending.pop_front()
+		for direction in range(4):
+			var next: Vector2i = cell + STEPS[direction]
+			if not world.is_in_bounds(next.x, next.y) or world.is_move_blocked(cell.x, cell.y, DIRECTIONS[direction]):
+				continue
+			if world.is_void(next.x, next.y):
+				if not gaps.has(next):
+					gaps[next] = true
+					gap_pending.append(next)
+				if approach.is_empty():
+					approach = {"cell": cell, "direction": DIRECTIONS[direction]}
+			elif not reached.has(next):
+				reached[next] = true
+				pending.append(next)
+	while not gap_pending.is_empty():
+		var gap: Vector2i = gap_pending.pop_front()
+		for step in STEPS:
+			var next: Vector2i = gap + step
+			if world.is_in_bounds(next.x, next.y) and world.is_void(next.x, next.y) and not gaps.has(next):
+				gaps[next] = true
+				gap_pending.append(next)
+	check(gaps.size() == void_count, "Every new gap region must be exposed to reachable floor, not enclosed behind walls")
+	if approach.is_empty():
+		return
+	var hazard_world = load("res://map/scenes/map_view.tscn").instantiate()
+	root.add_child(hazard_world)
+	hazard_world.build_level(world.level_data)
+	var outcome := {"lost": false}
+	hazard_world.player.lose_triggered.connect(func(_reason): outcome.lost = true)
+	hazard_world.player.grid_x = approach.cell.x
+	hazard_world.player.grid_y = approach.cell.y
+	hazard_world.player.facing = approach.direction
+	hazard_world.player.position = hazard_world.player_grid_position(approach.cell.x, approach.cell.y)
+	await hazard_world.player.move_forward(0.001)
+	check(outcome.lost, "An unprotected step into a new gap must cause a fall")
+	hazard_world.queue_free()
+	await process_frame
+
 func run_tests() -> void:
+	check(Campaign.LEVELS.size() == 14, "Campaign must have fourteen levels")
 	var save_path := OS.get_temp_dir().path_join("campaign-test-%d.cfg" % OS.get_process_id())
 	check(Campaign.completed_ids(save_path).is_empty(), "Fresh progress must be empty")
 	check(Campaign.is_unlocked(0, []), "First level must be unlocked")
@@ -31,11 +85,17 @@ func run_tests() -> void:
 	DirAccess.remove_absolute(save_path)
 
 	# M = move, L = turn left, P = pick, U = put.
+	var bypass := "LMLLLMMLLLML"
+	var terrace := "UMMU" + bypass + "U" + "MMU".repeat(2)
 	var solutions := [
 		"MMMM", "MMMMLMMMM", "MMMMLMMLMMMMLLLMMLLLMMMM",
 		"M".repeat(11), "MLMLLL".repeat(8), "LMMMLLLMMMLMMMLLLMMMLLLMMPLLMMMM",
 		"MMPMMMLMMMU", "U" + "MMU".repeat(4), "UMMMMML".repeat(4),
-		"MMPMMLMMMPMLMMMPMLMMPMLMMMPLMMLMMLMLMUUUUU"
+		"MMPMMLMMMPMLMMMPMLMMPMLMMMPLMMLMMLMLMUUUUU",
+		"MPPMMMPPPMMLMMPMMLMPPMMMPPMM" + "U".repeat(10),
+		"LLLMLMMMMLMPPLLMLLLMML" + "M".repeat(5) + "LMMPPPPLLMMMM" + "U".repeat(6),
+		terrace + "LMMML" + terrace + "LLLMMMLLL" + terrace,
+		"PMMP" + bypass + "UMMPLMMMLUMMP" + bypass + "UMMULMMM"
 	]
 	for i in range(Campaign.LEVELS.size()):
 		var result: Dictionary = Loader.new().load(Campaign.LEVELS[i].path)
@@ -44,13 +104,24 @@ func run_tests() -> void:
 		if data.has("editor"):
 			check(CppValidator.new().validate("\n".join(data.editor.cpp)).ok, "C++ starter must pass validation")
 			check(PythonValidator.new().validate("\n".join(data.editor.python)).ok, "Python starter must pass validation")
+		if i >= 10:
+			check(not data.walls.is_empty(), "New levels must use walls")
+			var solution_path: String = Campaign.LEVELS[i].path.replace("/campaign/", "/campaign/campaign_solutions_cpp/").replace(".json", ".cpp")
+			check(CppValidator.new().validate(FileAccess.get_file_as_string(solution_path)).ok, "New C++ reference solution must pass validation")
 		var world = load("res://map/scenes/map_view.tscn").instantiate()
 		root.add_child(world)
 		world.build_level(data)
+		if i >= 10:
+			await check_gap_hazards(world)
 		var outcome := {"won": false, "lost": false}
 		world.level_complete.connect(func(): outcome.won = true)
 		world.player.lose_triggered.connect(func(_reason): outcome.lost = true)
 		for action in solutions[i]:
+			if i == 13:
+				if action == "P":
+					check(world.get_objects_at(world.player.grid_x, world.player.grid_y).get("token", 0) > 1, "Level 14 must leave one token in each starting stack")
+				elif action == "U":
+					check(not world.tile_has_any_object(world.player.grid_x, world.player.grid_y), "Level 14 must fill only empty planting spots")
 			if action == "M":
 				await world.player.move_forward(0.001)
 			elif action == "P":
@@ -61,6 +132,8 @@ func run_tests() -> void:
 				world.player.turn_left()
 		world.check_win_condition(world.player.grid_x, world.player.grid_y)
 		check(outcome.won and not outcome.lost, "Level %d must be solvable without collisions" % (i + 1))
+		if i >= 10:
+			check(world.player.carried_object.is_empty(), "New levels must finish with every token placed")
 		world.queue_free()
 		await process_frame
 
@@ -109,6 +182,7 @@ func run_tests() -> void:
 		else:
 			check(not workstation.campaign_next_button.visible, "Final level must hide Next Level")
 			check(workstation.get_node("WinOverlay/WinCard/WinContent/WinTitle").text == "Campaign Complete!", "Final victory must celebrate campaign completion")
+			check("14 levels" in workstation.get_node("WinOverlay/WinCard/WinContent/WinMessage").text, "Final victory must show the correct campaign size")
 	workstation._on_win_retry()
 	await process_frame
 	check(not workstation.win_overlay.visible and workstation.editor.editable, "Replay must restore controls")
