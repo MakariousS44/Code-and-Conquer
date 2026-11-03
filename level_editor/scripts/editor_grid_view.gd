@@ -19,6 +19,8 @@ var active_tool := Tool.ROBOT
 
 var document: LevelDocument
 var show_coordinates := false
+var object_type := "token"
+var object_count := 1
 
 
 func _ready() -> void:
@@ -90,6 +92,28 @@ func _draw() -> void:
 			var apple_count := int(tile_objects["apple"])
 			if apple_count > 1:
 				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+
+	# Draw goal object markers.
+	if document.data.has("goal") and document.data["goal"].has("objects"):
+		var goal_objs: Dictionary = document.data["goal"]["objects"]
+		for key in goal_objs:
+			var parts := str(key).split(",")
+			if parts.size() != 2:
+				continue
+			var gx := int(parts[0])
+			var gy := int(parts[1])
+			var required: Dictionary = goal_objs[key]
+			var placed: Dictionary = document.data["objects"].get(key, {})
+			
+			for obj_name in required:
+				var needed := int(required[obj_name])
+				var have := int(placed.get(obj_name, 0))
+				for i in range(needed):
+					var marker_center := _cell_center(gx, gy, rows)
+					var satisfied := i < have
+					var marker_color := Color(0.35, 0.9, 0.45, 0.55) if satisfied else Color(1.0, 1.0, 1.0, 0.75)
+					draw_circle(marker_center + Vector2(8, 8), CELL_SIZE * 0.12, marker_color)
+					draw_circle(marker_center + Vector2(8, 8), CELL_SIZE * 0.12, Color("#668099"), false, 1.0)
 	
 	# Draw robot.
 	var robot: Dictionary = document.data["robots"][0]
@@ -111,6 +135,13 @@ func _draw() -> void:
 	
 func set_tool(tool: Tool) -> void:
 	active_tool = tool
+
+func set_object_type(type: String) -> void:
+	object_type = type.to_lower()
+	queue_redraw()
+
+func set_object_count(count: int) -> void:
+	object_count = clampi(count, 1, 100)
 
 func _input(event: InputEvent) -> void:
 	if document == null:
@@ -152,7 +183,7 @@ func apply_tool(gx: int, gy: int) -> void:
 			if int(pos[0]) == gx and int(pos[1]) == gy:
 				return
 		if document.data["goal"].get("objects", {}).has(key):
-			return
+			return  # Do not void tiles that have goal object requirements.
 		document.data["void_tiles"][key] = true
 		document.data["objects"].erase(key)
 	elif active_tool == Tool.ROBOT:
@@ -192,8 +223,8 @@ func apply_tool(gx: int, gy: int) -> void:
 		var object_key := "%d,%d" % [gx, gy]
 		var objects: Dictionary = document.data["objects"]
 		var tile_objects: Dictionary = objects.get(object_key, {})
-
-		tile_objects["apple"] = int(tile_objects.get("apple", 0)) + 1
+		
+		tile_objects[object_type] = int(tile_objects.get(object_type, 0)) + object_count
 		objects[object_key] = tile_objects
 		document.data["objects"] = objects
 
@@ -204,6 +235,13 @@ func apply_tool(gx: int, gy: int) -> void:
 		var objects: Dictionary = document.data["objects"]
 		objects.erase(cell_key)
 		document.data["objects"] = objects
+
+		# Also remove from goal objects if this tile is a goal tile
+		if document.data.has("goal") and document.data["goal"].has("objects"):
+			var goal_objs: Dictionary = document.data["goal"]["objects"]
+			if goal_objs.has(cell_key):
+				goal_objs.erase(cell_key)
+				document.data["goal"]["objects"] = goal_objs
 
 		var walls: Dictionary = document.data["walls"]
 		walls.erase(cell_key)

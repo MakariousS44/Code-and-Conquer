@@ -181,3 +181,52 @@ script = ExtResource("2_vaajg")
 layout_mode = 2
 text = "Void Tile"
 tooltip_text = "Remove the floor. Sensors cannot detect voids. Erase restores floor."
+
+[node name="ObjectTypeLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "OBJECT TYPE"
+ 
+[node name="ObjectTypeSelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+item_count = 2
+selected = 0
+popup/item_0/text = "Token"
+popup/item_0/id = 0
+popup/item_1/text = "Apple"
+popup/item_1/id = 1
+ 
+[node name="ObjectCountLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "OBJECT COUNT PER CLICK"
+ 
+[node name="ObjectCountInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 1.0
+max_value = 100.0
+value = 1.0
+ 
+[node name="GoalConfigLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "GOAL CONFIGURATION"
+ 
+[node name="GoalObjectsButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Set Goal Objects"
+ 
+[node name="GoalCarryLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "CARRY REQUIREMENT"
+ 
+[node name="GoalCarrySelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+item_count = 2
+selected = 0
+popup/item_0/text = "None"
+popup/item_0/id = 0
+popup/item_1/text = "Token"
+popup/item_1/id = 1
+popup/item_2/text = "Apple"
+popup/item_2/id = 2

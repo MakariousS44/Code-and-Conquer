@@ -24,6 +24,10 @@ var document := LevelDocument.new()
 @onready var resize_button: Button = $SidebarScroll/VBoxContainer/ResizeButton
 @onready var back_button: Button = $SidebarScroll/VBoxContainer/BackButton
 @onready var status_label: Label = $SidebarScroll/VBoxContainer/StatusLabel
+@onready var object_type_selector: OptionButton = $SidebarScroll/VBoxContainer/ObjectTypeSelector
+@onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
+@onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
+@onready var goal_carry_selector: OptionButton = $SidebarScroll/VBoxContainer/GoalCarrySelector
 
 func _ready() -> void:
 	_arrange_sidebar()
@@ -50,6 +54,10 @@ func _ready() -> void:
 	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
+	object_type_selector.item_selected.connect(_on_object_type_changed)
+	object_count_input.value_changed.connect(_on_object_count_changed)
+	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
+	goal_carry_selector.item_selected.connect(_on_goal_carry_changed)
 
 
 func _arrange_sidebar() -> void:
@@ -59,7 +67,8 @@ func _arrange_sidebar() -> void:
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"PlacementLabel", "RobotButton", "GoalButton",
 		"WallsLabel", "WallButton", "EastWallButton",
-		"ObjectsLabel", "AppleButton", "VoidButton", "EraseButton",
+		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "AppleButton", "VoidButton", "EraseButton",
+		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
 	for index in range(order.size()):
@@ -236,3 +245,69 @@ func _on_resize_button_pressed() -> void:
 
 func _on_back_button_pressed() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
+
+func _on_object_type_changed(index: int) -> void:
+	var selected_type := object_type_selector.get_item_text(index)
+	grid.set_object_type(selected_type)
+	status_label.text = "Object type: %s" % selected_type
+
+func _on_object_count_changed(value: float) -> void:
+	grid.set_object_count(int(value))
+	status_label.text = "Object count per click: %d" % int(value)
+
+func _on_goal_objects_button_pressed() -> void:
+	_open_goal_objects_dialog()
+
+func _on_goal_carry_changed(index: int) -> void:
+	var selected_carry := goal_carry_selector.get_item_text(index)
+	if selected_carry == "None":
+		document.data["goal"].erase("require_carry_object")
+	else:
+		document.data["goal"]["require_carry_object"] = selected_carry.to_lower()
+	status_label.text = "Goal carry requirement: %s" % selected_carry
+
+func _open_goal_objects_dialog() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "Set Goal Objects"
+	dialog.unresizable = true
+	
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+	
+	var instruction := Label.new()
+	instruction.text = "Add goal object requirements (e.g., '6,4 token 5' for 5 tokens at tile 6,4):"
+	vbox.add_child(instruction)
+	
+	var input := TextEdit.new()
+	input.custom_minimum_size = Vector2(400, 150)
+	input.placeholder_text = "Format: x,y object_type count\nExample:\n6,4 token 5\n1,5 apple 2"
+	vbox.add_child(input)
+	
+	dialog.confirmed.connect(_apply_goal_objects.bind(input))
+	add_child(dialog)
+	dialog.popup_centered()
+
+func _apply_goal_objects(input: TextEdit) -> void:
+	var lines := input.text.split("\n")
+	var goal_objects := {}
+	
+	for line in lines:
+		line = line.strip_edges()
+		if line.is_empty():
+			continue
+		var parts := line.split(" ")
+		if parts.size() >= 3:
+			var coords := parts[0].split(",")
+			if coords.size() == 2:
+				var x := int(coords[0])
+				var y := int(coords[1])
+				var obj_type := parts[1].to_lower()
+				var count := int(parts[2])
+				var key := "%d,%d" % [x, y]
+				if not goal_objects.has(key):
+					goal_objects[key] = {}
+				goal_objects[key][obj_type] = count
+	
+	document.data["goal"]["objects"] = goal_objects
+	grid.queue_redraw()
+	status_label.text = "Goal objects configured"
