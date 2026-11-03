@@ -281,6 +281,18 @@ func _open_goal_objects_dialog() -> void:
 	var input := TextEdit.new()
 	input.custom_minimum_size = Vector2(400, 150)
 	input.placeholder_text = "Format: x,y object_type count\nExample:\n6,4 token 5\n1,5 apple 2"
+	
+	# Pre-fill with existing goal objects
+	if document.data.has("goal") and document.data["goal"].has("objects"):
+		var goal_objs: Dictionary = document.data["goal"]["objects"]
+		var lines := []
+		for key in goal_objs:
+			var required: Dictionary = goal_objs[key]
+			for obj_name in required:
+				var count := int(required[obj_name])
+				lines.append("%s %s %d" % [key, obj_name, count])
+		input.text = "\n".join(lines)
+	
 	vbox.add_child(input)
 	
 	dialog.confirmed.connect(_apply_goal_objects.bind(input))
