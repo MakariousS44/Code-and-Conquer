@@ -119,7 +119,7 @@ Press **F5** or click the **Play** button in the top-right of the Godot editor.
 
 ## Available Commands & Sensors
 
-These robot functions work the same in both C++ and Python.
+These robot functions work the same in both C++ and Python. (Remember: Only C++ requires a semicolon to terminate a statement!)
 
 ### Commands (perform an action)
 
@@ -149,15 +149,27 @@ is_facing_west();  // Robot is currently facing west
 ```
 
 **Example — walk in a square:**
+
+C++ version:
 ```cpp
 int main() {
-	for (int i = 0; i < 4; i++) {
+	for (int i {0}; i < 4; i++) {
 		move();
 		move();
 		move();
 		turn_left();
 	}
+	return 0;
 }
+```
+
+Python version:
+```py
+for i in range(4):
+	move()
+	move()
+	move()
+	turn_left()
 ```
 
 ---
@@ -166,4 +178,4 @@ int main() {
 
 Built by **Pickaxe Productions** for CSCI 4700 (Software Engineering), Fall 2026.
 
-[@Yoshibar-003](https://github.com/Yoshibar-003) · [@wolffmatt](https://github.com/wolffmatt) · [@karaslm](https://github.com/karaslm) · [@braydenpricestudent](https://github.com/braydenpricestudent) · [@luisr-10](https://github.com/luisr-10) · [@srushfatah](https://github.com/srushfatah) · [@v-basilio](https://github.com/v-basilio)
+[@Yoshibar-003](https://github.com/Yoshibar-003) · [@mrw8s](https://github.com/mrw8s) · [@karaslm](https://github.com/karaslm) · [@braydenpricestudent](https://github.com/braydenpricestudent) · [@luisr-10](https://github.com/luisr-10) · [@srushfatah](https://github.com/srushfatah) · [@v-basilio](https://github.com/v-basilio)

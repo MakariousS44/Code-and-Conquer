@@ -1,0 +1,112 @@
+{
+  "rows": 9,
+  "cols": 9,
+  "robots": [
+    {
+      "x": 1,
+      "y": 2,
+      "_orientation": 0,
+      "objects": {
+        "token": 15
+      }
+    }
+  ],
+  "walls": {
+    "3,1": ["north"],
+    "1,3": ["north"],
+    "2,3": ["north"],
+    "3,3": ["north"],
+    "7,5": ["north"],
+    "7,6": ["north"],
+    "8,6": ["north"],
+    "9,6": ["north"],
+    "3,7": ["north"]
+  },
+  "void_tiles": {
+    "4,2": true,
+    "6,5": true,
+    "4,8": true
+  },
+  "objects": {},
+  "goal": {
+    "position": {
+      "x": 9,
+      "y": 8,
+      "image": "green_home_tile"
+    },
+    "objects": {
+      "1,2": {
+        "token": 1
+      },
+      "3,2": {
+        "token": 1
+      },
+      "5,2": {
+        "token": 1
+      },
+      "7,2": {
+        "token": 1
+      },
+      "9,2": {
+        "token": 1
+      },
+      "1,5": {
+        "token": 1
+      },
+      "3,5": {
+        "token": 1
+      },
+      "5,5": {
+        "token": 1
+      },
+      "7,5": {
+        "token": 1
+      },
+      "9,5": {
+        "token": 1
+      },
+      "1,8": {
+        "token": 1
+      },
+      "3,8": {
+        "token": 1
+      },
+      "5,8": {
+        "token": 1
+      },
+      "7,8": {
+        "token": 1
+      },
+      "9,8": {
+        "token": 1
+      }
+    }
+  },
+  "description": [
+    "You are carrying 15 tokens. Place one on columns 1, 3, 5, 7, and 9 of rows 2, 5, and 8. Avoid the gaps and finish at (9, 8)."
+  ],
+  "hint": "Short walls on your right mark the gaps. Use wall_on_right() to choose a left detour, and reuse the same planting function for all three rows.",
+  "editor": {
+    "cpp": [
+      "#include \"robot.hpp\"",
+      "",
+      "void plant_row() {",
+      "    // Repeat the planting pattern and detour at the wall marker.",
+      "}",
+      "",
+      "int main() {",
+      "    // Plant each row and move to the next terrace.",
+      "",
+      "    return 0;",
+      "}"
+    ],
+    "python": [
+      "from robot import *",
+      "",
+      "def plant_row():",
+      "    pass  # Repeat the planting pattern and detour at the wall marker.",
+      "",
+      "# Plant each row and move to the next terrace."
+    ]
+  }
+}
