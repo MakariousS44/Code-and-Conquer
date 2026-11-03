@@ -37,10 +37,10 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "Level size must be between 1 and %d tiles." % MAX_GRID_SIZE}
 	if not (candidate.get("robots", []) is Array) or candidate["robots"].is_empty() or not (candidate["robots"][0] is Dictionary):
 		return {"ok": false, "error": "Level needs one robot."}
-	if not (candidate.get("walls", {}) is Dictionary):
+	if not candidate.has("walls"):
+		candidate["walls"] = {}
+	elif not (candidate["walls"] is Dictionary):
 		return {"ok": false, "error": "Level walls are invalid."}
-	if not (candidate.get("goal", {}) is Dictionary):
-		return {"ok": false, "error": "Level needs a goal."}
 	for wall in candidate["walls"].values():
 		if not (wall is Array):
 			return {"ok": false, "error": "Level walls are invalid."}
@@ -61,13 +61,10 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "Robot position is outside the grid."}
 	goal["objects"] = goal.get("objects", {}) if goal.get("objects", {}) is Dictionary else {}
 	candidate["goal"] = goal
-	# Validate goal object requirements if present
-	if goal.has("objects") and not (goal["objects"] is Dictionary):
-		return {"ok": false, "error": "Goal objects must be a dictionary."}
-	# Validate carry requirement if present
-	if goal.has("require_carry_object") and not (goal["require_carry_object"] is String):
-		return {"ok": false, "error": "Goal carry requirement must be a string."}
-	candidate["objects"] = candidate.get("objects", {}) if candidate.get("objects", {}) is Dictionary else {}
+	if not candidate.has("objects"):
+		candidate["objects"] = {}
+	elif not (candidate["objects"] is Dictionary):
+		return {"ok": false, "error": "Level objects are invalid."}
 	candidate["description"] = candidate.get("description", []) if candidate.get("description", []) is Array else [str(candidate.get("description", ""))]
 	var void_error := preload("res://map/scripts/void_tiles.gd").validate(candidate)
 	if not void_error.is_empty():
