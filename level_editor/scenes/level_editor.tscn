@@ -232,3 +232,43 @@ popup/item_1/text = "Token"
 popup/item_1/id = 1
 popup/item_2/text = "Apple"
 popup/item_2/id = 2
+
+[node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "EXECUTION LIMITS"
+
+[node name="MoveLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Move Limit (0 = unlimited)"
+
+[node name="MoveLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 0.0
+max_value = 9999.0
+value = 0.0
+tooltip_text = "Maximum number of MOVE commands. Set to 0 or negative to disable this limit."
+
+[node name="CmdLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Command Limit (0 = unlimited)"
+
+[node name="CmdLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 0.0
+max_value = 99999.0
+value = 0.0
+tooltip_text = "Maximum total commands. Set to 0 or negative to disable this limit."
+
+[node name="TimeLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Time Limit (seconds, 0 = unlimited)"
+
+[node name="TimeLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 0.0
+max_value = 3600.0
+value = 0.0
+tooltip_text = "Maximum execution time in seconds. Set to 0 or negative to disable this limit."

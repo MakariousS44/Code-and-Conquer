@@ -28,6 +28,9 @@ var document := LevelDocument.new()
 @onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
 @onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
 @onready var goal_carry_selector: OptionButton = $SidebarScroll/VBoxContainer/GoalCarrySelector
+@onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
+@onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
+@onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
 
 func _ready() -> void:
 	_arrange_sidebar()
@@ -69,6 +72,7 @@ func _arrange_sidebar() -> void:
 		"WallsLabel", "WallButton", "EastWallButton",
 		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "AppleButton", "VoidButton", "EraseButton",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
+		"LimitsLabel", "MoveLimitLabel", "MoveLimitInput", "CmdLimitLabel", "CmdLimitInput", "TimeLimitLabel", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
 	for index in range(order.size()):
@@ -121,6 +125,18 @@ func _on_save_button_pressed() -> void:
 		return
 	document.data["name"] = level_name
 	document.data["description"] = [description_input.text]
+	# Save limits
+	var limits_data := {}
+	if move_limit_input.value > 0:
+		limits_data["move_limit"] = int(move_limit_input.value)
+	if cmd_limit_input.value > 0:
+		limits_data["cmd_limit"] = int(cmd_limit_input.value)
+	if time_limit_input.value > 0:
+		limits_data["time_limit_seconds"] = float(time_limit_input.value)
+	if not limits_data.is_empty():
+		document.data["limits"] = limits_data
+	elif document.data.has("limits"):
+		document.data.erase("limits")
 
 	# Project levels stay in the repository while developing in Godot. Exported games
 	# cannot write to res://, so player-created levels use the writable user:// folder.
@@ -200,6 +216,11 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
+		# Load limits
+		var limits_data = document.data.get("limits", {})
+		move_limit_input.value = limits_data.get("move_limit", 0)
+		cmd_limit_input.value = limits_data.get("cmd_limit", 0)
+		time_limit_input.value = limits_data.get("time_limit_seconds", 0)
 		grid.set_document(document)
 		_center_grid()
 	else:
@@ -231,6 +252,9 @@ func _on_new_button_pressed() -> void:
 	_center_grid()
 	level_name_input.clear()
 	description_input.clear()
+	move_limit_input.value = 0
+	cmd_limit_input.value = 0
+	time_limit_input.value = 0
 	save_button.text = "Save Level"
 	
 func _on_resize_button_pressed() -> void:
