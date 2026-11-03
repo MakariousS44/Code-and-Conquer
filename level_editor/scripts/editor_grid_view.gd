@@ -79,19 +79,28 @@ func _draw() -> void:
 			elif direction == "east":
 				draw_line(Vector2(wall_x * CELL_SIZE, (rows - wall_y) * CELL_SIZE), Vector2(wall_x * CELL_SIZE, (rows - wall_y + 1) * CELL_SIZE), Color("#e8f0ff"), 5.0)
 	
-	# Draw apples.
+	# Draw objects.
 	for object_key in document.data["objects"]:
 		var parts := str(object_key).split(",")
 		var object_x := int(parts[0])
 		var object_y := int(parts[1])
 		var tile_objects: Dictionary = document.data["objects"][object_key]
 
+		# Apples
 		if tile_objects.has("apple"):
 			var apple_center := _cell_center(object_x, object_y, rows)
-			draw_circle(apple_center, CELL_SIZE * 0.16, Color("#e74c3c"))
+			draw_circle(apple_center, CELL_SIZE * 0.16, Color("#e74c3c"))  # Red for apples
 			var apple_count := int(tile_objects["apple"])
 			if apple_count > 1:
 				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+
+		# Tokens
+		if tile_objects.has("token"):
+			var token_center := _cell_center(object_x, object_y, rows)
+			draw_circle(token_center, CELL_SIZE * 0.16, Color("#ffff00"))  # Yellow for tokens
+			var token_count := int(tile_objects["token"])
+			if token_count > 1:
+				draw_string(ThemeDB.fallback_font, token_center + Vector2(9, 14), str(token_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 
 	# Draw goal object markers.
 	if document.data.has("goal") and document.data["goal"].has("objects"):
