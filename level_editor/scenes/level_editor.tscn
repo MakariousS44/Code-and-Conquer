@@ -143,23 +143,25 @@ text = "Erase Tile"
 
 [node name="ColumnsLabel" type="Label" parent="SidebarScroll/VBoxContainer" unique_id=2010761909]
 layout_mode = 2
-text = "Columns"
+text = "Columns (up to 30)"
 
 [node name="ColumnsInput" type="SpinBox" parent="SidebarScroll/VBoxContainer" unique_id=2116227571]
 layout_mode = 2
 min_value = 2.0
 max_value = 30.0
 value = 10.0
+tooltip_text = "The maximum number of columns you can set is 30."
 
 [node name="RowsLabel" type="Label" parent="SidebarScroll/VBoxContainer" unique_id=1772893611]
 layout_mode = 2
-text = "Rows"
+text = "Rows (up to 30)"
 
 [node name="RowsInput" type="SpinBox" parent="SidebarScroll/VBoxContainer" unique_id=514100057]
 layout_mode = 2
 min_value = 2.0
 max_value = 30.0
 value = 10.0
+tooltip_text = "The maximum number of rows you can set is 30."
 
 [node name="ResizeButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=1777962815]
 layout_mode = 2
