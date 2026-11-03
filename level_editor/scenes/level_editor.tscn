@@ -259,7 +259,7 @@ custom_minimum_size = Vector2(0, 34)
 min_value = 0.0
 max_value = 99999.0
 value = 0.0
-tooltip_text = "Maximum total commands. Set to 0 or negative to disable this limit."
+tooltip_text = "Maximum number of total action commands of any type (MOVE, TURN_LEFT, PICK_OBJECT, PUT_OBJECT). Set to 0 or negative to disable this limit."
 
 [node name="TimeLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
