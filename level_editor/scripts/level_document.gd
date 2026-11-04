@@ -3,7 +3,7 @@ extends RefCounted
 
 var data: Dictionary = {}
 
-const MAX_GRID_SIZE := 50
+const MAX_GRID_SIZE := 30
 
 
 func create_blank(cols: int = 10, rows: int = 10) -> void:

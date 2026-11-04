@@ -2,18 +2,25 @@ class_name EditorGridView
 extends Node2D
 
 const CELL_SIZE := 48.0
+const MIN_ZOOM := 0.25
+const MAX_ZOOM := 3.0
+const ZOOM_STEP := 1.12
+const PAN_STEP := 96.0
+const SIDEBAR_WIDTH := 280.0
 
 enum Tool {
 	ROBOT,
 	GOAL,
 	WALL,
 	EAST_WALL,
-	APPLE,
+	OBJECT,
 	ERASE,
 	VOID
 }
 
 
+
+signal view_changed
 
 var active_tool := Tool.ROBOT
 
@@ -21,6 +28,10 @@ var document: LevelDocument
 var show_coordinates := false
 var object_type := "token"
 var object_count := 1
+var zoom_level := 1.0
+var zoom_initialized := false
+var pan_offset := Vector2.ZERO
+var _panning := false
 
 
 func _ready() -> void:
@@ -79,19 +90,28 @@ func _draw() -> void:
 			elif direction == "east":
 				draw_line(Vector2(wall_x * CELL_SIZE, (rows - wall_y) * CELL_SIZE), Vector2(wall_x * CELL_SIZE, (rows - wall_y + 1) * CELL_SIZE), Color("#e8f0ff"), 5.0)
 	
-	# Draw apples.
+	# Draw objects.
 	for object_key in document.data["objects"]:
 		var parts := str(object_key).split(",")
 		var object_x := int(parts[0])
 		var object_y := int(parts[1])
 		var tile_objects: Dictionary = document.data["objects"][object_key]
 
+		# Apples
 		if tile_objects.has("apple"):
 			var apple_center := _cell_center(object_x, object_y, rows)
-			draw_circle(apple_center, CELL_SIZE * 0.16, Color("#e74c3c"))
+			draw_circle(apple_center, CELL_SIZE * 0.16, Color("#e74c3c"))  # Red for apples
 			var apple_count := int(tile_objects["apple"])
 			if apple_count > 1:
 				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+
+		# Tokens
+		if tile_objects.has("token"):
+			var token_center := _cell_center(object_x, object_y, rows)
+			draw_circle(token_center, CELL_SIZE * 0.16, Color("#ffff00"))  # Yellow for tokens
+			var token_count := int(tile_objects["token"])
+			if token_count > 1:
+				draw_string(ThemeDB.fallback_font, token_center + Vector2(9, 14), str(token_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 
 	# Draw goal object markers.
 	if document.data.has("goal") and document.data["goal"].has("objects"):
@@ -143,14 +163,160 @@ func set_object_type(type: String) -> void:
 func set_object_count(count: int) -> void:
 	object_count = clampi(count, 1, 100)
 
+
+func set_zoom(value: float) -> void:
+	zoom_initialized = true
+	zoom_level = clampf(value, MIN_ZOOM, MAX_ZOOM)
+	scale = Vector2.ONE * zoom_level
+	view_changed.emit()
+
+
+func zoom_in() -> void:
+	set_zoom(zoom_level * ZOOM_STEP)
+
+
+func zoom_out() -> void:
+	set_zoom(zoom_level / ZOOM_STEP)
+
+
+func reset_pan() -> void:
+	pan_offset = Vector2.ZERO
+	_panning = false
+
+
+func pan_by(delta: Vector2) -> void:
+	if delta == Vector2.ZERO:
+		return
+	pan_offset += delta
+	view_changed.emit()
+
+
+func pan_up() -> void:
+	pan_by(Vector2(0, PAN_STEP))
+
+
+func pan_down() -> void:
+	pan_by(Vector2(0, -PAN_STEP))
+
+
+func pan_left() -> void:
+	pan_by(Vector2(PAN_STEP, 0))
+
+
+func pan_right() -> void:
+	pan_by(Vector2(-PAN_STEP, 0))
+
+
+func apply_layout(available_size: Vector2, unscaled_grid_size: Vector2) -> void:
+	scale = Vector2.ONE * zoom_level
+	var scaled := unscaled_grid_size * zoom_level
+	pan_offset.x = _clamp_pan_axis(pan_offset.x, available_size.x, scaled.x)
+	pan_offset.y = _clamp_pan_axis(pan_offset.y, available_size.y, scaled.y)
+	position = (available_size - scaled) * 0.5 + pan_offset
+
+
+func _clamp_pan_axis(pan: float, available: float, scaled: float) -> float:
+	if scaled <= available + 0.5:
+		return 0.0
+	var centered := (available - scaled) * 0.5
+	var min_pan := (available - scaled) - centered
+	var max_pan := -centered
+	return clampf(pan, min_pan, max_pan)
+
+
+func _hovered_control() -> Control:
+	return get_viewport().gui_get_hovered_control()
+
+
+func _is_under_named_control(control: Control, node_name: String) -> bool:
+	var node: Node = control
+	while node != null:
+		if node.name == node_name:
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _is_over_dialog(control: Control) -> bool:
+	var node: Node = control
+	while node != null:
+		if node is AcceptDialog or node is FileDialog or node is Popup:
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _should_handle_zoom() -> bool:
+	var mouse := get_viewport().get_mouse_position()
+	if mouse.x < SIDEBAR_WIDTH:
+		return false
+	var hovered := _hovered_control()
+	if hovered != null and _is_over_dialog(hovered):
+		return false
+	return true
+
+
+func _should_handle_map_click() -> bool:
+	var mouse := get_viewport().get_mouse_position()
+	if mouse.x < SIDEBAR_WIDTH:
+		return false
+	var hovered := _hovered_control()
+	if hovered == null:
+		return true
+	if _is_over_dialog(hovered):
+		return false
+	if _is_under_named_control(hovered, "ViewControls"):
+		return false
+	if hovered is BaseButton:
+		return false
+	return true
+
+
+func _should_handle_canvas_drag() -> bool:
+	if not _should_handle_zoom():
+		return false
+	return _should_handle_map_click()
+
+
 func _input(event: InputEvent) -> void:
 	if document == null:
+		return
+
+	if event is InputEventMouseMotion and _panning:
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+			_panning = false
+			return
+		pan_by((event as InputEventMouseMotion).relative)
+		get_viewport().set_input_as_handled()
 		return
 
 	if not (event is InputEventMouseButton):
 		return
 
+	if event.button_index == MOUSE_BUTTON_MIDDLE:
+		if event.pressed and _should_handle_canvas_drag():
+			_panning = true
+			get_viewport().set_input_as_handled()
+		else:
+			_panning = false
+		return
+
+	if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+		if _should_handle_zoom():
+			zoom_in()
+			get_viewport().set_input_as_handled()
+		return
+
+	if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+		if _should_handle_zoom():
+			zoom_out()
+			get_viewport().set_input_as_handled()
+		return
+
 	if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+		return
+
+	if not _should_handle_map_click():
 		return
 
 	var mouse_position := get_local_mouse_position()
@@ -173,7 +339,7 @@ func apply_tool(gx: int, gy: int) -> void:
 	var key := "%d,%d" % [gx, gy]
 	if not document.data.has("void_tiles"):
 		document.data["void_tiles"] = {}
-	if active_tool in [Tool.ROBOT, Tool.GOAL, Tool.APPLE]:
+	if active_tool in [Tool.ROBOT, Tool.GOAL, Tool.OBJECT]:
 		document.data["void_tiles"].erase(key)
 	if active_tool == Tool.VOID:
 		var robot: Dictionary = document.data["robots"][0]
@@ -219,7 +385,7 @@ func apply_tool(gx: int, gy: int) -> void:
 
 		document.data["walls"] = walls
 
-	elif active_tool == Tool.APPLE:
+	elif active_tool == Tool.OBJECT:
 		var object_key := "%d,%d" % [gx, gy]
 		var objects: Dictionary = document.data["objects"]
 		var tile_objects: Dictionary = objects.get(object_key, {})
