@@ -22,6 +22,20 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.055, 0.07, 0.105, 1)
 
+[node name="GridClip" type="Control" parent="."]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EditorGrid" type="Node2D" parent="GridClip"]
+script = ExtResource("2_vaajg")
+
 [node name="SidebarBackground" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 13
@@ -176,8 +190,30 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "← BACK TO MAIN MENU"
 
-[node name="EditorGrid" type="Node2D" parent="." unique_id=592158666]
-script = ExtResource("2_vaajg")
+[node name="ZoomControls" type="HBoxContainer" parent="."]
+z_index = 10
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -120.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 56.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+
+[node name="ZoomOutButton" type="Button" parent="ZoomControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Zoom out"
+text = "−"
+
+[node name="ZoomInButton" type="Button" parent="ZoomControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Zoom in"
+text = "+"
 
 [node name="VoidButton" type="Button" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2

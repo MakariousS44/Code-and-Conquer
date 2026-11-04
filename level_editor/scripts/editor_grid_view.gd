@@ -2,6 +2,10 @@ class_name EditorGridView
 extends Node2D
 
 const CELL_SIZE := 48.0
+const MIN_ZOOM := 0.25
+const MAX_ZOOM := 3.0
+const ZOOM_STEP := 1.12
+const SIDEBAR_WIDTH := 280.0
 
 enum Tool {
 	ROBOT,
@@ -15,12 +19,16 @@ enum Tool {
 
 
 
+signal zoom_changed
+
 var active_tool := Tool.ROBOT
 
 var document: LevelDocument
 var show_coordinates := false
 var object_type := "token"
 var object_count := 1
+var zoom_level := 1.0
+var zoom_initialized := false
 
 
 func _ready() -> void:
@@ -152,6 +160,70 @@ func set_object_type(type: String) -> void:
 func set_object_count(count: int) -> void:
 	object_count = clampi(count, 1, 100)
 
+
+func set_zoom(value: float) -> void:
+	zoom_initialized = true
+	zoom_level = clampf(value, MIN_ZOOM, MAX_ZOOM)
+	scale = Vector2.ONE * zoom_level
+	zoom_changed.emit()
+
+
+func zoom_in() -> void:
+	set_zoom(zoom_level * ZOOM_STEP)
+
+
+func zoom_out() -> void:
+	set_zoom(zoom_level / ZOOM_STEP)
+
+
+func _hovered_control() -> Control:
+	return get_viewport().gui_get_hovered_control()
+
+
+func _is_under_named_control(control: Control, node_name: String) -> bool:
+	var node: Node = control
+	while node != null:
+		if node.name == node_name:
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _is_over_dialog(control: Control) -> bool:
+	var node: Node = control
+	while node != null:
+		if node is AcceptDialog or node is FileDialog or node is Popup:
+			return true
+		node = node.get_parent()
+	return false
+
+
+func _should_handle_zoom() -> bool:
+	var mouse := get_viewport().get_mouse_position()
+	if mouse.x < SIDEBAR_WIDTH:
+		return false
+	var hovered := _hovered_control()
+	if hovered != null and _is_over_dialog(hovered):
+		return false
+	return true
+
+
+func _should_handle_map_click() -> bool:
+	var mouse := get_viewport().get_mouse_position()
+	if mouse.x < SIDEBAR_WIDTH:
+		return false
+	var hovered := _hovered_control()
+	if hovered == null:
+		return true
+	if _is_over_dialog(hovered):
+		return false
+	if _is_under_named_control(hovered, "ZoomControls"):
+		return false
+	if hovered is BaseButton:
+		return false
+	return true
+
+
 func _input(event: InputEvent) -> void:
 	if document == null:
 		return
@@ -159,7 +231,22 @@ func _input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
 
+	if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+		if _should_handle_zoom():
+			zoom_in()
+			get_viewport().set_input_as_handled()
+		return
+
+	if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+		if _should_handle_zoom():
+			zoom_out()
+			get_viewport().set_input_as_handled()
+		return
+
 	if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+		return
+
+	if not _should_handle_map_click():
 		return
 
 	var mouse_position := get_local_mouse_position()

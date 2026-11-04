@@ -6,7 +6,7 @@ const PLAYER_CUSTOM_LEVELS_DIR := "user://custom_levels/"
 
 var document := LevelDocument.new()
 
-@onready var grid: EditorGridView = $EditorGrid as EditorGridView
+@onready var grid: EditorGridView = $GridClip/EditorGrid as EditorGridView
 @onready var robot_button: Button = $SidebarScroll/VBoxContainer/RobotButton
 @onready var goal_button: Button = $SidebarScroll/VBoxContainer/GoalButton
 @onready var wall_button: Button = $SidebarScroll/VBoxContainer/WallButton
@@ -31,14 +31,19 @@ var document := LevelDocument.new()
 @onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
 @onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
 @onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
+@onready var zoom_in_button: Button = $ZoomControls/ZoomInButton
+@onready var zoom_out_button: Button = $ZoomControls/ZoomOutButton
 
 func _ready() -> void:
 	_arrange_sidebar()
 	document.create_blank(10, 10)
 
 	grid.set_document(document)
+	grid.zoom_changed.connect(_center_grid)
 	resized.connect(_center_grid)
 	call_deferred("_center_grid")
+	zoom_in_button.pressed.connect(grid.zoom_in)
+	zoom_out_button.pressed.connect(grid.zoom_out)
 	save_button.disabled = true
 
 	robot_button.pressed.connect(_on_robot_button_pressed)
@@ -94,9 +99,12 @@ func _center_grid() -> void:
 		int(document.data["rows"]) * EditorGridView.CELL_SIZE
 	)
 	var available_size := size - Vector2(SIDEBAR_WIDTH, 0.0)
-	var fit := maxf(0.05, minf((available_size.x - 48.0) / grid_size.x, (available_size.y - 48.0) / grid_size.y))
-	grid.scale = Vector2.ONE * minf(fit, 1.5)
-	grid.position = Vector2(SIDEBAR_WIDTH, 0.0) + (available_size - grid_size * grid.scale) * 0.5
+	if not grid.zoom_initialized:
+		var fit := maxf(0.05, minf((available_size.x - 48.0) / grid_size.x, (available_size.y - 48.0) / grid_size.y))
+		grid.zoom_level = minf(fit, 1.5)
+		grid.zoom_initialized = true
+	grid.scale = Vector2.ONE * grid.zoom_level
+	grid.position = (available_size - grid_size * grid.scale) * 0.5
 	
 func _on_robot_button_pressed() -> void:
 	_select_tool(EditorGridView.Tool.ROBOT, robot_button, "Robot")
