@@ -1,0 +1,13 @@
+{
+  "rows": 3,
+  "cols": 5,
+  "robots": [{"x": 1, "y": 2, "_orientation": 0, "objects": {}}],
+  "walls": {"1,1": ["north"], "2,1": ["north"], "3,1": ["north"], "4,1": ["north"], "5,1": ["north"], "1,2": ["north"], "2,2": ["north"], "3,2": ["north"], "4,2": ["north"], "5,2": ["north"]},
+  "goal": {"position": {"x": 5, "y": 2, "image": "green_home_tile"}},
+  "description": ["Reach the green goal at (5, 2). Your character starts facing east. Add move commands, then press Run. Each move advances one tile."],
+  "hint": "Count the gaps between your starting tile and the goal. In C++ write move(); and in Python write move(). Use the step button to watch one action at a time.",
+  "editor": {
+	"cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Add your moves here.", "    move();", "", "    return 0;", "}"],
+	"python": ["from robot import *", "", "# Add your moves here.", "move()"]
+  }
+}

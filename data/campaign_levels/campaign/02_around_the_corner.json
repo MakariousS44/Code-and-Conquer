@@ -1,0 +1,13 @@
+{
+  "rows": 5,
+  "cols": 5,
+  "robots": [{"x": 1, "y": 1, "_orientation": 0, "objects": {}}],
+  "walls": {"1,1": ["north"], "2,1": ["north"], "3,1": ["north"], "4,2": ["east"], "4,3": ["east"], "4,4": ["east"], "4,5": ["east"]},
+  "goal": {"position": {"x": 5, "y": 5, "image": "green_home_tile"}},
+  "description": ["Follow the bottom corridor east, then turn north and reach (5, 5). Use move() and turn_left(). Turning changes your direction without changing your tile."],
+  "hint": "Travel to the bottom-right corner first. A left turn while facing east points north. Then follow the right edge up to the goal.",
+  "editor": {
+	"cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Follow the corridor, turn, then reach the goal.", "", "    return 0;", "}"],
+	"python": ["from robot import *", "", "# Follow the corridor, turn, then reach the goal."]
+  }
+}

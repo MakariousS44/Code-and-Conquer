@@ -11,6 +11,7 @@
 extends Control
 
 const CUSTOM_LEVELS_DIR := "user://custom_levels/"
+var campaign_menu: Window
 
 # we used get_node_or_null() directly here instead of going through get_tree().current_scene
 # on Linux, current_scene can be null when these vars get initialized direct paths are fine 
@@ -24,6 +25,8 @@ const CUSTOM_LEVELS_DIR := "user://custom_levels/"
 # main menu buttons
 @onready var main_menu_start_button: Button = get_node_or_null("MenuBG/ButtonsContainer/StartButton")
 @onready var upload_button: Button = get_node_or_null("MenuBG/ButtonsContainer/Upload")
+@onready var level_editor_button: Button = get_node_or_null("MenuBG/ButtonsContainer/LevelEditorButton")
+@onready var custom_worlds_button: Button = get_node_or_null("MenuBG/ButtonsContainer/CustomWorldsButton")
 @onready var options_button: Button = get_node_or_null("MenuBG/ButtonsContainer/OptionsButton")
 @onready var quit_button: Button = get_node_or_null("MenuBG/ButtonsContainer/QuitButton")
 
@@ -33,6 +36,7 @@ const CUSTOM_LEVELS_DIR := "user://custom_levels/"
 
 
 func _ready() -> void:
+	_arrange_main_menu_actions()
 	# bail early if critical nodes are missing, nothing below will work without them
 	if level_popup == null:
 		push_error("LevelSelectPopup node not found.")
@@ -69,6 +73,12 @@ func _ready() -> void:
 	if upload_button != null and not upload_button.pressed.is_connected(_on_upload_level_button_pressed):
 		upload_button.pressed.connect(_on_upload_level_button_pressed)
 
+	if level_editor_button != null and not level_editor_button.pressed.is_connected(_on_level_editor_button_pressed):
+		level_editor_button.pressed.connect(_on_level_editor_button_pressed)
+
+	if custom_worlds_button != null and not custom_worlds_button.pressed.is_connected(_open_custom_worlds):
+		custom_worlds_button.pressed.connect(_open_custom_worlds)
+
 	if options_button != null and not options_button.pressed.is_connected(_on_options_button_pressed):
 		options_button.pressed.connect(_on_options_button_pressed)
 
@@ -83,6 +93,36 @@ func _ready() -> void:
 		level_dropdown.item_selected.connect(func(_i: int): _update_play_button())
 
 	_update_play_button()
+	campaign_menu = preload("res://main_menu/scripts/campaign_menu.gd").new()
+	campaign_menu.visible = false
+	add_child(campaign_menu)
+	campaign_menu.level_selected.connect(func(path: String):
+		SelectedLevel.path = path
+		_on_play_button_pressed())
+	campaign_menu.custom_worlds_requested.connect(_open_custom_worlds)
+
+
+func _arrange_main_menu_actions() -> void:
+	var container := get_node_or_null("MenuBG/ButtonsContainer") as VBoxContainer
+	if container == null:
+		return
+	for index in range(["StartButton", "CustomWorldsButton", "LevelEditorButton", "Upload", "OptionsButton", "QuitButton"].size()):
+		var action := container.get_node_or_null(["StartButton", "CustomWorldsButton", "LevelEditorButton", "Upload", "OptionsButton", "QuitButton"][index])
+		if action != null:
+			container.move_child(action, index)
+	var colors := {
+		"StartButton": Color("79dfac"), "CustomWorldsButton": Color("72c9f3"),
+		"LevelEditorButton": Color("c0a0ff"), "Upload": Color("f2c879"),
+		"OptionsButton": Color("f0a6ce"), "QuitButton": Color("f28e91")
+	}
+	for button_name in colors:
+		var button := container.get_node_or_null(button_name) as Button
+		if button == null:
+			continue
+		var accent: Color = colors[button_name]
+		button.add_theme_color_override("font_color", accent)
+		button.add_theme_color_override("font_hover_color", Color.WHITE)
+		button.add_theme_color_override("font_pressed_color", accent.lightened(0.2))
 
 
 # keeps the play button greyed out until the user has actually picked a level
@@ -93,11 +133,17 @@ func _update_play_button() -> void:
 
 func _on_button_start_pressed() -> void:
 	$TabMoveSound.play()
+	campaign_menu.show_campaign()
+
+
+func _open_custom_worlds() -> void:
 
 	# refreshes the dropdown in case new levels were added since the menu loaded the first time
+	# refreshes the campaign levels before showing popup
 	# users can drag and drop to the file outside of the game so this is important
-	if level_dropdown != null and level_dropdown.has_method("populate_from_folder"):
-		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
+	if level_dropdown != null and level_dropdown.has_method("populate_levels"):
+		level_dropdown.populate_levels()
+	_update_play_button()
 
 	if level_popup != null:
 		level_popup.popup_centered()
@@ -116,7 +162,7 @@ func _on_quit_button_pressed() -> void:
 	if _quitting:
 		return
 	_quitting = true
-	$QuitSound.play()
+	$LoseSound.play()
 	await get_tree().create_timer(2.0).timeout
 	get_tree().quit()
 
@@ -126,6 +172,11 @@ func _on_upload_level_button_pressed() -> void:
 
 	if level_file_dialog != null:
 		level_file_dialog.popup_centered_ratio(0.75)
+
+
+func _on_level_editor_button_pressed() -> void:
+	$TabMoveSound.play()
+	get_tree().change_scene_to_file("res://level_editor/scenes/level_editor.tscn")
 
 
 # this will copy the selected file into the custom levels folder and refreshes the dropdown
@@ -151,14 +202,14 @@ func _on_level_file_selected(path: String) -> void:
 
 	dest_file.store_string(contents)
 	dest_file.close()
-
-	if level_dropdown != null and level_dropdown.has_method("populate_from_folder"):
-		level_dropdown.populate_from_folder(CUSTOM_LEVELS_DIR)
+	if level_dropdown != null and level_dropdown.has_method("populate_levels"):
+		level_dropdown.populate_levels()
 
 	if level_dropdown != null and level_dropdown.has_method("select_path"):
 		level_dropdown.select_path(dest_path)
 	else:
 		SelectedLevel.path = dest_path
+	_update_play_button()
 
 
 # plays a little fade animation then loads the workstation scene

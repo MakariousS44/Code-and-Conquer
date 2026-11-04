@@ -1,5 +1,13 @@
 extends Control
 
+const Campaign = preload("res://config/campaign_levels.gd")
+var campaign_progress_path: String = Campaign.SAVE_PATH
+var campaign_instructions: Label
+var campaign_hint: Label
+var campaign_panel: VBoxContainer
+var campaign_next_button: Button
+var campaign_hint_button: Button
+var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").new()
 # === UI references ===
 # all the workspace pieces live here: editor, output, controls, and level viewport
 @onready var editor: CodeEdit = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection/EditorPanel/EditorMargin/Editor
@@ -110,10 +118,39 @@ var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
-var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit"
+var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit" | "cmd_limit" | "time_limit" | "done"
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
-const MOVE_LIMIT := 999
-const CMD_LIMIT := 9999
+
+# === execution limits ===
+# Default limits
+const DEFAULT_MOVE_LIMIT := 999
+const DEFAULT_CMD_LIMIT := 9999
+const DEFAULT_TIME_LIMIT_SECONDS := 300.0
+
+# Runtime limits (loaded from JSON or defaults)
+var _move_limit: int = DEFAULT_MOVE_LIMIT
+var _cmd_limit: int = DEFAULT_CMD_LIMIT
+var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
+
+const ALLOWED_IPC_COMMANDS := ["MOVE", "TURN_LEFT", "PICK_OBJECT", "PUT_OBJECT"]
+const ALLOWED_IPC_QUERIES := [
+	"FRONT_IS_CLEAR",
+	"RIGHT_IS_CLEAR",
+	"LEFT_IS_CLEAR",
+	"WALL_IN_FRONT",
+	"WALL_ON_RIGHT",
+	"WALL_ON_LEFT",
+	"AT_GOAL",
+	"OBJECT_HERE",
+	"CARRIES_OBJECT",
+	"IS_FACING_NORTH",
+	"IS_FACING_EAST",
+	"IS_FACING_SOUTH",
+	"IS_FACING_WEST",
+]
+const MAX_STUDENT_OUTPUT_LINES := 200
+const MAX_STUDENT_SOURCE_CHARS := 100000
+var _student_output_lines := 0
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -125,12 +162,21 @@ func _ready() -> void:
 		OS.execute("pkill", ["-f", "student_program"], [], true)
 
 	_set_status("Ready", "")
+
+	var worker_check: Dictionary = sandbox_worker.ping()
+	if worker_check.get("ok", false):
+		print(worker_check.get("message", "Worker connected."))
+	else:
+		push_warning(worker_check.get("message", "Worker connection failed."))
+
 	editor.text = "#include \"robot.hpp\"\n\nint main() {\n    move();\n}\n"
 	editor.grab_focus()
 
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
+	_setup_campaign_ui()
+	_apply_saved_preferences()
 
 	# compass updates whenever the player's logical facing changes
 	EventManager.player_facing_changed.connect(_on_player_facing_changed)
@@ -178,6 +224,80 @@ func _ready() -> void:
 
 	await get_tree().process_frame
 	_load_level_scene(true)
+
+
+func _setup_campaign_ui() -> void:
+	campaign_panel = VBoxContainer.new()
+	campaign_panel.add_theme_constant_override("separation", 6)
+	var column := $RootMargin/MainColumn
+	column.add_child(campaign_panel)
+	column.move_child(campaign_panel, 1)
+	campaign_instructions = Label.new()
+	campaign_instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_instructions.add_theme_font_size_override("font_size", 20)
+	campaign_panel.add_child(campaign_instructions)
+	campaign_hint_button = Button.new()
+	campaign_hint_button.text = "Show Hint"
+	campaign_hint_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
+	campaign_hint_button.pressed.connect(func():
+		campaign_hint.visible = not campaign_hint.visible
+		campaign_hint_button.text = "Hide Hint" if campaign_hint.visible else "Show Hint")
+	campaign_panel.add_child(campaign_hint_button)
+	campaign_hint = Label.new()
+	campaign_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_hint.add_theme_font_size_override("font_size", 18)
+	campaign_hint.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_hint)
+	campaign_next_button = Button.new()
+	campaign_next_button.text = "Next Level"
+	campaign_next_button.custom_minimum_size.y = 36
+	campaign_next_button.pressed.connect(_on_win_next)
+	var buttons := $WinOverlay/WinCard/WinContent/WinButtons
+	buttons.add_child(campaign_next_button)
+	buttons.move_child(campaign_next_button, 0)
+	campaign_next_button.hide()
+
+
+func _apply_saved_preferences() -> void:
+	var font_sizes := [14, 18, 24]
+	var font_index := clampi(int(_saved_setting("editor", "font_size", 1)), 0, font_sizes.size() - 1)
+	_on_font_size_changed(font_sizes[font_index])
+
+	var language_setting := int(_saved_setting("editor", "default_language", 0))
+	language_selector.select(1 if language_setting == 0 else 0)
+	_on_language_changed(language_selector.selected)
+
+	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
+	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
+
+	var use_light_theme := int(_saved_setting("editor", "theme", 0)) == 1
+	if use_light_theme:
+		editor.add_theme_color_override("background_color", Color("#f2f4f8"))
+		editor.add_theme_color_override("font_color", Color("#1b2430"))
+
+	var hints_enabled := bool(_saved_setting("learning", "beginner_hints", true))
+	if campaign_hint_button != null:
+		campaign_hint_button.visible = hints_enabled
+
+
+func _saved_setting(section: String, key: String, fallback):
+	var config := ConfigFile.new()
+	if config.load("user://settings.cfg") == OK:
+		return config.get_value(section, key, fallback)
+	return fallback
+
+
+func _refresh_campaign_instructions() -> void:
+	var index := Campaign.index_for_path(SelectedLevel.path)
+	campaign_panel.visible = index >= 0
+	campaign_hint.hide()
+	campaign_hint_button.text = "Show Hint"
+	if index < 0:
+		return
+	var description := PackedStringArray(current_level_definition.get("description", []))
+	campaign_instructions.text = "Level %d / %d - %s\n%s" % [index + 1, Campaign.LEVELS.size(), Campaign.LEVELS[index].title, " ".join(description)]
+	campaign_hint.text = current_level_definition.get("hint", "")
 
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
@@ -236,6 +356,18 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		return
 
 	current_level_definition = raw.definition
+	_refresh_campaign_instructions()
+
+	# load limits from JSON if present, otherwise use defaults
+	var limits_data = current_level_definition.get("limits", {})
+	if limits_data is Dictionary:
+		_move_limit = limits_data.get("move_limit", DEFAULT_MOVE_LIMIT)
+		_cmd_limit = limits_data.get("cmd_limit", DEFAULT_CMD_LIMIT)
+		_time_limit_seconds = limits_data.get("time_limit_seconds", DEFAULT_TIME_LIMIT_SECONDS)
+	else:
+		_move_limit = DEFAULT_MOVE_LIMIT
+		_cmd_limit = DEFAULT_CMD_LIMIT
+		_time_limit_seconds = DEFAULT_TIME_LIMIT_SECONDS
 
 	# preload starter code into editor only when requested
 	if load_editor_text:
@@ -361,34 +493,48 @@ func _on_language_changed(index: int) -> void:
 
 # === syntax highlighting ===
 
+func _syntax_color(color: Color) -> Color:
+	if int(_saved_setting("editor", "theme", 0)) == 1:
+		return color.darkened(0.55)
+	return color
+
 func _setup_syntax_highlighting() -> void:
-	var highlighter := CodeHighlighter.new()
+	var highlighter := preload("res://workstation/scripts/cpp_highlighter.gd").new()
 
 	var keywords := [
-		"int", "double", "float", "bool", "char", "void",
-		"if", "else", "while", "for", "return",
-		"true", "false", "break", "continue"
+		"alignas", "alignof", "and", "and_eq", "asm", "auto",
+		"bitand", "bitor", "bool", "break", "case", "catch",
+		"char", "char8_t", "char16_t", "char32_t", "class", "compl",
+		"concept", "const", "consteval", "constexpr", "constinit", "const_cast",
+		"continue", "co_await", "co_return", "co_yield", "decltype", "default",
+		"delete", "do", "double", "dynamic_cast", "else", "enum", "explicit",
+		"export", "extern", "false", "float", "for", "friend", "goto", "if",
+		"inline", "int", "long", "mutable", "namespace", "new", "noexcept",
+		"not", "not_eq", "nullptr", "operator", "or", "or_eq", "private",
+		"protected", "public", "register", "reinterpret_cast", "requires",
+		"return", "short", "signed", "sizeof", "static", "static_assert",
+		"static_cast", "struct", "switch", "template", "this", "thread_local",
+		"throw", "true", "try", "typedef", "typeid", "typename", "union",
+		"unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while",
+		"xor", "xor_eq"
 	]
 	for word in keywords:
-		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
 
 	for command in _commands.COMMANDS:
-		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
+		highlighter.add_keyword_color(command.name, _syntax_color(Color(0.80, 0.60, 1.00)))
 
 	for sensor in _commands.SENSORS:
-		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+		highlighter.add_keyword_color(sensor.name, _syntax_color(Color(0.60, 0.90, 1.00)))
 
-	highlighter.number_color = Color(0.95, 0.65, 0.30)
-	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
-	highlighter.function_color = Color(0.95, 0.85, 0.45)
-	highlighter.member_variable_color = Color(0.85, 0.85, 0.85)
-	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("//", "", Color(0.50, 0.50, 0.50), true)
-	highlighter.add_color_region("/*", "*/", Color(0.50, 0.50, 0.50), false)
-	highlighter.add_keyword_color("include", Color(0.95, 0.45, 0.75))
-	highlighter.add_color_region("<", ">", Color(1.0, 0.6, 0.25), true)
+	highlighter.number_color = _syntax_color(Color(0.95, 0.65, 0.30))
+	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
+	highlighter.member_variable_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.add_keyword_color("include", _syntax_color(Color(0.95, 0.45, 0.75)))
 
+	highlighter.string_color = _syntax_color(Color(0.60, 0.90, 0.60))
+	highlighter.comment_color = _syntax_color(Color(0.50, 0.50, 0.50))
 	editor.syntax_highlighter = highlighter
 
 
@@ -396,29 +542,30 @@ func _setup_python_highlighting() -> void:
 	var highlighter := CodeHighlighter.new()
 
 	var keywords := [
-		"def", "if", "elif", "else", "while", "for", "in",
-		"return", "True", "False", "None", "and", "or", "not",
-		"pass", "break", "continue"
+		"False", "None", "True", "and", "as", "assert", "async", "await",
+		"break", "class", "continue", "def", "del", "elif", "else", "except",
+		"finally", "for", "global", "if", "in", "is", "lambda", "nonlocal",
+		"not", "or", "pass", "raise", "return", "try", "while", "with", "yield"
 	]
 	for word in keywords:
-		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
 
 	for command in _commands.COMMANDS:
-		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
+		highlighter.add_keyword_color(command.name, _syntax_color(Color(0.80, 0.60, 1.00)))
 
 	for sensor in _commands.SENSORS:
-		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+		highlighter.add_keyword_color(sensor.name, _syntax_color(Color(0.60, 0.90, 1.00)))
 
-	highlighter.add_keyword_color("from", Color(0.95, 0.45, 0.75))
-	highlighter.add_keyword_color("import", Color(0.95, 0.45, 0.75))
-	highlighter.add_color_region("*", "", Color(0.95, 0.45, 0.75), true)
-	highlighter.number_color = Color(0.95, 0.65, 0.30)
-	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
-	highlighter.function_color = Color(0.95, 0.85, 0.45)
-	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("#", "", Color(0.50, 0.50, 0.50), true)
-	highlighter.add_color_region("\"\"\"", "\"\"\"", Color(0.60, 0.90, 0.60), false)
+	highlighter.add_keyword_color("from", _syntax_color(Color(0.95, 0.45, 0.75)))
+	highlighter.add_keyword_color("import", _syntax_color(Color(0.95, 0.45, 0.75)))
+	highlighter.number_color = _syntax_color(Color(0.95, 0.65, 0.30))
+	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
+	highlighter.add_color_region("\"", "\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'", "'", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("#", "", _syntax_color(Color(0.50, 0.50, 0.50)), true)
+	highlighter.add_color_region("\"\"\"", "\"\"\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'''", "'''", _syntax_color(Color(0.60, 0.90, 0.60)), false)
 
 	editor.syntax_highlighter = highlighter
 
@@ -627,22 +774,24 @@ func _on_settings_button_pressed() -> void:
 
 
 # === funny lose messages ===
+# Message for a specific loss (e.g., trying to move into a wall) commented out for now
+# Maybe make separate arrays for the different lose conditions? (see TODO for get_funny_lose_message)
 const LOSE_MESSAGES := [
-	"Your player has left the chat.",
+# 	"Your player has left the chat.",     # walking off the map?
 	"Have you...tried turning it off and on again?",
-	"Your player took an unscheduled vacation.",
+#	"Your player took an unscheduled vacation.",     # stopping while on an empty tile
 	"Your player says: \"I quit.\"",
 	"404: Success not found.",
-	"Instructions unclear. Your player now in another dimension.",
-	"Your player walked into a wall. Impressive dedication!",
+#	"Instructions unclear. Your player now in another dimension.",     # walking off the map
+#	"Your player walked into a wall. Impressive dedication!",     # walking into a wall
 	"Your player has filed a complaint with HR.",
-	"Maybe try fewer walls next time?",
-	"Your player called in sick.",
+#	"Maybe try fewer walls next time?",     # walking into a wall
+#	"Your player called in sick.",     # idek what lose condition this should be
 	"The matrix has rejected your code.",
 	"Skill issue detected.",
 	"Your player tripped over their own code.",
 	"Your player is on strike. Have you tried negotiating?",
-	"Splat. Your player is now wall decor.",
+#	"Splat. Your player is now wall decor.",     # walking into a wall
 ]
 
 func _set_controls_disabled(disabled: bool) -> void:
@@ -661,6 +810,7 @@ func _set_controls_disabled(disabled: bool) -> void:
 		library_overlay.hide()
 
 
+# TODO: Pick a message for the *specific* lose condition
 func _get_funny_lose_message() -> String:
 	return LOSE_MESSAGES[randi() % LOSE_MESSAGES.size()]
 
@@ -668,14 +818,51 @@ func _get_funny_lose_message() -> String:
 func _trigger_move_limit_lose() -> void:
 	if _is_handling_lose:
 		return
+	
 	_is_handling_lose = true
 	_run_outcome = "move_limit"
 	_stop_execution()
-
+		
+	$LoseSound.play()
 	log_header("lose")
-	log_error("Move Limit Reached")
+	log_error("Move limit reached (%d moves)" % _move_limit)
 	_set_status("You lost", "error")
+	
+	lose_message.text = _get_funny_lose_message()
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
 
+
+func _trigger_cmd_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	
+	_is_handling_lose = true
+	_run_outcome = "cmd_limit"
+	_stop_execution()
+	
+	$LoseSound.play()
+	log_header("lose")
+	log_error("Command limit reached (%d commands)" % _cmd_limit)
+	_set_status("You lost", "error")
+	
+	lose_message.text = _get_funny_lose_message()
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
+
+
+func _trigger_time_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	
+	_is_handling_lose = true
+	_run_outcome = "time_limit"
+	_stop_execution()
+	$LoseSound.play()
+	log_header("lose")
+	log_error("Time limit reached (%.1f seconds)" % _time_limit_seconds)
+	_set_status("You lost", "error")
+	
 	lose_message.text = _get_funny_lose_message()
 	lose_overlay.visible = true
 	_set_controls_disabled(true)
@@ -691,6 +878,7 @@ func _trigger_incomplete_lose(reason: String) -> void:
 	_run_outcome = "incomplete"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -707,6 +895,7 @@ func _on_player_lose(reason: String) -> void:
 	_run_outcome = "lose"
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -717,8 +906,18 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	$WinSound.play()
 	_run_outcome = "win"
 	_stop_execution()
+	var campaign_index := Campaign.index_for_path(SelectedLevel.path)
+	if campaign_index >= 0:
+		var save_error := Campaign.mark_complete(SelectedLevel.path, campaign_progress_path)
+		if save_error != OK:
+			log_error("Could not save campaign progress. Replay this level to try again.")
+		campaign_next_button.visible = save_error == OK and campaign_index + 1 < Campaign.LEVELS.size()
+		if campaign_index == Campaign.LEVELS.size() - 1:
+			$WinOverlay/WinCard/WinContent/WinTitle.text = "Campaign Complete!"
+			$WinOverlay/WinCard/WinContent/WinMessage.text = "You completed all %d levels. Well done!" % Campaign.LEVELS.size()
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
@@ -742,10 +941,21 @@ func _on_win_retry() -> void:
 
 
 func _on_win_next() -> void:
+	var next_index := Campaign.index_for_path(SelectedLevel.path) + 1
+	if next_index <= 0 or not Campaign.is_unlocked(next_index, Campaign.completed_ids(campaign_progress_path)):
+		return
+	_stop_execution()
+	SelectedLevel.path = Campaign.LEVELS[next_index].path
 	win_overlay.visible = false
+	_is_handling_lose = false
 	_set_controls_disabled(false)
-	log_header("info")
-	log_line("Next level coming soon!")
+	_on_reset_button_pressed()
+	_load_editor_template_for_current_language()
+	$WinOverlay/WinCard/WinContent/WinTitle.text = "Level Complete!"
+	game_instance.call_deferred("_fit_camera_to_level")
+	$WinOverlay/WinCard/WinContent/WinMessage.text = "Your robot reached the goal!"
+	campaign_next_button.hide()
+	editor.grab_focus()
 
 
 func _on_go_to_menu() -> void:
@@ -769,11 +979,27 @@ func _stop_execution() -> void:
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
+func _enforce_program_time_limit(pid: int) -> void:
+	if _time_limit_seconds <= 0:
+		return  # No time limit
+	
+	await get_tree().create_timer(_time_limit_seconds).timeout
+
+	if _ipc_active and _subprocess_pid == pid:
+		_trigger_time_limit_lose()
 
 func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
 	var start_paused: bool = _paused
 	_stop_execution()
+	_student_output_lines = 0
+
+	if editor.text.length() > MAX_STUDENT_SOURCE_CHARS:
+		log_error("Source code is too large. Maximum size is 100,000 characters.")
+		_set_status("Validation failed", "error")
+		_re_enable_buttons()
+		return
+
 	reset_button.disabled = false
 	run_button.disabled = true
 	step_button.disabled = true
@@ -808,10 +1034,25 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 
+	if current_language == Language.PYTHON and not py_pipeline.is_available():
+		log_error("Python 3 was not found. Please install Python 3 first, then restart the game.")
+		_set_status("Python unavailable", "error")
+		_re_enable_buttons()
+		return
+
+	if current_language == Language.CPP and not compiler.is_available():
+		log_error("A C++ compiler(g++) was not found. Please install C++ first, then restart the game.")
+		_set_status("C++ Compiler unavailable", "error")
+		_re_enable_buttons()
+		return
+
 	# start IPC server
 	var IPCServer = preload(Paths.IPC_SERVER)
 	_ipc_server = IPCServer.new()
-	if not _ipc_server.start():
+	var crypto := Crypto.new()
+	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
+
+	if not _ipc_server.start(ipc_token):
 		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
 		_set_status("IPC failed", "error")
 		_re_enable_buttons()
@@ -821,7 +1062,7 @@ func _run_pipeline() -> void:
 	if current_language == Language.CPP:
 		var generated: Dictionary = generator.generate(editor.text)
 		current_line_offset = generated.line_offset
-		compiler.prepare_build_files(generated.generated_source, _ipc_server.port)
+		compiler.prepare_build_files(generated.generated_source, _ipc_server.port, ipc_token)
 
 		var build: Dictionary = compiler.compile_program()
 		if not build.ok:
@@ -835,7 +1076,7 @@ func _run_pipeline() -> void:
 		_subprocess_pid = compiler.start_program()
 	else:
 		current_line_offset = 0
-		_subprocess_pid = py_pipeline.start(editor.text, _ipc_server.port)
+		_subprocess_pid = py_pipeline.start(editor.text, _ipc_server.port, ipc_token)
 
 	if _subprocess_pid == -1:
 		log_error("Failed to launch subprocess.")
@@ -844,6 +1085,8 @@ func _run_pipeline() -> void:
 		_ipc_server = null
 		_re_enable_buttons()
 		return
+
+	_enforce_program_time_limit(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
@@ -876,6 +1119,13 @@ func _run_ipc_loop() -> void:
 		if line == "[CANCELLED]" or line == "[DISCONNECT]":
 			break
 
+		if line == "[AUTH_FAILED]" or line == "[PROTOCOL_ERROR]":
+			log_error("Security error: student program failed IPC authentication.")
+			_run_had_error = true
+			_set_status("Security error", "error")
+			_stop_execution()
+			_re_enable_buttons()
+			return
 		if line.begins_with("[CMD]"):
 			var cmd := line.trim_prefix("[CMD] ")
 			var src_line := -1
@@ -884,8 +1134,16 @@ func _run_ipc_loop() -> void:
 				cmd = parts[0].strip_edges()
 				src_line = int(parts[1].strip_edges())
 
-			if _cmd_history.size() >= CMD_LIMIT:
-				_trigger_move_limit_lose()
+			if not ALLOWED_IPC_COMMANDS.has(cmd):
+				log_error("Security error: unrecognized robot command.")
+				_run_had_error = true
+				_set_status("Security error", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return 
+
+			if _cmd_limit > 0 and _cmd_history.size() >= _cmd_limit:
+				_trigger_cmd_limit_lose()
 				break
 
 			var snap = _take_snapshot()
@@ -911,11 +1169,25 @@ func _run_ipc_loop() -> void:
 			var query := line.trim_prefix("[QUERY] ")
 			if " [LINE] " in query:
 				query = query.split(" [LINE] ")[0].strip_edges()
+
+			if not ALLOWED_IPC_QUERIES.has(query):
+				log_error("Security error: unrecognized robot query.")
+				_run_had_error = true
+				_set_status("Security error", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return 
+	
 			var answer := _answer_query(query)
 			_ipc_server.send(answer)
 
 		elif line.begins_with("[PRINT]"):
-			log_line(line.trim_prefix("[PRINT] "))
+			if _student_output_lines < MAX_STUDENT_OUTPUT_LINES:
+				log_line(line.trim_prefix("[PRINT] "))
+			elif _student_output_lines == MAX_STUDENT_OUTPUT_LINES:
+				log_warning("Output limit reached; further student output is hidden.")
+
+			_student_output_lines += 1
 
 		elif line.begins_with("[ERROR]"):
 			log_error(line.trim_prefix("[ERROR] "))
@@ -929,11 +1201,17 @@ func _run_ipc_loop() -> void:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
-			if _level_has_win_condition():
-				_trigger_incomplete_lose("Did not reach the goal.")
-			else:
-				_on_execution_done()
-				return
+			# Check win condition one final time after all commands complete
+			if game_instance != null and game_instance.has_method("check_win_condition"):
+				game_instance.check_win_condition(player_node.grid_x, player_node.grid_y)
+			
+			# If still incomplete after final check, trigger lose
+			if _run_outcome == "incomplete":
+				if _level_has_win_condition():
+					_trigger_incomplete_lose("Did not reach the goal.")
+				else:
+					_on_execution_done()
+					return
 		else:
 			_stop_execution()
 
@@ -990,7 +1268,7 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 			for i in range(min(_step_index, _cmd_history.size())):
 				if _cmd_history[i].cmd == "MOVE":
 					moves_so_far += 1
-			if moves_so_far > MOVE_LIMIT:
+			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
 			await player_node.move_forward(exec_speed)
@@ -1027,6 +1305,8 @@ func _answer_query(query: String) -> String:
 			return _bool(facing == "north")
 		"IS_FACING_EAST":
 			return _bool(facing == "east")
+		"IS_FACING_SOUTH":
+			return _bool(facing == "south")
 		"IS_FACING_WEST":
 			return _bool(facing == "west")
 		"AT_GOAL":
@@ -1034,7 +1314,7 @@ func _answer_query(query: String) -> String:
 		"OBJECT_HERE":
 			return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
 		"CARRIES_OBJECT":
-			return _bool(player_node.carried_object != "")
+			return _bool(not player_node.carried_object.is_empty())
 	return "false"
 
 
@@ -1308,7 +1588,7 @@ func _build_report() -> String:
 	report += "\n"
 	report += "SEQUENCE LETTERS\n"
 	report += "  M  move forward\n"
-	report += "  T  turn left\n"
+	report += "  L  turn left\n"
 	report += "  U  pick up object\n"
 	report += "  D  put down object\n"
 	report += "\n"
@@ -1316,7 +1596,9 @@ func _build_report() -> String:
 	report += "  !  win\n"
 	report += "  ?  lose (collision or did not reach goal)\n"
 	report += "  .  finished — no win condition on this level\n"
-	report += "  #  command/move limit hit (%d moves)\n" % MOVE_LIMIT
+	report += "  #  move limit hit (%d moves)\n" % _move_limit
+	report += "  @  command limit hit (%d commands)\n" % _cmd_limit
+	report += "  T  time limit hit (%.1f seconds)\n" % _time_limit_seconds
 	report += "\n"
 	report += "OBJECT LETTERS\n"
 	report += "  A  apple\n"
@@ -1326,6 +1608,7 @@ func _build_report() -> String:
 	report += "  K  token\n"
 	report += "\n"
 	report += "GRID CELLS  (each cell = one tile, letter + count)\n"
+	report += "   ~    void (no floor)\n"
 	report += "  (Xn)  deposit zone needs n of X — not yet satisfied\n"
 	report += "  [Xn]  deposit zone needs n of X — satisfied\n"
 	report += "   Xn   n of object X on the floor\n"
@@ -1339,7 +1622,7 @@ func _cmd_to_report_letter(cmd: String) -> String:
 		"MOVE":
 			return "M"
 		"TURN_LEFT":
-			return "T"
+			return "L"
 		"PICK_OBJECT":
 			return "U"
 		"PUT_OBJECT":
@@ -1357,6 +1640,10 @@ func _run_outcome_marker() -> String:
 			return "."
 		"move_limit":
 			return "#"
+		"cmd_limit":
+			return "@"
+		"time_limit":
+			return "T"
 		_:
 			return "?"
 
@@ -1414,6 +1701,8 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 			var glyph: String
 			if col == px and row == py:
 				glyph = " %s  " % _facing_arrow(facing)
+			elif preload("res://map/scripts/void_tiles.gd").contains(current_level_definition, col, row):
+				glyph = " ~  "
 			elif deposit_zones.has(key) and typeof(deposit_zones[key]) == TYPE_DICTIONARY and not deposit_zones[key].is_empty():
 				var obj_name: String = deposit_zones[key].keys()[0]
 				var required: int = int(deposit_zones[key][obj_name])
@@ -1449,7 +1738,7 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 	var label := "    "
 	for col in range(1, cols + 1):
 		var c := str(col)
-		var pad_l := (4 - c.length()) / 2
+		var pad_l := int((4 - c.length()) / 2)
 		label += " ".repeat(pad_l) + c + " ".repeat(4 - c.length() - pad_l)
 		if col < cols:
 			label += " "

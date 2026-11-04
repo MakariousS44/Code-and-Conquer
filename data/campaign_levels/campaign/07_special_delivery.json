@@ -1,0 +1,14 @@
+{
+  "rows": 4,
+  "cols": 6,
+  "robots": [{"x": 1, "y": 1, "_orientation": 0, "objects": {}}],
+  "walls": {"1,1": ["north"], "2,1": ["north"], "3,1": ["north"], "4,1": ["north"], "5,1": ["north"], "5,2": ["east"], "5,3": ["east"], "5,4": ["east"]},
+  "objects": {"3,1": {"token": 1}},
+  "goal": {"position": {"x": 6, "y": 4, "image": "green_home_tile"}, "objects": {"6,4": {"token": 1}}},
+  "description": ["Pick up the token at (3, 1) and deliver it to the green tile at (6, 4). Use pick_object() to grab it and put_object() to set it down. The goal only counts once the token is resting on the goal tile."],
+  "hint": "Walk onto the token's tile before calling pick_object(). Then follow the hallway: east to the corner, turn left, and north to the green tile. Call put_object() once you are standing on it.",
+  "editor": {
+    "cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Pick up the token, carry it to the goal, and put it down.", "", "    return 0;", "}"],
+    "python": ["from robot import *", "", "# Pick up the token, carry it to the goal, and put it down."]
+  }
+}

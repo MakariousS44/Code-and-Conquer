@@ -43,6 +43,9 @@ func load(path: String) -> Dictionary:
 			"error": "Level JSON must be an object."
 		}
 
+	var void_error := preload("res://map/scripts/void_tiles.gd").validate(data)
+	if not void_error.is_empty():
+		return {"ok": false, "error": void_error}
 	return {
 		"ok": true,
 		"definition": data

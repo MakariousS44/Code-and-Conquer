@@ -1,0 +1,13 @@
+{
+  "rows": 5,
+  "cols": 5,
+  "robots": [{"x": 1, "y": 1, "_orientation": 0, "objects": {}}],
+  "walls": {"1,1": ["north"], "2,1": ["north"], "3,1": ["north"], "4,1": ["north"], "2,3": ["north"], "3,3": ["north"], "4,3": ["north"], "5,3": ["north"]},
+  "goal": {"position": {"x": 5, "y": 5, "image": "green_home_tile"}},
+  "description": ["Reach (5, 5) by finding the gaps in both horizontal walls. Plan your route and combine moves and turns. Use the compass or 2D View in Settings to keep track of direction."],
+  "hint": "The lower wall has a gap on the east; the upper wall has a gap on the west. There is no turn_right(), but three left turns equal a right turn. You can create your own turn_right() function if you know how. Repeated moves can also go inside a loop if you know one.",
+  "editor": {
+	"cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Find the gaps and reach the goal.", "", "    return 0;", "}"],
+	"python": ["from robot import *", "", "# Find the gaps and reach the goal."]
+  }
+}

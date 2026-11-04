@@ -1,0 +1,90 @@
+{
+  "rows": 6,
+  "cols": 7,
+  "robots": [
+    {
+      "x": 1,
+      "y": 2,
+      "_orientation": 0,
+      "objects": {}
+    }
+  ],
+  "walls": {
+    "3,1": ["north"],
+    "5,1": ["north"],
+    "2,3": ["east", "north"],
+    "5,3": ["east", "north"],
+    "3,5": ["north"],
+    "5,5": ["north"]
+  },
+  "void_tiles": {
+    "4,2": true,
+    "4,5": true
+  },
+  "objects": {
+    "1,2": {"token": 2},
+    "3,2": {"token": 2},
+    "7,2": {"token": 2},
+    "5,5": {"token": 2}
+  },
+  "goal": {
+    "position": {
+      "x": 1,
+      "y": 2,
+      "image": "green_home_tile"
+    },
+    "objects": {
+      "1,2": {
+        "token": 1
+      },
+      "3,2": {
+        "token": 1
+      },
+      "5,2": {
+        "token": 1
+      },
+      "7,2": {
+        "token": 1
+      },
+      "1,5": {
+        "token": 1
+      },
+      "3,5": {
+        "token": 1
+      },
+      "5,5": {
+        "token": 1
+      },
+      "7,5": {
+        "token": 1
+      }
+    }
+  },
+  "description": [
+    "Each starting stack has 2 tokens. Take one from each stack and fill the empty planting spots on rows 2 and 5. Avoid the gaps and finish at (1, 2)."
+  ],
+  "hint": "At each planting spot, pick once if object_here() is true; otherwise put one down. Visit each spot once and remember whether you have passed the gap.",
+  "editor": {
+    "cpp": [
+      "#include \"robot.hpp\"",
+      "",
+      "void balance_row() {",
+      "    // Take one from a stack of two, or fill an empty spot.",
+      "}",
+      "",
+      "int main() {",
+      "    // Balance both rows, then return to the goal.",
+      "",
+      "    return 0;",
+      "}"
+    ],
+    "python": [
+      "from robot import *",
+      "",
+      "def balance_row():",
+      "    pass  # Take one from a stack of two, or fill an empty spot.",
+      "",
+      "# Balance both rows, then return to the goal."
+    ]
+  }
+}
