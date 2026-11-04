@@ -6,7 +6,7 @@ const PLAYER_CUSTOM_LEVELS_DIR := "user://custom_levels/"
 
 var document := LevelDocument.new()
 
-@onready var grid: EditorGridView = $EditorGrid as EditorGridView
+@onready var grid: EditorGridView = $GridClip/EditorGrid as EditorGridView
 @onready var robot_button: Button = $SidebarScroll/VBoxContainer/RobotButton
 @onready var goal_button: Button = $SidebarScroll/VBoxContainer/GoalButton
 @onready var wall_button: Button = $SidebarScroll/VBoxContainer/WallButton
@@ -15,7 +15,7 @@ var document := LevelDocument.new()
 @onready var description_input: TextEdit = $SidebarScroll/VBoxContainer/DescriptionInput
 @onready var save_button: Button = $SidebarScroll/VBoxContainer/SaveButton
 @onready var level_name_input: LineEdit = $SidebarScroll/VBoxContainer/LevelNameInput
-@onready var apple_button: Button = $SidebarScroll/VBoxContainer/AppleButton
+@onready var object_button: Button = $SidebarScroll/VBoxContainer/ObjectButton
 @onready var erase_button: Button = $SidebarScroll/VBoxContainer/EraseButton
 @onready var void_button: Button = $SidebarScroll/VBoxContainer/VoidButton
 @onready var new_button: Button = $SidebarScroll/VBoxContainer/NewButton
@@ -24,14 +24,37 @@ var document := LevelDocument.new()
 @onready var resize_button: Button = $SidebarScroll/VBoxContainer/ResizeButton
 @onready var back_button: Button = $SidebarScroll/VBoxContainer/BackButton
 @onready var status_label: Label = $SidebarScroll/VBoxContainer/StatusLabel
+@onready var object_type_selector: OptionButton = $SidebarScroll/VBoxContainer/ObjectTypeSelector
+@onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
+@onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
+@onready var goal_carry_selector: OptionButton = $SidebarScroll/VBoxContainer/GoalCarrySelector
+@onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
+@onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
+@onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
+@onready var move_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/MoveLimitDefaultCheckbox
+@onready var cmd_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/CmdLimitDefaultCheckbox
+@onready var time_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/TimeLimitDefaultCheckbox
+@onready var zoom_in_button: Button = $ViewControls/ZoomControls/ZoomInButton
+@onready var zoom_out_button: Button = $ViewControls/ZoomControls/ZoomOutButton
+@onready var pan_up_button: Button = $ViewControls/PanControls/PanUpButton
+@onready var pan_left_button: Button = $ViewControls/PanControls/PanLeftButton
+@onready var pan_down_button: Button = $ViewControls/PanControls/PanDownButton
+@onready var pan_right_button: Button = $ViewControls/PanControls/PanRightButton
 
 func _ready() -> void:
 	_arrange_sidebar()
 	document.create_blank(10, 10)
 
 	grid.set_document(document)
-	resized.connect(_center_grid)
-	call_deferred("_center_grid")
+	grid.view_changed.connect(_layout_grid)
+	resized.connect(_layout_grid)
+	call_deferred("_layout_grid")
+	zoom_in_button.pressed.connect(grid.zoom_in)
+	zoom_out_button.pressed.connect(grid.zoom_out)
+	pan_up_button.pressed.connect(grid.pan_up)
+	pan_down_button.pressed.connect(grid.pan_down)
+	pan_left_button.pressed.connect(grid.pan_left)
+	pan_right_button.pressed.connect(grid.pan_right)
 	save_button.disabled = true
 
 	robot_button.pressed.connect(_on_robot_button_pressed)
@@ -40,16 +63,23 @@ func _ready() -> void:
 	east_wall_button.pressed.connect(_on_east_wall_button_pressed)
 	load_button.pressed.connect(_on_load_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
-	apple_button.pressed.connect(_on_apple_button_pressed)
+	object_button.pressed.connect(_on_object_button_pressed)
 	erase_button.pressed.connect(_on_erase_button_pressed)
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
 	new_button.pressed.connect(_on_new_button_pressed)
 	resize_button.pressed.connect(_on_resize_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
 	level_name_input.text_changed.connect(_on_level_name_changed)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, object_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
+	object_type_selector.item_selected.connect(_on_object_type_changed)
+	object_count_input.value_changed.connect(_on_object_count_changed)
+	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
+	goal_carry_selector.item_selected.connect(_on_goal_carry_changed)
+	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
+	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
+	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
 
 
 func _arrange_sidebar() -> void:
@@ -59,7 +89,9 @@ func _arrange_sidebar() -> void:
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"PlacementLabel", "RobotButton", "GoalButton",
 		"WallsLabel", "WallButton", "EastWallButton",
-		"ObjectsLabel", "AppleButton", "VoidButton", "EraseButton",
+		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "ObjectButton", "VoidButton", "EraseButton",
+		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
+		"LimitsLabel", "MoveLimitDefaultCheckbox", "MoveLimitLabel", "MoveLimitInput", "CmdLimitDefaultCheckbox", "CmdLimitLabel", "CmdLimitInput", "TimeLimitDefaultCheckbox", "TimeLimitLabel", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
 	for index in range(order.size()):
@@ -73,7 +105,7 @@ func _arrange_sidebar() -> void:
 			item.custom_minimum_size.y = 34
 
 
-func _center_grid() -> void:
+func _layout_grid() -> void:
 	if document.data.is_empty():
 		return
 	var grid_size := Vector2(
@@ -81,9 +113,11 @@ func _center_grid() -> void:
 		int(document.data["rows"]) * EditorGridView.CELL_SIZE
 	)
 	var available_size := size - Vector2(SIDEBAR_WIDTH, 0.0)
-	var fit := maxf(0.05, minf((available_size.x - 48.0) / grid_size.x, (available_size.y - 48.0) / grid_size.y))
-	grid.scale = Vector2.ONE * minf(fit, 1.5)
-	grid.position = Vector2(SIDEBAR_WIDTH, 0.0) + (available_size - grid_size * grid.scale) * 0.5
+	if not grid.zoom_initialized:
+		var fit := maxf(0.05, minf((available_size.x - 48.0) / grid_size.x, (available_size.y - 48.0) / grid_size.y))
+		grid.zoom_level = minf(fit, 1.5)
+		grid.zoom_initialized = true
+	grid.apply_layout(available_size, grid_size)
 	
 func _on_robot_button_pressed() -> void:
 	_select_tool(EditorGridView.Tool.ROBOT, robot_button, "Robot")
@@ -102,7 +136,7 @@ func _on_east_wall_button_pressed() -> void:
 
 func _select_tool(tool: int, selected_button: Button, tool_name: String) -> void:
 	grid.set_tool(tool)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, object_button, erase_button, void_button]:
 		tool_button.button_pressed = tool_button == selected_button
 	status_label.text = "Active tool: %s" % tool_name
 
@@ -112,6 +146,18 @@ func _on_save_button_pressed() -> void:
 		return
 	document.data["name"] = level_name
 	document.data["description"] = [description_input.text]
+	# Save limits
+	var limits_data := {}
+	if not move_limit_default_checkbox.button_pressed and move_limit_input.value > 0:
+		limits_data["move_limit"] = int(move_limit_input.value)
+	if not cmd_limit_default_checkbox.button_pressed and cmd_limit_input.value > 0:
+		limits_data["cmd_limit"] = int(cmd_limit_input.value)
+	if not time_limit_default_checkbox.button_pressed and time_limit_input.value > 0:
+		limits_data["time_limit_seconds"] = float(time_limit_input.value)
+	if not limits_data.is_empty():
+		document.data["limits"] = limits_data
+	elif document.data.has("limits"):
+		document.data.erase("limits")
 
 	# Project levels stay in the repository while developing in Godot. Exported games
 	# cannot write to res://, so player-created levels use the writable user:// folder.
@@ -191,8 +237,31 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
+		# Load limits
+		var limits_data = document.data.get("limits", {})
+		if limits_data.has("move_limit"):
+			move_limit_default_checkbox.button_pressed = false
+			move_limit_input.value = limits_data.get("move_limit", 0)
+		else:
+			move_limit_default_checkbox.button_pressed = true
+			move_limit_input.value = 0
+
+		if limits_data.has("cmd_limit"):
+			cmd_limit_default_checkbox.button_pressed = false
+			cmd_limit_input.value = limits_data.get("cmd_limit", 0)
+		else:
+			cmd_limit_default_checkbox.button_pressed = true
+			cmd_limit_input.value = 0
+
+		if limits_data.has("time_limit_seconds"):
+			time_limit_default_checkbox.button_pressed = false
+			time_limit_input.value = limits_data.get("time_limit_seconds", 0)
+		else:
+			time_limit_default_checkbox.button_pressed = true
+			time_limit_input.value = 0
 		grid.set_document(document)
-		_center_grid()
+		grid.reset_pan()
+		_layout_grid()
 	else:
 		status_label.text = "Could not load level: invalid JSON."
 	dialog.queue_free()
@@ -205,8 +274,8 @@ func _make_level_filename(level_name: String) -> String:
 	safe_name = invalid_characters.sub(safe_name, "_", true)
 	return safe_name if not safe_name.is_empty() else "untitled_level"
 
-func _on_apple_button_pressed() -> void:
-	_select_tool(EditorGridView.Tool.APPLE, apple_button, "Apple")
+func _on_object_button_pressed() -> void:
+	_select_tool(EditorGridView.Tool.OBJECT, object_button, "Object")
 
 
 func _on_erase_button_pressed() -> void:
@@ -219,9 +288,16 @@ func _on_new_button_pressed() -> void:
 
 	document.create_blank(cols, rows)
 	grid.set_document(document)
-	_center_grid()
+	grid.reset_pan()
+	_layout_grid()
 	level_name_input.clear()
 	description_input.clear()
+	move_limit_default_checkbox.button_pressed = false
+	cmd_limit_default_checkbox.button_pressed = false
+	time_limit_default_checkbox.button_pressed = false
+	move_limit_input.value = 0
+	cmd_limit_input.value = 0
+	time_limit_input.value = 0
 	save_button.text = "Save Level"
 	
 func _on_resize_button_pressed() -> void:
@@ -230,13 +306,101 @@ func _on_resize_button_pressed() -> void:
 
 	document.resize(cols, rows)
 	grid.set_document(document)
-	_center_grid()
+	grid.reset_pan()
+	_layout_grid()
 	save_button.text = "Save Level"
 
 
 func _on_back_button_pressed() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
 
+func _on_object_type_changed(index: int) -> void:
+	var selected_type := object_type_selector.get_item_text(index)
+	grid.set_object_type(selected_type)
+	status_label.text = "Object type: %s" % selected_type
+	object_button.text = "Place %s" % selected_type  # Change the button text per the new selected object type
+
+func _on_object_count_changed(value: float) -> void:
+	grid.set_object_count(int(value))
+	status_label.text = "Object count per click: %d" % int(value)
+
+func _on_goal_objects_button_pressed() -> void:
+	_open_goal_objects_dialog()
+
+func _on_goal_carry_changed(index: int) -> void:
+	var selected_carry := goal_carry_selector.get_item_text(index)
+	if selected_carry == "None":
+		document.data["goal"].erase("require_carry_object")
+	else:
+		document.data["goal"]["require_carry_object"] = selected_carry.to_lower()
+	status_label.text = "Goal carry requirement: %s" % selected_carry
+
+func _open_goal_objects_dialog() -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = "Set Goal Objects"
+	dialog.unresizable = true
+	
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+	
+	var instruction := Label.new()
+	instruction.text = "Add goal object requirements (e.g., '6,4 token 5' for 5 tokens at tile 6,4):"
+	vbox.add_child(instruction)
+	
+	var input := TextEdit.new()
+	input.custom_minimum_size = Vector2(400, 150)
+	input.placeholder_text = "Format: x,y object_type count\nExample:\n6,4 token 5\n1,5 apple 2"
+	
+	# Pre-fill with existing goal objects
+	if document.data.has("goal") and document.data["goal"].has("objects"):
+		var goal_objs: Dictionary = document.data["goal"]["objects"]
+		var lines := []
+		for key in goal_objs:
+			var required: Dictionary = goal_objs[key]
+			for obj_name in required:
+				var count := int(required[obj_name])
+				lines.append("%s %s %d" % [key, obj_name, count])
+		input.text = "\n".join(lines)
+	
+	vbox.add_child(input)
+	
+	dialog.confirmed.connect(_apply_goal_objects.bind(input))
+	add_child(dialog)
+	dialog.popup_centered()
+
+func _apply_goal_objects(input: TextEdit) -> void:
+	var lines := input.text.split("\n")
+	var goal_objects := {}
+	
+	for line in lines:
+		line = line.strip_edges()
+		if line.is_empty():
+			continue
+		var parts := line.split(" ")
+		if parts.size() >= 3:
+			var coords := parts[0].split(",")
+			if coords.size() == 2:
+				var x := int(coords[0])
+				var y := int(coords[1])
+				var obj_type := parts[1].to_lower()
+				var count := int(parts[2])
+				var key := "%d,%d" % [x, y]
+				if not goal_objects.has(key):
+					goal_objects[key] = {}
+				goal_objects[key][obj_type] = count
+	
+	document.data["goal"]["objects"] = goal_objects
+	grid.queue_redraw()
+	status_label.text = "Goal objects configured"
+
+func _on_move_limit_default_toggled(checked: bool) -> void:
+	move_limit_input.visible = not checked
+
+func _on_cmd_limit_default_toggled(checked: bool) -> void:
+	cmd_limit_input.visible = not checked
+
+func _on_time_limit_default_toggled(checked: bool) -> void:
+	time_limit_input.visible = not checked
 
 # Escape leaves the editor and returns to the main menu (same as the Back button).
 # If a text field is being edited, the first Escape just drops focus so typing isn't interrupted
