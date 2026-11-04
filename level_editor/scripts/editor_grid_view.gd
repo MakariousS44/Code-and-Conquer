@@ -5,6 +5,7 @@ const CELL_SIZE := 48.0
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 3.0
 const ZOOM_STEP := 1.12
+const PAN_STEP := 96.0
 const SIDEBAR_WIDTH := 280.0
 
 enum Tool {
@@ -19,7 +20,7 @@ enum Tool {
 
 
 
-signal zoom_changed
+signal view_changed
 
 var active_tool := Tool.ROBOT
 
@@ -29,6 +30,8 @@ var object_type := "token"
 var object_count := 1
 var zoom_level := 1.0
 var zoom_initialized := false
+var pan_offset := Vector2.ZERO
+var _panning := false
 
 
 func _ready() -> void:
@@ -165,7 +168,7 @@ func set_zoom(value: float) -> void:
 	zoom_initialized = true
 	zoom_level = clampf(value, MIN_ZOOM, MAX_ZOOM)
 	scale = Vector2.ONE * zoom_level
-	zoom_changed.emit()
+	view_changed.emit()
 
 
 func zoom_in() -> void:
@@ -174,6 +177,51 @@ func zoom_in() -> void:
 
 func zoom_out() -> void:
 	set_zoom(zoom_level / ZOOM_STEP)
+
+
+func reset_pan() -> void:
+	pan_offset = Vector2.ZERO
+	_panning = false
+
+
+func pan_by(delta: Vector2) -> void:
+	if delta == Vector2.ZERO:
+		return
+	pan_offset += delta
+	view_changed.emit()
+
+
+func pan_up() -> void:
+	pan_by(Vector2(0, PAN_STEP))
+
+
+func pan_down() -> void:
+	pan_by(Vector2(0, -PAN_STEP))
+
+
+func pan_left() -> void:
+	pan_by(Vector2(PAN_STEP, 0))
+
+
+func pan_right() -> void:
+	pan_by(Vector2(-PAN_STEP, 0))
+
+
+func apply_layout(available_size: Vector2, unscaled_grid_size: Vector2) -> void:
+	scale = Vector2.ONE * zoom_level
+	var scaled := unscaled_grid_size * zoom_level
+	pan_offset.x = _clamp_pan_axis(pan_offset.x, available_size.x, scaled.x)
+	pan_offset.y = _clamp_pan_axis(pan_offset.y, available_size.y, scaled.y)
+	position = (available_size - scaled) * 0.5 + pan_offset
+
+
+func _clamp_pan_axis(pan: float, available: float, scaled: float) -> float:
+	if scaled <= available + 0.5:
+		return 0.0
+	var centered := (available - scaled) * 0.5
+	var min_pan := (available - scaled) - centered
+	var max_pan := -centered
+	return clampf(pan, min_pan, max_pan)
 
 
 func _hovered_control() -> Control:
@@ -217,18 +265,40 @@ func _should_handle_map_click() -> bool:
 		return true
 	if _is_over_dialog(hovered):
 		return false
-	if _is_under_named_control(hovered, "ZoomControls"):
+	if _is_under_named_control(hovered, "ViewControls"):
 		return false
 	if hovered is BaseButton:
 		return false
 	return true
 
 
+func _should_handle_canvas_drag() -> bool:
+	if not _should_handle_zoom():
+		return false
+	return _should_handle_map_click()
+
+
 func _input(event: InputEvent) -> void:
 	if document == null:
 		return
 
+	if event is InputEventMouseMotion and _panning:
+		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+			_panning = false
+			return
+		pan_by((event as InputEventMouseMotion).relative)
+		get_viewport().set_input_as_handled()
+		return
+
 	if not (event is InputEventMouseButton):
+		return
+
+	if event.button_index == MOUSE_BUTTON_MIDDLE:
+		if event.pressed and _should_handle_canvas_drag():
+			_panning = true
+			get_viewport().set_input_as_handled()
+		else:
+			_panning = false
 		return
 
 	if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:

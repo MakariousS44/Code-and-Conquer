@@ -31,19 +31,27 @@ var document := LevelDocument.new()
 @onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
 @onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
 @onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
-@onready var zoom_in_button: Button = $ZoomControls/ZoomInButton
-@onready var zoom_out_button: Button = $ZoomControls/ZoomOutButton
+@onready var zoom_in_button: Button = $ViewControls/ZoomControls/ZoomInButton
+@onready var zoom_out_button: Button = $ViewControls/ZoomControls/ZoomOutButton
+@onready var pan_up_button: Button = $ViewControls/PanControls/PanUpButton
+@onready var pan_left_button: Button = $ViewControls/PanControls/PanLeftButton
+@onready var pan_down_button: Button = $ViewControls/PanControls/PanDownButton
+@onready var pan_right_button: Button = $ViewControls/PanControls/PanRightButton
 
 func _ready() -> void:
 	_arrange_sidebar()
 	document.create_blank(10, 10)
 
 	grid.set_document(document)
-	grid.zoom_changed.connect(_center_grid)
-	resized.connect(_center_grid)
-	call_deferred("_center_grid")
+	grid.view_changed.connect(_layout_grid)
+	resized.connect(_layout_grid)
+	call_deferred("_layout_grid")
 	zoom_in_button.pressed.connect(grid.zoom_in)
 	zoom_out_button.pressed.connect(grid.zoom_out)
+	pan_up_button.pressed.connect(grid.pan_up)
+	pan_down_button.pressed.connect(grid.pan_down)
+	pan_left_button.pressed.connect(grid.pan_left)
+	pan_right_button.pressed.connect(grid.pan_right)
 	save_button.disabled = true
 
 	robot_button.pressed.connect(_on_robot_button_pressed)
@@ -91,7 +99,7 @@ func _arrange_sidebar() -> void:
 			item.custom_minimum_size.y = 34
 
 
-func _center_grid() -> void:
+func _layout_grid() -> void:
 	if document.data.is_empty():
 		return
 	var grid_size := Vector2(
@@ -103,8 +111,7 @@ func _center_grid() -> void:
 		var fit := maxf(0.05, minf((available_size.x - 48.0) / grid_size.x, (available_size.y - 48.0) / grid_size.y))
 		grid.zoom_level = minf(fit, 1.5)
 		grid.zoom_initialized = true
-	grid.scale = Vector2.ONE * grid.zoom_level
-	grid.position = (available_size - grid_size * grid.scale) * 0.5
+	grid.apply_layout(available_size, grid_size)
 	
 func _on_robot_button_pressed() -> void:
 	_select_tool(EditorGridView.Tool.ROBOT, robot_button, "Robot")
@@ -230,7 +237,8 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		cmd_limit_input.value = limits_data.get("cmd_limit", 0)
 		time_limit_input.value = limits_data.get("time_limit_seconds", 0)
 		grid.set_document(document)
-		_center_grid()
+		grid.reset_pan()
+		_layout_grid()
 	else:
 		status_label.text = "Could not load level: invalid JSON."
 	dialog.queue_free()
@@ -257,7 +265,8 @@ func _on_new_button_pressed() -> void:
 
 	document.create_blank(cols, rows)
 	grid.set_document(document)
-	_center_grid()
+	grid.reset_pan()
+	_layout_grid()
 	level_name_input.clear()
 	description_input.clear()
 	move_limit_input.value = 0
@@ -271,7 +280,8 @@ func _on_resize_button_pressed() -> void:
 
 	document.resize(cols, rows)
 	grid.set_document(document)
-	_center_grid()
+	grid.reset_pan()
+	_layout_grid()
 	save_button.text = "Save Level"
 
 

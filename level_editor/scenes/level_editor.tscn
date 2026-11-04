@@ -190,30 +190,77 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "← BACK TO MAIN MENU"
 
-[node name="ZoomControls" type="HBoxContainer" parent="."]
+[node name="ViewControls" type="VBoxContainer" parent="."]
 z_index = 10
 layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -120.0
+offset_left = -156.0
 offset_top = 16.0
 offset_right = -16.0
-offset_bottom = 56.0
+offset_bottom = 176.0
 grow_horizontal = 0
 theme_override_constants/separation = 8
+alignment = 0
 
-[node name="ZoomOutButton" type="Button" parent="ZoomControls"]
+[node name="ZoomControls" type="HBoxContainer" parent="ViewControls"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ZoomOutButton" type="Button" parent="ViewControls/ZoomControls"]
 custom_minimum_size = Vector2(44, 40)
 layout_mode = 2
 tooltip_text = "Zoom out"
 text = "−"
 
-[node name="ZoomInButton" type="Button" parent="ZoomControls"]
+[node name="ZoomInButton" type="Button" parent="ViewControls/ZoomControls"]
 custom_minimum_size = Vector2(44, 40)
 layout_mode = 2
 tooltip_text = "Zoom in"
 text = "+"
+
+[node name="PanControls" type="GridContainer" parent="ViewControls"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="PanPadTL" type="Control" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PanUpButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan up"
+text = "↑"
+
+[node name="PanPadTR" type="Control" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PanLeftButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan left"
+text = "←"
+
+[node name="PanDownButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan down"
+text = "↓"
+
+[node name="PanRightButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan right"
+text = "→"
 
 [node name="VoidButton" type="Button" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
@@ -223,7 +270,7 @@ tooltip_text = "Remove the floor. Sensors cannot detect voids. Erase restores fl
 [node name="ObjectTypeLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "OBJECT TYPE"
- 
+
 [node name="ObjectTypeSelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
@@ -233,30 +280,30 @@ popup/item_0/text = "Token"
 popup/item_0/id = 0
 popup/item_1/text = "Apple"
 popup/item_1/id = 1
- 
+
 [node name="ObjectCountLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "OBJECT COUNT PER CLICK"
- 
+
 [node name="ObjectCountInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
 min_value = 1.0
 max_value = 100.0
 value = 1.0
- 
+
 [node name="GoalConfigLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "GOAL CONFIGURATION"
- 
+
 [node name="GoalObjectsButton" type="Button" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "Set Goal Objects"
- 
+
 [node name="GoalCarryLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "CARRY REQUIREMENT"
- 
+
 [node name="GoalCarrySelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
