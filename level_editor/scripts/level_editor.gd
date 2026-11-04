@@ -31,6 +31,9 @@ var document := LevelDocument.new()
 @onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
 @onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
 @onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
+@onready var move_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/MoveLimitDefaultCheckbox
+@onready var cmd_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/CmdLimitDefaultCheckbox
+@onready var time_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/TimeLimitDefaultCheckbox
 @onready var zoom_in_button: Button = $ViewControls/ZoomControls/ZoomInButton
 @onready var zoom_out_button: Button = $ViewControls/ZoomControls/ZoomOutButton
 @onready var pan_up_button: Button = $ViewControls/PanControls/PanUpButton
@@ -74,6 +77,9 @@ func _ready() -> void:
 	object_count_input.value_changed.connect(_on_object_count_changed)
 	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
 	goal_carry_selector.item_selected.connect(_on_goal_carry_changed)
+	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
+	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
+	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
 
 
 func _arrange_sidebar() -> void:
@@ -85,7 +91,7 @@ func _arrange_sidebar() -> void:
 		"WallsLabel", "WallButton", "EastWallButton",
 		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "ObjectButton", "VoidButton", "EraseButton",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
-		"LimitsLabel", "MoveLimitLabel", "MoveLimitInput", "CmdLimitLabel", "CmdLimitInput", "TimeLimitLabel", "TimeLimitInput",
+		"LimitsLabel", "MoveLimitDefaultCheckbox", "MoveLimitLabel", "MoveLimitInput", "CmdLimitDefaultCheckbox", "CmdLimitLabel", "CmdLimitInput", "TimeLimitDefaultCheckbox", "TimeLimitLabel", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
 	for index in range(order.size()):
@@ -142,11 +148,11 @@ func _on_save_button_pressed() -> void:
 	document.data["description"] = [description_input.text]
 	# Save limits
 	var limits_data := {}
-	if move_limit_input.value > 0:
+	if not move_limit_default_checkbox.button_pressed and move_limit_input.value > 0:
 		limits_data["move_limit"] = int(move_limit_input.value)
-	if cmd_limit_input.value > 0:
+	if not cmd_limit_default_checkbox.button_pressed and cmd_limit_input.value > 0:
 		limits_data["cmd_limit"] = int(cmd_limit_input.value)
-	if time_limit_input.value > 0:
+	if not time_limit_default_checkbox.button_pressed and time_limit_input.value > 0:
 		limits_data["time_limit_seconds"] = float(time_limit_input.value)
 	if not limits_data.is_empty():
 		document.data["limits"] = limits_data
@@ -233,9 +239,26 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		rows_input.value = int(document.data.get("rows", 10))
 		# Load limits
 		var limits_data = document.data.get("limits", {})
-		move_limit_input.value = limits_data.get("move_limit", 0)
-		cmd_limit_input.value = limits_data.get("cmd_limit", 0)
-		time_limit_input.value = limits_data.get("time_limit_seconds", 0)
+		if limits_data.has("move_limit"):
+			move_limit_default_checkbox.button_pressed = false
+			move_limit_input.value = limits_data.get("move_limit", 0)
+		else:
+			move_limit_default_checkbox.button_pressed = true
+			move_limit_input.value = 0
+
+		if limits_data.has("cmd_limit"):
+			cmd_limit_default_checkbox.button_pressed = false
+			cmd_limit_input.value = limits_data.get("cmd_limit", 0)
+		else:
+			cmd_limit_default_checkbox.button_pressed = true
+			cmd_limit_input.value = 0
+
+		if limits_data.has("time_limit_seconds"):
+			time_limit_default_checkbox.button_pressed = false
+			time_limit_input.value = limits_data.get("time_limit_seconds", 0)
+		else:
+			time_limit_default_checkbox.button_pressed = true
+			time_limit_input.value = 0
 		grid.set_document(document)
 		grid.reset_pan()
 		_layout_grid()
@@ -269,6 +292,9 @@ func _on_new_button_pressed() -> void:
 	_layout_grid()
 	level_name_input.clear()
 	description_input.clear()
+	move_limit_default_checkbox.button_pressed = false
+	cmd_limit_default_checkbox.button_pressed = false
+	time_limit_default_checkbox.button_pressed = false
 	move_limit_input.value = 0
 	cmd_limit_input.value = 0
 	time_limit_input.value = 0
@@ -366,3 +392,12 @@ func _apply_goal_objects(input: TextEdit) -> void:
 	document.data["goal"]["objects"] = goal_objects
 	grid.queue_redraw()
 	status_label.text = "Goal objects configured"
+
+func _on_move_limit_default_toggled(checked: bool) -> void:
+	move_limit_input.visible = not checked
+
+func _on_cmd_limit_default_toggled(checked: bool) -> void:
+	cmd_limit_input.visible = not checked
+
+func _on_time_limit_default_toggled(checked: bool) -> void:
+	time_limit_input.visible = not checked

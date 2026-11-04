@@ -320,9 +320,17 @@ popup/item_2/id = 2
 layout_mode = 2
 text = "EXECUTION LIMITS"
 
+[node name="MoveLimitDefaultCheckbox" type="CheckBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Use default (999)"
+
 [node name="MoveLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "Move Limit (0 = unlimited)"
+
+[node name="CmdLimitDefaultCheckbox" type="CheckBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Use default (9999)"
 
 [node name="MoveLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
@@ -335,6 +343,10 @@ tooltip_text = "Maximum number of MOVE commands. Set to 0 or negative to disable
 [node name="CmdLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "Command Limit (0 = unlimited)"
+
+[node name="TimeLimitDefaultCheckbox" type="CheckBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Use default (300.0 sec)"
 
 [node name="CmdLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
