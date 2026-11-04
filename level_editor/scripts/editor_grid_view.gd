@@ -8,7 +8,7 @@ enum Tool {
 	GOAL,
 	WALL,
 	EAST_WALL,
-	APPLE,
+	OBJECT,
 	ERASE,
 	VOID
 }
@@ -182,7 +182,7 @@ func apply_tool(gx: int, gy: int) -> void:
 	var key := "%d,%d" % [gx, gy]
 	if not document.data.has("void_tiles"):
 		document.data["void_tiles"] = {}
-	if active_tool in [Tool.ROBOT, Tool.GOAL, Tool.APPLE]:
+	if active_tool in [Tool.ROBOT, Tool.GOAL, Tool.OBJECT]:
 		document.data["void_tiles"].erase(key)
 	if active_tool == Tool.VOID:
 		var robot: Dictionary = document.data["robots"][0]
@@ -228,7 +228,7 @@ func apply_tool(gx: int, gy: int) -> void:
 
 		document.data["walls"] = walls
 
-	elif active_tool == Tool.APPLE:
+	elif active_tool == Tool.OBJECT:
 		var object_key := "%d,%d" % [gx, gy]
 		var objects: Dictionary = document.data["objects"]
 		var tile_objects: Dictionary = objects.get(object_key, {})

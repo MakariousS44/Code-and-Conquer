@@ -133,9 +133,9 @@ text = "Toggle East Wall"
 layout_mode = 2
 text = "Save Level"
 
-[node name="AppleButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=676626797]
+[node name="ObjectButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=676626797]
 layout_mode = 2
-text = "Place Apple"
+text = "Place Token" ; starting text as Token is default selected object type
 
 [node name="EraseButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=826979752]
 layout_mode = 2

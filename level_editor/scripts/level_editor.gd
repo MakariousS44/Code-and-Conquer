@@ -15,7 +15,7 @@ var document := LevelDocument.new()
 @onready var description_input: TextEdit = $SidebarScroll/VBoxContainer/DescriptionInput
 @onready var save_button: Button = $SidebarScroll/VBoxContainer/SaveButton
 @onready var level_name_input: LineEdit = $SidebarScroll/VBoxContainer/LevelNameInput
-@onready var apple_button: Button = $SidebarScroll/VBoxContainer/AppleButton
+@onready var object_button: Button = $SidebarScroll/VBoxContainer/ObjectButton
 @onready var erase_button: Button = $SidebarScroll/VBoxContainer/EraseButton
 @onready var void_button: Button = $SidebarScroll/VBoxContainer/VoidButton
 @onready var new_button: Button = $SidebarScroll/VBoxContainer/NewButton
@@ -47,14 +47,14 @@ func _ready() -> void:
 	east_wall_button.pressed.connect(_on_east_wall_button_pressed)
 	load_button.pressed.connect(_on_load_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
-	apple_button.pressed.connect(_on_apple_button_pressed)
+	object_button.pressed.connect(_on_object_button_pressed)
 	erase_button.pressed.connect(_on_erase_button_pressed)
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
 	new_button.pressed.connect(_on_new_button_pressed)
 	resize_button.pressed.connect(_on_resize_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
 	level_name_input.text_changed.connect(_on_level_name_changed)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, object_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
 	object_type_selector.item_selected.connect(_on_object_type_changed)
@@ -70,7 +70,7 @@ func _arrange_sidebar() -> void:
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"PlacementLabel", "RobotButton", "GoalButton",
 		"WallsLabel", "WallButton", "EastWallButton",
-		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "AppleButton", "VoidButton", "EraseButton",
+		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "ObjectButton", "VoidButton", "EraseButton",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
 		"LimitsLabel", "MoveLimitLabel", "MoveLimitInput", "CmdLimitLabel", "CmdLimitInput", "TimeLimitLabel", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
@@ -115,7 +115,7 @@ func _on_east_wall_button_pressed() -> void:
 
 func _select_tool(tool: int, selected_button: Button, tool_name: String) -> void:
 	grid.set_tool(tool)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, object_button, erase_button, void_button]:
 		tool_button.button_pressed = tool_button == selected_button
 	status_label.text = "Active tool: %s" % tool_name
 
@@ -235,8 +235,8 @@ func _make_level_filename(level_name: String) -> String:
 	safe_name = invalid_characters.sub(safe_name, "_", true)
 	return safe_name if not safe_name.is_empty() else "untitled_level"
 
-func _on_apple_button_pressed() -> void:
-	_select_tool(EditorGridView.Tool.APPLE, apple_button, "Apple")
+func _on_object_button_pressed() -> void:
+	_select_tool(EditorGridView.Tool.OBJECT, object_button, "Object")
 
 
 func _on_erase_button_pressed() -> void:
@@ -274,6 +274,7 @@ func _on_object_type_changed(index: int) -> void:
 	var selected_type := object_type_selector.get_item_text(index)
 	grid.set_object_type(selected_type)
 	status_label.text = "Object type: %s" % selected_type
+	object_button.text = "Place %s" % selected_type  # Change the button text per the new selected object type
 
 func _on_object_count_changed(value: float) -> void:
 	grid.set_object_count(int(value))
