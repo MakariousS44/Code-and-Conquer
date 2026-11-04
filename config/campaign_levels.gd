@@ -19,6 +19,7 @@ const LEVELS := [
 	{"id": "canal_courier", "title": "Canal Courier", "concept": "Parameterized movement, sensor loops, and safe crossing", "path": "res://data/campaign_levels/campaign/12_canal_courier.json"},
 	{"id": "terraced_gardens", "title": "Terraced Gardens", "concept": "Side sensors and a reusable planting pattern", "path": "res://data/campaign_levels/campaign/13_terraced_gardens.json"},
 	{"id": "harvest_and_replant", "title": "Harvest and Replant", "concept": "Conditional placement, side sensors, and remembered state", "path": "res://data/campaign_levels/campaign/14_harvest_and_replant.json"},
+	{"id": "labyrinth", "title": "Labyrinth", "concept": "Randomized maze", "path": "res://data/campaign_levels/campaign/15_labyrinth.json"},
 ]
 
 static func index_for_path(path: String) -> int:

@@ -401,3 +401,21 @@ func _on_cmd_limit_default_toggled(checked: bool) -> void:
 
 func _on_time_limit_default_toggled(checked: bool) -> void:
 	time_limit_input.visible = not checked
+
+# Escape leaves the editor and returns to the main menu (same as the Back button).
+# If a text field is being edited, the first Escape just drops focus so typing isn't interrupted
+# by an accidental exit; the next Escape leaves.
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	# don't leave while a dialog (e.g. the Load file dialog) is still open
+	for child in get_children():
+		if child is Window and child.visible:
+			return
+	var focused := get_viewport().gui_get_focus_owner()
+	if focused is LineEdit or focused is TextEdit:
+		focused.release_focus()
+		get_viewport().set_input_as_handled()
+		return
+	get_viewport().set_input_as_handled()
+	_on_back_button_pressed()
