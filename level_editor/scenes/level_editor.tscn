@@ -22,6 +22,20 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.055, 0.07, 0.105, 1)
 
+[node name="GridClip" type="Control" parent="."]
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EditorGrid" type="Node2D" parent="GridClip"]
+script = ExtResource("2_vaajg")
+
 [node name="SidebarBackground" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 13
@@ -133,9 +147,9 @@ text = "Toggle East Wall"
 layout_mode = 2
 text = "Save Level"
 
-[node name="AppleButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=676626797]
+[node name="ObjectButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=676626797]
 layout_mode = 2
-text = "Place Apple"
+text = "Place Token" ; starting text as Token is default selected object type
 
 [node name="EraseButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=826979752]
 layout_mode = 2
@@ -143,23 +157,25 @@ text = "Erase Tile"
 
 [node name="ColumnsLabel" type="Label" parent="SidebarScroll/VBoxContainer" unique_id=2010761909]
 layout_mode = 2
-text = "Columns"
+text = "Columns (up to 30)"
 
 [node name="ColumnsInput" type="SpinBox" parent="SidebarScroll/VBoxContainer" unique_id=2116227571]
 layout_mode = 2
 min_value = 2.0
 max_value = 30.0
 value = 10.0
+tooltip_text = "The maximum number of columns you can set is 30."
 
 [node name="RowsLabel" type="Label" parent="SidebarScroll/VBoxContainer" unique_id=1772893611]
 layout_mode = 2
-text = "Rows"
+text = "Rows (up to 30)"
 
 [node name="RowsInput" type="SpinBox" parent="SidebarScroll/VBoxContainer" unique_id=514100057]
 layout_mode = 2
 min_value = 2.0
 max_value = 30.0
 value = 10.0
+tooltip_text = "The maximum number of rows you can set is 30."
 
 [node name="ResizeButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=1777962815]
 layout_mode = 2
@@ -174,10 +190,180 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "← BACK TO MAIN MENU"
 
-[node name="EditorGrid" type="Node2D" parent="." unique_id=592158666]
-script = ExtResource("2_vaajg")
+[node name="ViewControls" type="VBoxContainer" parent="."]
+z_index = 10
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -156.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 176.0
+grow_horizontal = 0
+theme_override_constants/separation = 8
+alignment = 0
+
+[node name="ZoomControls" type="HBoxContainer" parent="ViewControls"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ZoomOutButton" type="Button" parent="ViewControls/ZoomControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Zoom out"
+text = "−"
+
+[node name="ZoomInButton" type="Button" parent="ViewControls/ZoomControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Zoom in"
+text = "+"
+
+[node name="PanControls" type="GridContainer" parent="ViewControls"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 3
+
+[node name="PanPadTL" type="Control" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PanUpButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan up"
+text = "↑"
+
+[node name="PanPadTR" type="Control" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PanLeftButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan left"
+text = "←"
+
+[node name="PanDownButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan down"
+text = "↓"
+
+[node name="PanRightButton" type="Button" parent="ViewControls/PanControls"]
+custom_minimum_size = Vector2(44, 40)
+layout_mode = 2
+tooltip_text = "Pan right"
+text = "→"
 
 [node name="VoidButton" type="Button" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "Void Tile"
 tooltip_text = "Remove the floor. Sensors cannot detect voids. Erase restores floor."
+
+[node name="ObjectTypeLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "OBJECT TYPE"
+
+[node name="ObjectTypeSelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+item_count = 2
+selected = 0
+popup/item_0/text = "Token"
+popup/item_0/id = 0
+popup/item_1/text = "Apple"
+popup/item_1/id = 1
+
+[node name="ObjectCountLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "OBJECT COUNT PER CLICK"
+
+[node name="ObjectCountInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 1.0
+max_value = 100.0
+value = 1.0
+
+[node name="GoalConfigLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "GOAL CONFIGURATION"
+
+[node name="GoalObjectsButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Set Goal Objects"
+
+[node name="GoalCarryLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "CARRY REQUIREMENT"
+
+[node name="GoalCarrySelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+item_count = 2
+selected = 0
+popup/item_0/text = "None"
+popup/item_0/id = 0
+popup/item_1/text = "Token"
+popup/item_1/id = 1
+popup/item_2/text = "Apple"
+popup/item_2/id = 2
+
+[node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "EXECUTION LIMITS"
+
+[node name="MoveLimitDefaultCheckbox" type="CheckBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Use default (999)"
+
+[node name="MoveLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Move Limit (0 = unlimited)"
+
+[node name="CmdLimitDefaultCheckbox" type="CheckBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Use default (9999)"
+
+[node name="MoveLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 0.0
+max_value = 9999.0
+value = 0.0
+tooltip_text = "Maximum number of MOVE commands. Set to 0 or negative to disable this limit."
+
+[node name="CmdLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Command Limit (0 = unlimited)"
+
+[node name="TimeLimitDefaultCheckbox" type="CheckBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Use default (300.0 sec)"
+
+[node name="CmdLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 0.0
+max_value = 99999.0
+value = 0.0
+tooltip_text = "Maximum number of total action commands of any type (MOVE, TURN_LEFT, PICK_OBJECT, PUT_OBJECT). Set to 0 or negative to disable this limit."
+
+[node name="TimeLimitLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "Time Limit (seconds, 0 = unlimited)"
+
+[node name="TimeLimitInput" type="SpinBox" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+min_value = 0.0
+max_value = 3600.0
+value = 0.0
+tooltip_text = "Maximum execution time in seconds. Set to 0 or negative to disable this limit."

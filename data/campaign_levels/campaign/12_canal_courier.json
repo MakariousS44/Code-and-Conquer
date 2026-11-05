@@ -1,0 +1,81 @@
+{
+  "rows": 7,
+  "cols": 9,
+  "robots": [
+    {
+      "x": 2,
+      "y": 2,
+      "_orientation": 3,
+      "objects": {}
+    }
+  ],
+  "walls": {
+    "1,4": ["north"],
+    "2,4": ["north"],
+    "7,4": ["north"],
+    "9,4": ["north"]
+  },
+  "void_tiles": {
+    "4,1": true,
+    "5,1": true,
+    "6,1": true,
+    "4,2": true,
+    "5,2": true,
+    "6,2": true,
+    "4,3": true,
+    "5,3": true,
+    "6,3": true,
+    "4,5": true,
+    "5,5": true,
+    "6,5": true,
+    "4,6": true,
+    "5,6": true,
+    "6,6": true,
+    "4,7": true,
+    "5,7": true,
+    "6,7": true
+  },
+  "objects": {
+    "2,6": {"token": 2},
+    "8,6": {"token": 4}
+  },
+  "goal": {
+    "position": {
+      "x": 8,
+      "y": 2,
+      "image": "green_home_tile"
+    },
+    "objects": {
+      "8,2": {
+        "token": 6
+      }
+    }
+  },
+  "description": [
+    "Collect the stacks at (2, 6) and (8, 6), then deliver all 6 tokens to (8, 2). Cross the canal on row 4 and avoid the missing floor. Wall sensors cannot detect gaps."
+  ],
+  "hint": "Use a walk(steps) helper for repeated moves. Go around the left wall through column 3, then line up with row 4 before crossing.",
+  "editor": {
+    "cpp": [
+      "#include \"robot.hpp\"",
+      "",
+      "void walk(int steps) {",
+      "    // Move forward the requested number of tiles.",
+      "}",
+      "",
+      "int main() {",
+      "    // Collect both stacks, cross on row 4, and unload at the goal.",
+      "",
+      "    return 0;",
+      "}"
+    ],
+    "python": [
+      "from robot import *",
+      "",
+      "def walk(steps):",
+      "    pass  # Move forward the requested number of tiles.",
+      "",
+      "# Collect both stacks, cross on row 4, and unload at the goal."
+    ]
+  }
+}

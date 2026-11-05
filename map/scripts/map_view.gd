@@ -702,6 +702,19 @@ func is_void(gx: int, gy: int) -> bool:
 ## Walls are stored as "east" and "north" only (Reborg format).
 ## Moving west/south requires checking the adjacent cell's east/north wall.
 func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
+	# Check if moving would go out of bounds
+	# (Map edges are treated as walls)
+	var next_x := gx
+	var next_y := gy
+	match dir:
+		"east": next_x += 1
+		"west": next_x -= 1
+		"north": next_y += 1
+		"south": next_y -= 1
+	
+	if not is_in_bounds(next_x, next_y):
+		return true
+	
 	# Check if wall even exist
 	if not level_data.has("walls"):
 		return false
