@@ -1096,7 +1096,7 @@ func _start_program_time_limit(pid: int) -> void:
 		_show_level_limits(_time_limit_seconds)
 		return
 
-	# The limit measures program runtime, not time spent in the level.
+	# The limit measures program runtime (not time spent in the level).
 	# Program time accrues at the rate commands animate: it matches
 	# wall-clock seconds at the baseline speed and scales with the speed
 	# setting so slower animation does not shrink the command budget.
