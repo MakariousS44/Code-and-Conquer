@@ -117,6 +117,6 @@
 	}
   },
     "limits": {
-      "time_limit_seconds": 1800
+      "time_limit_seconds": 60
     }
 }

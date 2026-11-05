@@ -127,6 +127,6 @@
     "require_carry_object": "token"
   },
     "limits": {
-      "time_limit_seconds": 1800
+      "time_limit_seconds": 120
     }
 }

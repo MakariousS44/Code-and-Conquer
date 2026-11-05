@@ -134,7 +134,7 @@ const DEFAULT_TIME_LIMIT_SECONDS := 300.0
 var _move_limit: int = DEFAULT_MOVE_LIMIT
 var _cmd_limit: int = DEFAULT_CMD_LIMIT
 var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
-var _level_countdown_id: int = 0
+var _program_timer_id: int = 0
 
 var checked_code := ""
 var has_checked_code := false
@@ -450,7 +450,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
-	_start_level_time_countdown()
 
 	# (re)create the 2D flat grid view alongside the isometric scene
 	var FlatGridScript = load("res://map/scripts/flat_grid_view.gd")
@@ -1068,12 +1067,12 @@ func _cleanup_sandbox_run() -> void:
 
 # === pipeline execution ===
 
-func _stop_execution(cancel_level_timer: bool = true) -> void:
+func _stop_execution(cancel_program_timer: bool = true) -> void:
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
-	if cancel_level_timer:
-		_level_countdown_id += 1
+	if cancel_program_timer:
+		_program_timer_id += 1
 
 	if _ipc_server != null:
 		_ipc_server.stop()
@@ -1087,21 +1086,30 @@ func _stop_execution(cancel_level_timer: bool = true) -> void:
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
-func _start_level_time_countdown() -> void:
-	_level_countdown_id += 1
-	var timer_id := _level_countdown_id
+const PROGRAM_TIME_TICK_SECONDS := 0.2
+const BASE_EXEC_SPEED := 0.5
+
+func _start_program_time_limit(pid: int) -> void:
+	_program_timer_id += 1
+	var timer_id := _program_timer_id
 	if _time_limit_seconds <= 0.0:
 		_show_level_limits(_time_limit_seconds)
 		return
 
-	var deadline_ms := Time.get_ticks_msec() + int(_time_limit_seconds * 1000.0)
-	while timer_id == _level_countdown_id:
-		var milliseconds_left := maxi(0, deadline_ms - Time.get_ticks_msec())
-		_show_level_limits(float(ceili(float(milliseconds_left) / 1000.0)))
-		if milliseconds_left <= 0:
-			_trigger_time_limit_lose()
-			return
-		await get_tree().create_timer(0.2).timeout
+	# The limit measures program runtime, not time spent in the level.
+	# Program time accrues at the rate commands animate: it matches
+	# wall-clock seconds at the baseline speed and scales with the speed
+	# setting so slower animation does not shrink the command budget.
+	var remaining := _time_limit_seconds
+	_show_level_limits(remaining)
+	while timer_id == _program_timer_id and _subprocess_pid == pid:
+		if not _paused:
+			remaining -= PROGRAM_TIME_TICK_SECONDS * (BASE_EXEC_SPEED / maxf(exec_speed, 0.01))
+			_show_level_limits(maxf(0.0, remaining))
+			if remaining <= 0.0:
+				_trigger_time_limit_lose()
+				return
+		await get_tree().create_timer(PROGRAM_TIME_TICK_SECONDS).timeout
 
 
 func _show_level_limits(time_remaining: float) -> void:
@@ -1313,6 +1321,9 @@ func _run_pipeline() -> void:
 			_ipc_server = null
 			_re_enable_buttons()
 			return
+
+	if _subprocess_pid != -1:
+		_start_program_time_limit(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
