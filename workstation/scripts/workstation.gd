@@ -3,6 +3,7 @@ extends Control
 const Campaign = preload("res://config/campaign_levels.gd")
 var campaign_progress_path: String = Campaign.SAVE_PATH
 var campaign_instructions: Label
+var campaign_limits: Label
 var campaign_hint: Label
 var campaign_panel: VBoxContainer
 var campaign_next_button: Button
@@ -15,6 +16,7 @@ var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").
 @onready var output_box: RichTextLabel = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin/Output
 @onready var status_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/StatusLabel
 @onready var run_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/RunButton
+@onready var check_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/CheckButton
 @onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
@@ -122,7 +124,6 @@ var global_level_name := ""
 var exec_speed: float = 0.5
 var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit" | "cmd_limit" | "time_limit" | "done"
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
-
 # === execution limits ===
 # Default limits
 const DEFAULT_MOVE_LIMIT := 999
@@ -133,6 +134,13 @@ const DEFAULT_TIME_LIMIT_SECONDS := 300.0
 var _move_limit: int = DEFAULT_MOVE_LIMIT
 var _cmd_limit: int = DEFAULT_CMD_LIMIT
 var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
+var _level_countdown_id: int = 0
+
+var checked_code := ""
+var has_checked_code := false
+var checked_cpp_executable := ""
+var checked_cpp_line_offset := 0
+var _compile_thread: Thread
 
 const ALLOWED_IPC_COMMANDS := ["MOVE", "TURN_LEFT", "PICK_OBJECT", "PUT_OBJECT"]
 const ALLOWED_IPC_QUERIES := [
@@ -185,6 +193,9 @@ func _ready() -> void:
 	
 	run_button.text = "▶ Run"
 	run_button.pressed.connect(_on_run_button_pressed)
+	check_button.pressed.connect(_on_check_button_pressed)
+	editor.text_changed.connect(_on_editor_text_changed)
+	run_button.disabled = true
 	step_button.pressed.connect(_on_step_button_pressed)
 	prev_button.pressed.connect(_on_prev_button_pressed)
 	prev_button.disabled = true
@@ -227,6 +238,42 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_load_level_scene(true)
 
+func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
+	var background_compiler = preload(Paths.CPP_DRIVER).new()
+
+	background_compiler.prepare_build_files(
+		source,
+		0,
+		"",
+		build_dir,
+		"\\\\.\\pipe\\CodeAndConquer-check"
+	)
+
+	return background_compiler.compile_program()
+
+func _finish_cpp_check(source: String, line_offset: int) -> void:
+	while _compile_thread.is_alive():
+		await get_tree().process_frame
+
+	var build: Dictionary = _compile_thread.wait_to_finish()
+	_compile_thread = null
+
+	check_button.disabled = false
+	editor.editable = true
+	language_selector.disabled = false
+
+	if not build.ok:
+		log_error(compiler.remap_diagnostics(build.output, line_offset))
+		_set_status("Compile failed", "error")
+		return
+
+	checked_code = source
+	has_checked_code = true
+	checked_cpp_executable = ProjectSettings.globalize_path("user://checked_build").path_join("student_program.exe")
+	checked_cpp_line_offset = line_offset
+	run_button.disabled = false
+	_set_status("C++ compiled successfully — ready to run.", "")
+	log_line("C++ compilation passed.")
 
 func _setup_campaign_ui() -> void:
 	campaign_panel = VBoxContainer.new()
@@ -238,6 +285,11 @@ func _setup_campaign_ui() -> void:
 	campaign_instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	campaign_instructions.add_theme_font_size_override("font_size", 20)
 	campaign_panel.add_child(campaign_instructions)
+	campaign_limits = Label.new()
+	campaign_limits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_limits.add_theme_font_size_override("font_size", 16)
+	campaign_limits.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_limits)
 	campaign_hint_button = Button.new()
 	campaign_hint_button.text = "Show Hint"
 	campaign_hint_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -266,12 +318,10 @@ func _apply_saved_preferences() -> void:
 	var font_index := clampi(int(_saved_setting("editor", "font_size", 1)), 0, font_sizes.size() - 1)
 	_on_font_size_changed(font_sizes[font_index])
 
-	# var language_setting := int(_saved_setting("editor", "default_language", 0))
-	# language_selector.select(1 if language_setting == 0 else 0)
-	# _on_language_changed(language_selector.selected)
+	var language_setting := int(_saved_setting("editor", "default_language", 0))
+	language_selector.select(1 if language_setting == 0 else 0)
+	_on_language_changed(language_selector.selected)
 
-	language_selector.select(0)
-	_on_language_changed(0)
 
 	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
 	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
@@ -295,14 +345,33 @@ func _saved_setting(section: String, key: String, fallback):
 
 func _refresh_campaign_instructions() -> void:
 	var index := Campaign.index_for_path(SelectedLevel.path)
-	campaign_panel.visible = index >= 0
+	# The same instruction panel is useful for player-created levels too.
+	campaign_panel.visible = true
 	campaign_hint.hide()
 	campaign_hint_button.text = "Show Hint"
+	_show_level_limits(_time_limit_seconds)
 	if index < 0:
+		var custom_name := str(current_level_definition.get("name", "Custom Level"))
+		var custom_description := PackedStringArray(current_level_definition.get("description", []))
+		campaign_instructions.text = "%s\n%s" % [custom_name, " ".join(custom_description)]
+		campaign_hint_button.hide()
+		campaign_hint.text = ""
 		return
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
 	var description := PackedStringArray(current_level_definition.get("description", []))
 	campaign_instructions.text = "Level %d / %d - %s\n%s" % [index + 1, Campaign.LEVELS.size(), Campaign.LEVELS[index].title, " ".join(description)]
 	campaign_hint.text = current_level_definition.get("hint", "")
+
+
+func _format_limit(limit: int, unit: String) -> String:
+	return "Unlimited" if limit <= 0 else "%d %s" % [limit, unit]
+
+
+func _format_time_limit(seconds: float) -> String:
+	if seconds <= 0.0:
+		return "Unlimited"
+	var total_seconds := maxi(0, ceili(seconds))
+	return "%d:%02d" % [total_seconds / 60, total_seconds % 60]
 
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
@@ -361,7 +430,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		return
 
 	current_level_definition = raw.definition
-	_refresh_campaign_instructions()
 
 	# load limits from JSON if present, otherwise use defaults
 	var limits_data = current_level_definition.get("limits", {})
@@ -373,6 +441,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		_move_limit = DEFAULT_MOVE_LIMIT
 		_cmd_limit = DEFAULT_CMD_LIMIT
 		_time_limit_seconds = DEFAULT_TIME_LIMIT_SECONDS
+	_refresh_campaign_instructions()
 
 	# preload starter code into editor only when requested
 	if load_editor_text:
@@ -381,6 +450,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	# build level
 	if game_instance.has_method("build_level"):
 		game_instance.build_level(raw.definition)
+	_start_level_time_countdown()
 
 	# (re)create the 2D flat grid view alongside the isometric scene
 	var FlatGridScript = load("res://map/scripts/flat_grid_view.gd")
@@ -578,6 +648,11 @@ func _setup_python_highlighting() -> void:
 # === button handlers ===
 
 func _on_run_button_pressed() -> void:
+
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	if _ipc_active:
 		if _paused:
 			if _step_index < _cmd_history.size():
@@ -993,10 +1068,12 @@ func _cleanup_sandbox_run() -> void:
 
 # === pipeline execution ===
 
-func _stop_execution() -> void:
+func _stop_execution(cancel_level_timer: bool = true) -> void:
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
+	if cancel_level_timer:
+		_level_countdown_id += 1
 
 	if _ipc_server != null:
 		_ipc_server.stop()
@@ -1010,22 +1087,40 @@ func _stop_execution() -> void:
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
-func _enforce_program_time_limit(pid: int) -> void:
-	if _time_limit_seconds <= 0:
-		return  # No time limit
-	
-	await get_tree().create_timer(_time_limit_seconds).timeout
+func _start_level_time_countdown() -> void:
+	_level_countdown_id += 1
+	var timer_id := _level_countdown_id
+	if _time_limit_seconds <= 0.0:
+		_show_level_limits(_time_limit_seconds)
+		return
 
-	if _ipc_active and _subprocess_pid == pid:
-		_trigger_time_limit_lose()
+	var deadline_ms := Time.get_ticks_msec() + int(_time_limit_seconds * 1000.0)
+	while timer_id == _level_countdown_id:
+		var milliseconds_left := maxi(0, deadline_ms - Time.get_ticks_msec())
+		_show_level_limits(float(ceili(float(milliseconds_left) / 1000.0)))
+		if milliseconds_left <= 0:
+			_trigger_time_limit_lose()
+			return
+		await get_tree().create_timer(0.2).timeout
+
+
+func _show_level_limits(time_remaining: float) -> void:
+	if campaign_limits == null:
+		return
+	campaign_limits.text = "LEVEL LIMITS  •  Moves: %s  •  Commands: %s  •  Time: %s" % [
+		_format_limit(_move_limit, "moves"),
+		_format_limit(_cmd_limit, "commands"),
+		_format_time_limit(time_remaining)
+	]
 
 func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
 	var start_paused: bool = _paused
-	_stop_execution()
+	_stop_execution(false)
 	_student_output_lines = 0
+	var source := checked_code
 
-	if editor.text.length() > MAX_STUDENT_SOURCE_CHARS:
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
 		log_error("Source code is too large. Maximum size is 100,000 characters.")
 		_set_status("Validation failed", "error")
 		_re_enable_buttons()
@@ -1050,7 +1145,7 @@ func _run_pipeline() -> void:
 
 	# Python path
 	if current_language == Language.PYTHON:
-		var v: Dictionary = py_pipeline.validate(editor.text)
+		var v: Dictionary = py_pipeline.validate(source)
 		if not v.ok:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
@@ -1058,7 +1153,7 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 	else:
-		var v: Dictionary = validator.validate(editor.text)
+		var v: Dictionary = validator.validate(source)
 		if not v.ok:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
@@ -1117,25 +1212,49 @@ func _run_pipeline() -> void:
 
 	# C++ path
 	if current_language == Language.CPP:
-		var generated: Dictionary = generator.generate(editor.text)
-		current_line_offset = generated.line_offset
-		compiler.prepare_build_files(
-			generated.generated_source,
-			_ipc_server.port,
-			ipc_token,
-
-			str(sandbox_run.get("path", "")),
-			sandbox_pipe_name
-		)
-		var build: Dictionary = compiler.compile_program()
-		if not build.ok:
-			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
-			_set_status("Compile failed", "error")
+		if checked_cpp_executable.is_empty() or not FileAccess.file_exists(checked_cpp_executable):
+			log_error("Check Code must compile your C++ program before you can run it.")
+			_set_status("No checked C++ build", "error")
 			_ipc_server.stop()
 			_ipc_server = null
 			_re_enable_buttons()
 			return
-		_set_status("Compiled - launching...", "")
+
+		current_line_offset = checked_cpp_line_offset
+
+		var run_folder := str(sandbox_run.get("path", ""))
+		var executable_destination := run_folder.path_join("student_program.exe")
+
+		var copy_error := DirAccess.copy_absolute(
+			checked_cpp_executable,
+			executable_destination
+		)
+
+		if copy_error != OK:
+			log_error("Could not copy the checked C++ program into the secure run folder.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		var connection_file := FileAccess.open(
+			run_folder.path_join("connection.txt"),
+			FileAccess.WRITE
+		)
+
+		if connection_file == null:
+			log_error("Could not create the secure program connection.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		connection_file.store_string(sandbox_pipe_name)
+		connection_file.close()
+		
+		_set_status("Launching checked C++ program...", "")
 
 		var launch: Dictionary = sandbox_worker.start_cpp_runner(
 			sandbox_run_id,
@@ -1156,7 +1275,7 @@ func _run_pipeline() -> void:
 	else:
 		current_line_offset = 0
 		var python_build: Dictionary = py_pipeline.prepare_sandbox_files(
-			editor.text,
+			source,
 			str(sandbox_run.get("path", "")),
 			sandbox_pipe_name
 		)
@@ -1194,8 +1313,6 @@ func _run_pipeline() -> void:
 			_ipc_server = null
 			_re_enable_buttons()
 			return
-
-		_enforce_program_timeout(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
@@ -1859,3 +1976,87 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 
 func _on_player_facing_changed(facing_index: int) -> void:
 	compass.texture = COMPASS_TEXTURES[facing_index]
+
+
+func _on_editor_text_changed() -> void:
+	has_checked_code = false
+	run_button.disabled = true
+	checked_cpp_executable = ""
+
+func _on_check_button_pressed() -> void:
+	if _ipc_active:
+		_set_status("Stop the current program before checking code.", "error")
+		return
+
+	var source := editor.text
+
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
+		output_box.clear()
+		log_error("Source code is too large. Maximum size is 100,000 characters.")
+		_set_status("Check failed", "error")
+		return
+
+	output_box.clear()
+	log_header("check code")
+
+	# Python: validate only.
+	if current_language == Language.PYTHON:
+		var python_validation: Dictionary = py_pipeline.validate(source)
+		if not python_validation.ok:
+			for err in python_validation.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Check failed", "error")
+			return
+
+		checked_code = source
+		has_checked_code = true
+		run_button.disabled = false
+		_set_status("Python code is valid — ready to run.", "")
+		log_line("Python validation passed.")
+		return
+
+	# C++: validate first.
+	var cpp_validation: Dictionary = validator.validate(source)
+	if not cpp_validation.ok:
+		for err in cpp_validation.errors:
+			log_error("line %d: %s" % [err.line, err.message])
+		_set_status("Check failed", "error")
+		return
+
+	# C++: then compile only after validation passes.
+	if not compiler.is_available():
+		log_error("C++ compiler (g++) was not found.")
+		_set_status("C++ compiler unavailable", "error")
+		return
+
+	if _compile_thread != null:
+		return
+
+	var generated: Dictionary = generator.generate(source)
+	var check_build_dir := ProjectSettings.globalize_path("user://checked_build")
+
+	check_button.disabled = true
+	run_button.disabled = true
+	editor.editable = false
+	language_selector.disabled = true
+	_set_status("Compiling C++...", "")
+
+	_compile_thread = Thread.new()
+
+	var thread_error := _compile_thread.start(
+		_compile_cpp_in_background.bind(
+			generated.generated_source,
+			check_build_dir
+		)
+	)
+
+	if thread_error != OK:
+		_compile_thread = null
+		check_button.disabled = false
+		editor.editable = true
+		language_selector.disabled = false
+		log_error("Could not start the C++ compiler thread.")
+		_set_status("Compile failed", "error")
+		return
+
+	await _finish_cpp_check(source, generated.line_offset)

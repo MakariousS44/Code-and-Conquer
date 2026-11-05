@@ -26,11 +26,8 @@ func prepare_build_files(source: String, port: int, token: String, sandbox_path:
 	DirAccess.make_dir_recursive_absolute(build_dir)
 	_write_file(build_dir.path_join("student_code.cpp"), source)
 	_write_file(build_dir.path_join("robot.hpp"), _commands.get_cpp_header())
-	var runtime_source := _commands.get_cpp_source(port, token)
-
-	if not pipe_name.is_empty():
-		runtime_source = _commands.get_cpp_pipe_source(pipe_name)
-
+	var runtime_source := _commands.get_cpp_pipe_source()
+	
 	_write_file(build_dir.path_join("robot_runtime.cpp"), runtime_source)
 
 func is_available() -> bool:

@@ -44,5 +44,8 @@
       "    # Add your maze-solving logic here.",
       "    move()"
     ]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 1800
+    }
 }
