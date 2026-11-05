@@ -471,6 +471,10 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_reset")
 theme_override_styles/hover = SubResource("StyleBoxFlat_reset_hover")
 text = "Reset"
 
+[node name="CheckButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=41859291]
+layout_mode = 2
+text = "Check Code"
+
 [node name="StatusLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=341284063]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -1004,10 +1008,10 @@ theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
 
-[node name="LoseSound" type="AudioStreamPlayer" parent="."]
+[node name="LoseSound" type="AudioStreamPlayer" parent="." unique_id=824871286]
 stream = ExtResource("lose_sound_ref")
 
-[node name="WinSound" type="AudioStreamPlayer" parent="."]
+[node name="WinSound" type="AudioStreamPlayer" parent="." unique_id=909430717]
 stream = ExtResource("win_sound_ref")
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]

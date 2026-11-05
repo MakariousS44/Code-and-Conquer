@@ -1,30 +1,34 @@
 extends Control
 
 const SIDEBAR_WIDTH := 280.0
+const TOOLBAR_WIDTH := 300.0
 const PROJECT_CUSTOM_LEVELS_DIR := "res://data/custom_levels/"
 const PLAYER_CUSTOM_LEVELS_DIR := "user://custom_levels/"
 
 var document := LevelDocument.new()
+var pan_mode := false
+var is_panning := false
 
 @onready var grid: EditorGridView = $GridClip/EditorGrid as EditorGridView
-@onready var robot_button: Button = $SidebarScroll/VBoxContainer/RobotButton
-@onready var goal_button: Button = $SidebarScroll/VBoxContainer/GoalButton
-@onready var wall_button: Button = $SidebarScroll/VBoxContainer/WallButton
-@onready var east_wall_button: Button = $SidebarScroll/VBoxContainer/EastWallButton
+@onready var grid_clip: Control = $GridClip
+@onready var robot_button: Button = $RightToolbar/PlacementGrid/RobotButton
+@onready var goal_button: Button = $RightToolbar/PlacementGrid/GoalButton
+@onready var wall_button: Button = $RightToolbar/WallsGrid/WallButton
+@onready var east_wall_button: Button = $RightToolbar/WallsGrid/EastWallButton
 @onready var load_button: Button = $SidebarScroll/VBoxContainer/LoadButton
 @onready var description_input: TextEdit = $SidebarScroll/VBoxContainer/DescriptionInput
 @onready var save_button: Button = $SidebarScroll/VBoxContainer/SaveButton
 @onready var level_name_input: LineEdit = $SidebarScroll/VBoxContainer/LevelNameInput
-@onready var object_button: Button = $SidebarScroll/VBoxContainer/ObjectButton
-@onready var erase_button: Button = $SidebarScroll/VBoxContainer/EraseButton
-@onready var void_button: Button = $SidebarScroll/VBoxContainer/VoidButton
+@onready var apple_button: Button = $RightToolbar/ObjectsGrid/AppleButton
+@onready var token_button: Button = $RightToolbar/ObjectsGrid/TokenButton
+@onready var erase_button: Button = $RightToolbar/ObjectsGrid/EraseButton
+@onready var void_button: Button = $RightToolbar/ObjectsGrid/VoidButton
 @onready var new_button: Button = $SidebarScroll/VBoxContainer/NewButton
 @onready var columns_input: SpinBox = $SidebarScroll/VBoxContainer/ColumnsInput
 @onready var rows_input: SpinBox = $SidebarScroll/VBoxContainer/RowsInput
 @onready var resize_button: Button = $SidebarScroll/VBoxContainer/ResizeButton
 @onready var back_button: Button = $SidebarScroll/VBoxContainer/BackButton
-@onready var status_label: Label = $SidebarScroll/VBoxContainer/StatusLabel
-@onready var object_type_selector: OptionButton = $SidebarScroll/VBoxContainer/ObjectTypeSelector
+@onready var status_label: Label = $ActiveToolLabel
 @onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
 @onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
 @onready var goal_carry_selector: OptionButton = $SidebarScroll/VBoxContainer/GoalCarrySelector
@@ -34,27 +38,15 @@ var document := LevelDocument.new()
 @onready var move_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/MoveLimitDefaultCheckbox
 @onready var cmd_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/CmdLimitDefaultCheckbox
 @onready var time_limit_default_checkbox: CheckBox = $SidebarScroll/VBoxContainer/TimeLimitDefaultCheckbox
-@onready var zoom_in_button: Button = $ViewControls/ZoomControls/ZoomInButton
-@onready var zoom_out_button: Button = $ViewControls/ZoomControls/ZoomOutButton
-@onready var pan_up_button: Button = $ViewControls/PanControls/PanUpButton
-@onready var pan_left_button: Button = $ViewControls/PanControls/PanLeftButton
-@onready var pan_down_button: Button = $ViewControls/PanControls/PanDownButton
-@onready var pan_right_button: Button = $ViewControls/PanControls/PanRightButton
-
 func _ready() -> void:
 	_arrange_sidebar()
 	document.create_blank(10, 10)
+	_set_goal_carry_selector()
 
 	grid.set_document(document)
 	grid.view_changed.connect(_layout_grid)
 	resized.connect(_layout_grid)
 	call_deferred("_layout_grid")
-	zoom_in_button.pressed.connect(grid.zoom_in)
-	zoom_out_button.pressed.connect(grid.zoom_out)
-	pan_up_button.pressed.connect(grid.pan_up)
-	pan_down_button.pressed.connect(grid.pan_down)
-	pan_left_button.pressed.connect(grid.pan_left)
-	pan_right_button.pressed.connect(grid.pan_right)
 	save_button.disabled = true
 
 	robot_button.pressed.connect(_on_robot_button_pressed)
@@ -63,17 +55,17 @@ func _ready() -> void:
 	east_wall_button.pressed.connect(_on_east_wall_button_pressed)
 	load_button.pressed.connect(_on_load_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
-	object_button.pressed.connect(_on_object_button_pressed)
+	apple_button.pressed.connect(_on_apple_button_pressed)
+	token_button.pressed.connect(_on_token_button_pressed)
 	erase_button.pressed.connect(_on_erase_button_pressed)
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
 	new_button.pressed.connect(_on_new_button_pressed)
 	resize_button.pressed.connect(_on_resize_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
 	level_name_input.text_changed.connect(_on_level_name_changed)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, object_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
-	object_type_selector.item_selected.connect(_on_object_type_changed)
 	object_count_input.value_changed.connect(_on_object_count_changed)
 	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
 	goal_carry_selector.item_selected.connect(_on_goal_carry_changed)
@@ -87,9 +79,7 @@ func _arrange_sidebar() -> void:
 	var order := [
 		"TitleLabel", "LevelNameLabel", "LevelNameInput", "DescriptionLabel", "DescriptionInput",
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
-		"PlacementLabel", "RobotButton", "GoalButton",
-		"WallsLabel", "WallButton", "EastWallButton",
-		"ObjectsLabel", "ObjectTypeLabel", "ObjectTypeSelector", "ObjectCountLabel", "ObjectCountInput", "ObjectButton", "VoidButton", "EraseButton",
+		"ObjectCountLabel", "ObjectCountInput",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
 		"LimitsLabel", "MoveLimitDefaultCheckbox", "MoveLimitLabel", "MoveLimitInput", "CmdLimitDefaultCheckbox", "CmdLimitLabel", "CmdLimitInput", "TimeLimitDefaultCheckbox", "TimeLimitLabel", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
@@ -112,7 +102,7 @@ func _layout_grid() -> void:
 		int(document.data["cols"]) * EditorGridView.CELL_SIZE,
 		int(document.data["rows"]) * EditorGridView.CELL_SIZE
 	)
-	var available_size := size - Vector2(SIDEBAR_WIDTH, 0.0)
+	var available_size := grid_clip.size
 	if not grid.zoom_initialized:
 		var fit := maxf(0.05, minf((available_size.x - 48.0) / grid_size.x, (available_size.y - 48.0) / grid_size.y))
 		grid.zoom_level = minf(fit, 1.5)
@@ -135,10 +125,40 @@ func _on_east_wall_button_pressed() -> void:
 
 
 func _select_tool(tool: int, selected_button: Button, tool_name: String) -> void:
+	pan_mode = false
+	is_panning = false
+	mouse_default_cursor_shape = Control.CURSOR_ARROW
+	grid_clip.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
+
 	grid.set_tool(tool)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, object_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
 		tool_button.button_pressed = tool_button == selected_button
 	status_label.text = "Active tool: %s" % tool_name
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			pan_mode = true
+			is_panning = false
+			mouse_default_cursor_shape = Control.CURSOR_DRAG
+			grid_clip.mouse_default_cursor_shape = Control.CURSOR_DRAG
+			Input.set_default_cursor_shape(Input.CURSOR_DRAG)
+			for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+				tool_button.button_pressed = false
+			status_label.text = "Pan mode: drag with left-click. Select a tool to place tiles again."
+			get_viewport().set_input_as_handled()
+			return
+
+		if pan_mode and event.button_index == MOUSE_BUTTON_LEFT and event.position.x > SIDEBAR_WIDTH and event.position.x < size.x - TOOLBAR_WIDTH:
+			is_panning = event.pressed
+			get_viewport().set_input_as_handled()
+			return
+
+	if pan_mode and is_panning and event is InputEventMouseMotion:
+		grid.pan_by(event.relative)
+		get_viewport().set_input_as_handled()
 
 func _on_save_button_pressed() -> void:
 	var level_name := level_name_input.text.strip_edges()
@@ -237,6 +257,7 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
+		_set_goal_carry_selector()
 		# Load limits
 		var limits_data = document.data.get("limits", {})
 		if limits_data.has("move_limit"):
@@ -274,8 +295,14 @@ func _make_level_filename(level_name: String) -> String:
 	safe_name = invalid_characters.sub(safe_name, "_", true)
 	return safe_name if not safe_name.is_empty() else "untitled_level"
 
-func _on_object_button_pressed() -> void:
-	_select_tool(EditorGridView.Tool.OBJECT, object_button, "Object")
+func _on_apple_button_pressed() -> void:
+	grid.set_object_type("apple")
+	_select_tool(EditorGridView.Tool.OBJECT, apple_button, "Apple")
+
+
+func _on_token_button_pressed() -> void:
+	grid.set_object_type("token")
+	_select_tool(EditorGridView.Tool.OBJECT, token_button, "Token")
 
 
 func _on_erase_button_pressed() -> void:
@@ -287,6 +314,7 @@ func _on_new_button_pressed() -> void:
 	var rows := int(rows_input.value)
 
 	document.create_blank(cols, rows)
+	_set_goal_carry_selector()
 	grid.set_document(document)
 	grid.reset_pan()
 	_layout_grid()
@@ -314,12 +342,6 @@ func _on_resize_button_pressed() -> void:
 func _on_back_button_pressed() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
 
-func _on_object_type_changed(index: int) -> void:
-	var selected_type := object_type_selector.get_item_text(index)
-	grid.set_object_type(selected_type)
-	status_label.text = "Object type: %s" % selected_type
-	object_button.text = "Place %s" % selected_type  # Change the button text per the new selected object type
-
 func _on_object_count_changed(value: float) -> void:
 	grid.set_object_count(int(value))
 	status_label.text = "Object count per click: %d" % int(value)
@@ -328,12 +350,26 @@ func _on_goal_objects_button_pressed() -> void:
 	_open_goal_objects_dialog()
 
 func _on_goal_carry_changed(index: int) -> void:
+	var carry_modes := ["none", "token", "apple", "all_apples", "all_tokens", "all_apples_and_tokens"]
 	var selected_carry := goal_carry_selector.get_item_text(index)
-	if selected_carry == "None":
-		document.data["goal"].erase("require_carry_object")
+	var carry_mode: String = carry_modes[index]
+	# Keep the requirement as a mode so it can describe one item or every placed item.
+	document.data["goal"].erase("require_carry_object")
+	if carry_mode == "none":
+		document.data["goal"].erase("require_carry")
 	else:
-		document.data["goal"]["require_carry_object"] = selected_carry.to_lower()
+		document.data["goal"]["require_carry"] = carry_mode
 	status_label.text = "Goal carry requirement: %s" % selected_carry
+
+
+func _set_goal_carry_selector() -> void:
+	var carry_modes := ["none", "token", "apple", "all_apples", "all_tokens", "all_apples_and_tokens"]
+	var goal: Dictionary = document.data.get("goal", {})
+	var mode := str(goal.get("require_carry", ""))
+	if mode.is_empty() and goal.has("require_carry_object"):
+		mode = str(goal["require_carry_object"])
+	var selected_index := carry_modes.find(mode)
+	goal_carry_selector.select(selected_index if selected_index >= 0 else 0)
 
 func _open_goal_objects_dialog() -> void:
 	var dialog := AcceptDialog.new()

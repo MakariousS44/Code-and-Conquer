@@ -267,10 +267,10 @@ func get_cpp_source(port: int, token: String) -> String:
 	return "\n".join(lines)
 
 
-func get_cpp_pipe_source(pipe_name: String) -> String:
-	var escaped_pipe_name := pipe_name.replace("\\", "\\\\").replace("\"", "\\\"")
+func get_cpp_pipe_source() -> String:
 
 	var lines := [
+		"#include <fstream>",
 		"#include \"robot.hpp\"",
 		"#include <windows.h>",
 		"#include <string>",
@@ -279,10 +279,13 @@ func get_cpp_pipe_source(pipe_name: String) -> String:
 		"static HANDLE __robot_pipe = INVALID_HANDLE_VALUE;",
 		"",
 		"static void __robot_connect() {",
-		"    const wchar_t* pipe_name = L\"%s\";" % escaped_pipe_name,
-		"    WaitNamedPipeW(pipe_name, 5000);",
+		"    std::wifstream pipe_file(L\"connection.txt\");",
+		"    std::wstring pipe_name;",
+		"    std::getline(pipe_file, pipe_name);",
+		"    if (pipe_name.empty()) return;",
+		"    WaitNamedPipeW(pipe_name.c_str(), 5000);",
 		"    __robot_pipe = CreateFileW(",
-		"        pipe_name,",
+		"        pipe_name.c_str(),",
 		"        GENERIC_READ | GENERIC_WRITE,",
 		"        0,",
 		"        nullptr,",
