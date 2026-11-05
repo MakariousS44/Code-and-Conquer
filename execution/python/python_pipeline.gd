@@ -12,6 +12,17 @@ func validate(source: String) -> Dictionary:
 func is_available() -> bool:
 	return _compiler.is_available()
 
+func prepare_sandbox_files(
+	source: String,
+	sandbox_path: String,
+	pipe_name: String
+) -> Dictionary:
+	return _compiler.prepare_sandbox_files(
+		source,
+		sandbox_path,
+		pipe_name
+	)
+
 ## Launches student code connecting to the given IPC port. Returns OS PID or -1
 func start(source: String, port: int, token: String) -> int:
 	return _compiler.start(source, port, token)

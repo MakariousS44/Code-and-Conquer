@@ -101,6 +101,8 @@ var _is_2d_mode: bool = false
 # === IPC state ===
 var _ipc_server = null
 var _subprocess_pid: int = -1
+var _sandbox_run_id: String = ""
+var _sandbox_cleanup_token: String = ""
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
 
@@ -264,9 +266,12 @@ func _apply_saved_preferences() -> void:
 	var font_index := clampi(int(_saved_setting("editor", "font_size", 1)), 0, font_sizes.size() - 1)
 	_on_font_size_changed(font_sizes[font_index])
 
-	var language_setting := int(_saved_setting("editor", "default_language", 0))
-	language_selector.select(1 if language_setting == 0 else 0)
-	_on_language_changed(language_selector.selected)
+	# var language_setting := int(_saved_setting("editor", "default_language", 0))
+	# language_selector.select(1 if language_setting == 0 else 0)
+	# _on_language_changed(language_selector.selected)
+
+	language_selector.select(0)
+	_on_language_changed(0)
 
 	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
 	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
@@ -962,6 +967,30 @@ func _on_go_to_menu() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
 
 
+func _cleanup_sandbox_run() -> void:
+	if _sandbox_run_id.is_empty() or _sandbox_cleanup_token.is_empty():
+		return
+
+	var cleanup: Dictionary = {}
+
+	for attempt in range(5):
+		cleanup = sandbox_worker.delete_run_directory(
+			_sandbox_run_id,
+			_sandbox_cleanup_token
+		)
+
+		if cleanup.ok:
+			_sandbox_run_id = ""
+			_sandbox_cleanup_token = ""
+			return
+
+		OS.delay_msec(250)
+
+	log_warning(
+		"Could not remove secure run folder after retries: "
+		+ cleanup.message
+	)
+
 # === pipeline execution ===
 
 func _stop_execution() -> void:
@@ -975,6 +1004,8 @@ func _stop_execution() -> void:
 	if _subprocess_pid != -1:
 		OS.kill(_subprocess_pid)
 		_subprocess_pid = -1
+	
+	_cleanup_sandbox_run()
 
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
@@ -1016,6 +1047,7 @@ func _run_pipeline() -> void:
 	_run_had_error = false
 	await get_tree().process_frame
 
+
 	# Python path
 	if current_language == Language.PYTHON:
 		var v: Dictionary = py_pipeline.validate(editor.text)
@@ -1034,11 +1066,6 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 
-	if current_language == Language.PYTHON and not py_pipeline.is_available():
-		log_error("Python 3 was not found. Please install Python 3 first, then restart the game.")
-		_set_status("Python unavailable", "error")
-		_re_enable_buttons()
-		return
 
 	if current_language == Language.CPP and not compiler.is_available():
 		log_error("A C++ compiler(g++) was not found. Please install C++ first, then restart the game.")
@@ -1050,8 +1077,38 @@ func _run_pipeline() -> void:
 	var IPCServer = preload(Paths.IPC_SERVER)
 	_ipc_server = IPCServer.new()
 	var crypto := Crypto.new()
-	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
 
+	var sandbox_run_id := crypto.generate_random_bytes(16).hex_encode()
+	var sandbox_cleanup_token := crypto.generate_random_bytes(32).hex_encode()
+
+	var sandbox_run: Dictionary
+
+	if current_language == Language.PYTHON:
+		sandbox_run = sandbox_worker.prepare_python_run(
+			sandbox_run_id,
+			sandbox_cleanup_token
+		)
+	else:
+		sandbox_run = sandbox_worker.prepare_run(
+			sandbox_run_id,
+			sandbox_cleanup_token
+		)
+
+	if not sandbox_run.ok:
+		log_error("Could not prepare the secure run folder: " + sandbox_run.message)
+		_set_status("Sandbox setup failed", "error")
+		_re_enable_buttons()
+		return
+	
+	
+	log_line("Secure run folder prepared.")
+	_sandbox_run_id = sandbox_run_id
+	_sandbox_cleanup_token = sandbox_cleanup_token
+
+	var sandbox_pipe_name := "\\\\.\\pipe\\CodeAndConquer-" + sandbox_run_id
+
+	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
+	
 	if not _ipc_server.start(ipc_token):
 		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
 		_set_status("IPC failed", "error")
@@ -1062,8 +1119,14 @@ func _run_pipeline() -> void:
 	if current_language == Language.CPP:
 		var generated: Dictionary = generator.generate(editor.text)
 		current_line_offset = generated.line_offset
-		compiler.prepare_build_files(generated.generated_source, _ipc_server.port, ipc_token)
+		compiler.prepare_build_files(
+			generated.generated_source,
+			_ipc_server.port,
+			ipc_token,
 
+			str(sandbox_run.get("path", "")),
+			sandbox_pipe_name
+		)
 		var build: Dictionary = compiler.compile_program()
 		if not build.ok:
 			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
@@ -1073,20 +1136,66 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 		_set_status("Compiled - launching...", "")
-		_subprocess_pid = compiler.start_program()
+
+		var launch: Dictionary = sandbox_worker.start_cpp_runner(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			_ipc_server.port,
+			ipc_token
+		)
+
+		if not launch.ok:
+			log_error("Could not start secure C++ runner: " + launch.message)
+			_set_status("Secure launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		_subprocess_pid = int(launch.pid)
 	else:
 		current_line_offset = 0
-		_subprocess_pid = py_pipeline.start(editor.text, _ipc_server.port, ipc_token)
+		var python_build: Dictionary = py_pipeline.prepare_sandbox_files(
+			editor.text,
+			str(sandbox_run.get("path", "")),
+			sandbox_pipe_name
+		)
 
-	if _subprocess_pid == -1:
-		log_error("Failed to launch subprocess.")
-		_set_status("Launch failed", "error")
-		_ipc_server.stop()
-		_ipc_server = null
-		_re_enable_buttons()
-		return
+		if not python_build.ok:
+			log_error("Could not prepare secure Python code: " + python_build.message)
+			_set_status("Python setup failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_cleanup_sandbox_run()
+			_re_enable_buttons()
+			return
 
-	_enforce_program_time_limit(_subprocess_pid)
+		var launch: Dictionary = sandbox_worker.start_python_runner(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			_ipc_server.port,
+			ipc_token
+		)
+
+		if not launch.ok:
+			log_error("Could not start secure Python runner: " + launch.message)
+			_set_status("Secure Python launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_cleanup_sandbox_run()
+			_re_enable_buttons()
+			return
+
+		_subprocess_pid = int(launch.pid)
+		if _subprocess_pid == -1:
+			log_error("Failed to launch subprocess.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		_enforce_program_timeout(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
