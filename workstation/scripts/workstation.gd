@@ -365,17 +365,27 @@ func _refresh_campaign_instructions() -> void:
 	campaign_hint.text = current_level_definition.get("hint", "")
 
 
-func _format_remaining(limit: int, used: int, unit: String) -> String:
-	if limit <= 0:
-		return "Unlimited"
-	return "%d %s" % [maxi(0, limit - used), unit]
-
-
-func _format_time_limit(seconds: float) -> String:
-	if seconds <= 0.0:
-		return "Unlimited"
+func _format_duration(seconds: float) -> String:
 	var total_seconds := maxi(0, ceili(seconds))
 	return "%d:%02d" % [total_seconds / 60, total_seconds % 60]
+
+
+func _format_count_detail(limit: int, used: int) -> String:
+	if limit <= 0:
+		return "Unlimited"
+	return "%d (used: %d, remaining: %d)" % [limit, used, maxi(0, limit - used)]
+
+
+func _format_time_detail(remaining_seconds: float) -> String:
+	if _time_limit_seconds <= 0.0:
+		return "Unlimited"
+	var remaining := maxf(0.0, remaining_seconds)
+	var used := maxf(0.0, _time_limit_seconds - remaining)
+	return "%s (used: %s, remaining: %s)" % [
+		_format_duration(_time_limit_seconds),
+		_format_duration(used),
+		_format_duration(remaining)
+	]
 
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
@@ -1178,9 +1188,9 @@ func _show_level_limits(time_remaining: float) -> void:
 	if campaign_limits == null:
 		return
 	campaign_limits.text = "LEVEL LIMITS  •  Moves: %s  •  Commands: %s  •  Time: %s" % [
-		_format_remaining(_move_limit, _moves_used(), "moves"),
-		_format_remaining(_cmd_limit, mini(_step_index, _cmd_history.size()), "commands"),
-		_format_time_limit(time_remaining)
+		_format_count_detail(_move_limit, _moves_used()),
+		_format_count_detail(_cmd_limit, mini(_step_index, _cmd_history.size())),
+		_format_time_detail(time_remaining)
 	]
 
 func _run_pipeline() -> void:
