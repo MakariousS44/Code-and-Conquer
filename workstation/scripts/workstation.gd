@@ -1573,6 +1573,15 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 			while is_instance_valid(player_node) and _ipc_active and not move_done[0] and waited < move_timeout:
 				await get_tree().create_timer(0.05).timeout
 				waited += 0.05
+			if _ipc_active and is_instance_valid(player_node) and not move_done[0]:
+				# The move never finished (stuck/killed tween). Treat it as a
+				# failed run rather than acknowledging the command and letting
+				# later commands execute before movement or loss handling ends.
+				log_error("Movement did not complete; stopping execution.")
+				_set_status("Execution stopped", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return
 		"TURN_LEFT":
 			player_node.turn_left()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
