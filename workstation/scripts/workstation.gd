@@ -1559,12 +1559,20 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
-			# Fire-and-forget: move_forward runs its logic synchronously and
-			# animates via a node-bound tween. Awaiting the coroutine here
-			# would hang forever if the player is freed mid-animation (e.g.
-			# Reset during a run), so pace with a SceneTree timer instead.
+			# Wait for move_finished so a void fall (a second tween inside
+			# move_forward) completes before the next command runs — otherwise
+			# the IPC loop would acknowledge and execute commands after the
+			# fatal step. The loop also exits if the player is freed mid-run
+			# (level reload/reset) or execution is stopped, and a generous
+			# timeout covers a killed tween whose coroutine never resumes.
+			var move_done := [false]
+			player_node.move_finished.connect(func(): move_done[0] = true, CONNECT_ONE_SHOT)
 			player_node.move_forward(exec_speed)
-			await get_tree().create_timer(exec_speed).timeout
+			var waited := 0.0
+			var move_timeout := exec_speed * 3.0 + 0.5
+			while is_instance_valid(player_node) and _ipc_active and not move_done[0] and waited < move_timeout:
+				await get_tree().create_timer(0.05).timeout
+				waited += 0.05
 		"TURN_LEFT":
 			player_node.turn_left()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
