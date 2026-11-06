@@ -379,10 +379,13 @@ func _format_count_detail(limit: int, used: int) -> String:
 func _format_time_detail(remaining_seconds: float) -> String:
 	if _time_limit_seconds <= 0.0:
 		return "Unlimited"
-	var remaining := maxf(0.0, remaining_seconds)
-	var used := maxf(0.0, _time_limit_seconds - remaining)
+	# Round remaining up first, then derive used from the rounded values so the
+	# displayed used + remaining always equals the displayed limit.
+	var limit := ceili(_time_limit_seconds)
+	var remaining := ceili(maxf(0.0, remaining_seconds))
+	var used := maxi(0, limit - remaining)
 	return "%s (used: %s, remaining: %s)" % [
-		_format_duration(_time_limit_seconds),
+		_format_duration(limit),
 		_format_duration(used),
 		_format_duration(remaining)
 	]
