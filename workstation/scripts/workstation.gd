@@ -135,6 +135,8 @@ var _move_limit: int = DEFAULT_MOVE_LIMIT
 var _cmd_limit: int = DEFAULT_CMD_LIMIT
 var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
 var _program_timer_id: int = 0
+var _program_time_remaining := -1.0  # program-seconds left; <0 = not tracking
+var _program_animating := false      # true while a live command animation runs
 
 var checked_code := ""
 var has_checked_code := false
@@ -686,7 +688,9 @@ func _resume_after_step_back() -> void:
 	while _step_index < _cmd_history.size() and _ipc_active:
 		var entry = _cmd_history[_step_index]
 		_step_index += 1
+		_program_animating = true
 		await _execute_cmd(entry.cmd, entry.src_line)
+		_program_animating = false
 		if not _ipc_active:
 			return
 		if _paused:
@@ -782,7 +786,9 @@ func _restore_snapshot(snap: Dictionary) -> void:
 func _replay_step_forward() -> void:
 	var entry = _cmd_history[_step_index]
 	_step_index += 1
+	_program_animating = true
 	await _execute_cmd(entry.cmd, entry.src_line)
+	_program_animating = false
 	if not _ipc_active:
 		return
 
@@ -1071,6 +1077,9 @@ func _stop_execution(cancel_program_timer: bool = true) -> void:
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
+	_program_animating = false
+	_program_time_remaining = -1.0
+
 	if cancel_program_timer:
 		_program_timer_id += 1
 
@@ -1096,20 +1105,39 @@ func _start_program_time_limit(pid: int) -> void:
 		_show_level_limits(_time_limit_seconds)
 		return
 
-	# The limit measures program runtime (not time spent in the level).
-	# Program time accrues at the rate commands animate: it matches
-	# wall-clock seconds at the baseline speed and scales with the speed
-	# setting so slower animation does not shrink the command budget.
-	var remaining := _time_limit_seconds
-	_show_level_limits(remaining)
+	# The time limit is a program execution limit, measuring program runtime
+	# (not time spent in the level). Command animations are charged per command
+	# at their baseline-speed cost, and all other program runtime (startup,
+	# queries, student compute) accrues at wall-clock rate. So the budget is
+	# identical no matter which speed setting is selected.
+	_program_time_remaining = _time_limit_seconds
+	_show_level_limits(_program_time_remaining)
 	while timer_id == _program_timer_id and _subprocess_pid == pid:
-		if not _paused:
-			remaining -= PROGRAM_TIME_TICK_SECONDS * (BASE_EXEC_SPEED / maxf(exec_speed, 0.01))
-			_show_level_limits(maxf(0.0, remaining))
-			if remaining <= 0.0:
+		if not _paused and not _program_animating:
+			_program_time_remaining -= PROGRAM_TIME_TICK_SECONDS
+			_show_level_limits(maxf(0.0, _program_time_remaining))
+			if _program_time_remaining <= 0.0:
 				_trigger_time_limit_lose()
 				return
 		await get_tree().create_timer(PROGRAM_TIME_TICK_SECONDS).timeout
+
+
+func _program_cost_for(cmd: String) -> float:
+	match cmd:
+		"MOVE":
+			return BASE_EXEC_SPEED
+		"TURN_LEFT", "TURN_RIGHT":
+			return BASE_EXEC_SPEED * 0.2
+	return 0.0
+
+
+func _charge_program_time(seconds: float) -> void:
+	if _program_time_remaining < 0.0 or seconds <= 0.0:
+		return
+	_program_time_remaining -= seconds
+	_show_level_limits(maxf(0.0, _program_time_remaining))
+	if _program_time_remaining <= 0.0:
+		_trigger_time_limit_lose()
 
 
 func _show_level_limits(time_remaining: float) -> void:
@@ -1387,7 +1415,11 @@ func _run_ipc_loop() -> void:
 			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
 			_step_index = _cmd_history.size()
 
+			_program_animating = true
 			await _execute_cmd(cmd, src_line)
+			_program_animating = false
+			if _ipc_active:
+				_charge_program_time(_program_cost_for(cmd))
 
 			if not _ipc_active:
 				break
