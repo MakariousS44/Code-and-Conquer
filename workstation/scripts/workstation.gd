@@ -724,6 +724,10 @@ func _on_step_button_pressed() -> void:
 		return
 
 	# start a fresh run, but begin paused so the first command is a single step
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	_paused = true
 	_run_pipeline()
 
