@@ -134,9 +134,9 @@ const DEFAULT_TIME_LIMIT_SECONDS := 300.0
 var _move_limit: int = DEFAULT_MOVE_LIMIT
 var _cmd_limit: int = DEFAULT_CMD_LIMIT
 var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
-var _program_timer_id: int = 0
+var _run_id := 0  # incremented by _stop_execution; stale coroutines compare against it
 var _program_time_remaining := -1.0  # program-seconds left; <0 = not tracking
-var _program_animating := false      # true while a live command animation runs
+var _program_animating := false      # true while a command animation runs
 
 var checked_code := ""
 var has_checked_code := false
@@ -649,7 +649,6 @@ func _setup_python_highlighting() -> void:
 # === button handlers ===
 
 func _on_run_button_pressed() -> void:
-
 	if not has_checked_code:
 		_set_status("Check your code before running.", "error")
 		return
@@ -657,7 +656,7 @@ func _on_run_button_pressed() -> void:
 	if _ipc_active:
 		if _paused:
 			if _step_index < _cmd_history.size():
-				await _resume_after_step_back()
+				await _resume_after_step_back(_run_id)
 			else:
 				_paused = false
 				run_button.text = "❚❚ Pause"
@@ -677,7 +676,7 @@ func _on_run_button_pressed() -> void:
 # Replay cached commands at the user's selected speed to catch the world up,
 # so it looks like seamless continuation, then unblock the IPC loop.
 # Pause check between commands so the user can interrupt the catch-up.
-func _resume_after_step_back() -> void:
+func _resume_after_step_back(run_id: int) -> void:
 	_in_replay = false
 	_paused = false
 	run_button.text = "❚❚ Pause"
@@ -685,13 +684,11 @@ func _resume_after_step_back() -> void:
 	step_button.disabled = true
 	_set_status("Running...", "")
 
-	while _step_index < _cmd_history.size() and _ipc_active:
+	while _step_index < _cmd_history.size() and _ipc_active and _run_id == run_id:
 		var entry = _cmd_history[_step_index]
 		_step_index += 1
-		_program_animating = true
-		await _execute_cmd(entry.cmd, entry.src_line)
-		_program_animating = false
-		if not _ipc_active:
+		await _animate_command(entry.cmd, entry.src_line, run_id)
+		if _run_id != run_id or not _ipc_active:
 			return
 		if _paused:
 			# User pressed Pause mid-replay. Stop catching up.
@@ -703,8 +700,9 @@ func _resume_after_step_back() -> void:
 			step_button.disabled = false
 			prev_button.disabled = _step_index <= 0
 			return
-	
-	_resume.emit()
+
+	if _run_id == run_id and _ipc_active:
+		_resume.emit()
 
 
 func _on_step_button_pressed() -> void:
@@ -720,7 +718,7 @@ func _on_step_button_pressed() -> void:
 		step_button.disabled = true
 		prev_button.disabled = true
 		if _in_replay:
-			await _replay_step_forward()
+			await _replay_step_forward(_run_id)
 		else:
 			_resume.emit()	# loop executes one cmd then re-pauses
 		return
@@ -783,13 +781,11 @@ func _restore_snapshot(snap: Dictionary) -> void:
 		_clear_editor_highlights()
 
 
-func _replay_step_forward() -> void:
+func _replay_step_forward(run_id: int) -> void:
 	var entry = _cmd_history[_step_index]
 	_step_index += 1
-	_program_animating = true
-	await _execute_cmd(entry.cmd, entry.src_line)
-	_program_animating = false
-	if not _ipc_active:
+	await _animate_command(entry.cmd, entry.src_line, run_id)
+	if _run_id != run_id or not _ipc_active:
 		return
 
 	log_line("✓ %s" % entry.cmd.to_lower())
@@ -991,6 +987,8 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	if _is_handling_lose or _run_outcome == "win":
+		return
 	$WinSound.play()
 	_run_outcome = "win"
 	_stop_execution()
@@ -1073,15 +1071,13 @@ func _cleanup_sandbox_run() -> void:
 
 # === pipeline execution ===
 
-func _stop_execution(cancel_program_timer: bool = true) -> void:
+func _stop_execution() -> void:
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
 	_program_animating = false
 	_program_time_remaining = -1.0
-
-	if cancel_program_timer:
-		_program_timer_id += 1
+	_run_id += 1  # invalidate every async continuation belonging to the old run
 
 	if _ipc_server != null:
 		_ipc_server.stop()
@@ -1095,12 +1091,11 @@ func _stop_execution(cancel_program_timer: bool = true) -> void:
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
-const PROGRAM_TIME_TICK_SECONDS := 0.2
+const PROGRAM_TIME_REFRESH_SECONDS := 0.2
 const BASE_EXEC_SPEED := 0.5
 
 func _start_program_time_limit(pid: int) -> void:
-	_program_timer_id += 1
-	var timer_id := _program_timer_id
+	var run_id := _run_id
 	if _time_limit_seconds <= 0.0:
 		_show_level_limits(_time_limit_seconds)
 		return
@@ -1112,17 +1107,23 @@ func _start_program_time_limit(pid: int) -> void:
 	# identical no matter which speed setting is selected.
 	_program_time_remaining = _time_limit_seconds
 	_show_level_limits(_program_time_remaining)
-	while timer_id == _program_timer_id and _subprocess_pid == pid:
-		if not _paused and not _program_animating:
-			_program_time_remaining -= PROGRAM_TIME_TICK_SECONDS
+	var last_ms := Time.get_ticks_msec()
+	while _run_id == run_id and _subprocess_pid == pid:
+		var now_ms := Time.get_ticks_msec()
+		var elapsed := float(now_ms - last_ms) / 1000.0
+		last_ms = now_ms
+		if elapsed > 0.0 and not _paused and not _program_animating:
+			_program_time_remaining -= elapsed
 			_show_level_limits(maxf(0.0, _program_time_remaining))
 			if _program_time_remaining <= 0.0:
 				_trigger_time_limit_lose()
 				return
-		await get_tree().create_timer(PROGRAM_TIME_TICK_SECONDS).timeout
+		await get_tree().create_timer(PROGRAM_TIME_REFRESH_SECONDS).timeout
 
 
-func _program_cost_for(cmd: String) -> float:
+# Flat per-command cost in program-seconds at the baseline exec speed.
+# Independent of exec_speed and of the animation's real duration.
+func _baseline_command_cost(cmd: String) -> float:
 	match cmd:
 		"MOVE":
 			return BASE_EXEC_SPEED
@@ -1140,6 +1141,19 @@ func _charge_program_time(seconds: float) -> void:
 		_trigger_time_limit_lose()
 
 
+# Runs one command's animation with _program_animating set so the program
+# clock does not double-count it. `live` commands also charge their baseline
+# cost — but only if this continuation still belongs to the active run.
+func _animate_command(cmd: String, src_line: int, run_id: int, live: bool = false) -> void:
+	_program_animating = true
+	await _execute_cmd(cmd, src_line)
+	if _run_id != run_id:
+		return
+	_program_animating = false
+	if live and _ipc_active:
+		_charge_program_time(_baseline_command_cost(cmd))
+
+
 func _show_level_limits(time_remaining: float) -> void:
 	if campaign_limits == null:
 		return
@@ -1152,7 +1166,8 @@ func _show_level_limits(time_remaining: float) -> void:
 func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
 	var start_paused: bool = _paused
-	_stop_execution(false)
+	_stop_execution()
+	var run_id := _run_id
 	_student_output_lines = 0
 	var source := checked_code
 
@@ -1177,6 +1192,8 @@ func _run_pipeline() -> void:
 	_run_outcome = "incomplete"
 	_run_had_error = false
 	await get_tree().process_frame
+	if _run_id != run_id:
+		return
 
 
 	# Python path
@@ -1355,12 +1372,16 @@ func _run_pipeline() -> void:
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
+		if _run_id != run_id:
+			return
 		log_error("Subprocess did not connect within 5 seconds.")
 		_set_status("Timeout", "error")
 		_stop_execution()
 		_re_enable_buttons()
 		return
 
+	if _run_id != run_id:
+		return
 	_ipc_active = true
 	_paused = start_paused
 	log_header("executing")
@@ -1371,14 +1392,14 @@ func _run_pipeline() -> void:
 		_set_status("Paused", "")
 	else:
 		run_button.text = "❚❚ Pause"
-	await _run_ipc_loop()
+	await _run_ipc_loop(run_id)
 
 
-func _run_ipc_loop() -> void:
-	while _ipc_active:
+func _run_ipc_loop(run_id: int) -> void:
+	while _ipc_active and _run_id == run_id:
 		var line: String = await _ipc_server.read_line(get_tree())
 
-		if not _ipc_active:
+		if _run_id != run_id or not _ipc_active:
 			break
 
 		if line == "[CANCELLED]" or line == "[DISCONNECT]":
@@ -1415,13 +1436,9 @@ func _run_ipc_loop() -> void:
 			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
 			_step_index = _cmd_history.size()
 
-			_program_animating = true
-			await _execute_cmd(cmd, src_line)
-			_program_animating = false
-			if _ipc_active:
-				_charge_program_time(_program_cost_for(cmd))
+			await _animate_command(cmd, src_line, run_id, true)
 
-			if not _ipc_active:
+			if _run_id != run_id or not _ipc_active:
 				break
 
 			if _paused:
@@ -1430,7 +1447,7 @@ func _run_ipc_loop() -> void:
 				step_button.disabled = false
 				prev_button.disabled = false
 				await _resume
-				if not _ipc_active:
+				if _run_id != run_id or not _ipc_active:
 					break
 			_ipc_server.send("OK")
 
@@ -1466,7 +1483,7 @@ func _run_ipc_loop() -> void:
 			break
 
 	_ipc_loop_running = false
-	if _ipc_active:
+	if _ipc_active and _run_id == run_id:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
@@ -1494,6 +1511,8 @@ func _run_ipc_loop() -> void:
 
 
 func _on_execution_done() -> void:
+	if _is_handling_lose or _run_outcome == "done":
+		return
 	_run_outcome = "done"
 	_stop_execution()
 	run_button.text = "▶ Run"
@@ -1540,7 +1559,12 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
-			await player_node.move_forward(exec_speed)
+			# Fire-and-forget: move_forward runs its logic synchronously and
+			# animates via a node-bound tween. Awaiting the coroutine here
+			# would hang forever if the player is freed mid-animation (e.g.
+			# Reset during a run), so pace with a SceneTree timer instead.
+			player_node.move_forward(exec_speed)
+			await get_tree().create_timer(exec_speed).timeout
 		"TURN_LEFT":
 			player_node.turn_left()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
