@@ -649,10 +649,6 @@ func _setup_python_highlighting() -> void:
 # === button handlers ===
 
 func _on_run_button_pressed() -> void:
-	if not has_checked_code:
-		_set_status("Check your code before running.", "error")
-		return
-
 	if _ipc_active:
 		if _paused:
 			if _step_index < _cmd_history.size():
@@ -666,6 +662,10 @@ func _on_run_button_pressed() -> void:
 			_paused = true
 			run_button.text = "▶ Resume"
 			_set_status("Paused", "")
+		return
+
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
 		return
 
 	_paused = false
@@ -724,6 +724,10 @@ func _on_step_button_pressed() -> void:
 		return
 
 	# start a fresh run, but begin paused so the first command is a single step
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	_paused = true
 	_run_pipeline()
 
@@ -2064,7 +2068,8 @@ func _on_player_facing_changed(facing_index: int) -> void:
 
 func _on_editor_text_changed() -> void:
 	has_checked_code = false
-	run_button.disabled = true
+	if not _ipc_active:
+		run_button.disabled = true
 	checked_cpp_executable = ""
 
 func _on_check_button_pressed() -> void:
