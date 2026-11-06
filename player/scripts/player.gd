@@ -16,6 +16,14 @@ var current_tween: Tween
 
 func _ready() -> void:
 	pass
+
+
+func _exit_tree() -> void:
+	# Kill any in-flight movement tween so a stale animation cannot keep
+	# modifying this player while the level is being torn down.
+	if current_tween != null and is_instance_valid(current_tween):
+		current_tween.kill()
+	current_tween = null
 	
 
 func update_animation(is_running: bool = false) -> void:
