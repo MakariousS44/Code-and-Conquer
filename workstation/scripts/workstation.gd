@@ -365,8 +365,10 @@ func _refresh_campaign_instructions() -> void:
 	campaign_hint.text = current_level_definition.get("hint", "")
 
 
-func _format_limit(limit: int, unit: String) -> String:
-	return "Unlimited" if limit <= 0 else "%d %s" % [limit, unit]
+func _format_remaining(limit: int, used: int, unit: String) -> String:
+	if limit <= 0:
+		return "Unlimited"
+	return "%d %s" % [maxi(0, limit - used), unit]
 
 
 func _format_time_limit(seconds: float) -> String:
@@ -739,6 +741,7 @@ func _on_prev_button_pressed() -> void:
 	_step_index -= 1
 	_in_replay = true
 	_restore_snapshot(_cmd_history[_step_index].snap)
+	_refresh_level_limits()
 	if flat_grid_node != null and is_instance_valid(flat_grid_node):
 		# Build path: every snapshot up to and including the restored one is a
 		# (gx, gy, facing) point the player has actually stood at, oldest first
@@ -1154,16 +1157,29 @@ func _animate_command(cmd: String, src_line: int, run_id: int, live: bool = fals
 	if _run_id != run_id:
 		return
 	_program_animating = false
+	_refresh_level_limits()
 	if live and _ipc_active:
 		_charge_program_time(_baseline_command_cost(cmd))
+
+
+func _moves_used() -> int:
+	var count := 0
+	for i in range(mini(_step_index, _cmd_history.size())):
+		if _cmd_history[i].cmd == "MOVE":
+			count += 1
+	return count
+
+
+func _refresh_level_limits() -> void:
+	_show_level_limits(_program_time_remaining if _program_time_remaining >= 0.0 else _time_limit_seconds)
 
 
 func _show_level_limits(time_remaining: float) -> void:
 	if campaign_limits == null:
 		return
 	campaign_limits.text = "LEVEL LIMITS  •  Moves: %s  •  Commands: %s  •  Time: %s" % [
-		_format_limit(_move_limit, "moves"),
-		_format_limit(_cmd_limit, "commands"),
+		_format_remaining(_move_limit, _moves_used(), "moves"),
+		_format_remaining(_cmd_limit, mini(_step_index, _cmd_history.size()), "commands"),
 		_format_time_limit(time_remaining)
 	]
 
@@ -1193,6 +1209,7 @@ func _run_pipeline() -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	_run_outcome = "incomplete"
 	_run_had_error = false
 	await get_tree().process_frame
@@ -1556,10 +1573,7 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		return
 	match cmd:
 		"MOVE":
-			var moves_so_far := 0
-			for i in range(min(_step_index, _cmd_history.size())):
-				if _cmd_history[i].cmd == "MOVE":
-					moves_so_far += 1
+			var moves_so_far := _moves_used()
 			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
