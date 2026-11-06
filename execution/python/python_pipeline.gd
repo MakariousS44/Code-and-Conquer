@@ -15,14 +15,10 @@ func is_available() -> bool:
 func prepare_sandbox_files(
 	source: String,
 	sandbox_path: String,
-	pipe_name: String
+	ipc_endpoint: String
 ) -> Dictionary:
 	return _compiler.prepare_sandbox_files(
 		source,
 		sandbox_path,
-		pipe_name
+		ipc_endpoint
 	)
-
-## Launches student code connecting to the given IPC port. Returns OS PID or -1
-func start(source: String, port: int, token: String) -> int:
-	return _compiler.start(source, port, token)

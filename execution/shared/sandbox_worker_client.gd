@@ -1,7 +1,8 @@
 extends RefCounted
 
-const DEV_WORKER_PATH := "res://sandbox_worker/bin/sandbox_runner.exe"
-const PROTOCOL_VERSION := 1
+const PROTOCOL_VERSION := 2
+
+var _runtime_assets = preload("res://execution/shared/runtime_assets.gd").new()
 
 
 func ping() -> Dictionary:
@@ -19,13 +20,9 @@ func start_cpp_runner(
 	godot_port: int,
 	ipc_token: String
 ) -> Dictionary:
-	var worker_path := ProjectSettings.globalize_path(DEV_WORKER_PATH)
-
-	if not FileAccess.file_exists(worker_path):
-		return {
-			"ok": false,
-			"message": "Sandbox worker executable was not found."
-		}
+	var worker_path := _worker_path()
+	if worker_path.is_empty():
+		return {"ok": false, "message": "Unsupported OS or architecture for the sandbox worker."}
 
 	var pid := OS.create_process(
 		worker_path,
@@ -55,13 +52,9 @@ func start_python_runner(
 	godot_port: int,
 	ipc_token: String
 ) -> Dictionary:
-	var worker_path := ProjectSettings.globalize_path(DEV_WORKER_PATH)
-
-	if not FileAccess.file_exists(worker_path):
-		return {
-			"ok": false,
-			"message": "Sandbox worker executable was not found."
-		}
+	var worker_path := _worker_path()
+	if worker_path.is_empty():
+		return {"ok": false, "message": "Unsupported OS or architecture for the sandbox worker."}
 
 	var pid := OS.create_process(
 		worker_path,
@@ -101,8 +94,10 @@ func prepare_run(run_id: String, cleanup_token: String) -> Dictionary:
 
 	return {"ok": true, "path": run_path}
 
-func prepare_python_run(run_id: String, cleanup_token: String) -> Dictionary:
-	var result := _run_worker(["--prepare-python-run", run_id, cleanup_token])
+func prepare_python_run(run_id: String, cleanup_token: String, python_runtime_path: String) -> Dictionary:
+	if python_runtime_path.is_empty():
+		return {"ok": false, "message": "The bundled Python runtime is unavailable for this platform."}
+	var result := _run_worker(["--prepare-python-run", run_id, cleanup_token, python_runtime_path])
 
 	if not result.ok:
 		return {"ok": false, "message": result.message}
@@ -146,8 +141,14 @@ func delete_run_directory(run_id: String, cleanup_token: String) -> Dictionary:
 	return {"ok": true}
 
 
+func _worker_path() -> String:
+	return _runtime_assets.worker_payload_path()
+
+
 func _run_worker(arguments: Array) -> Dictionary:
-	var worker_path := ProjectSettings.globalize_path(DEV_WORKER_PATH)
+	var worker_path := _worker_path()
+	if worker_path.is_empty():
+		return {"ok": false, "message": "Sandbox worker is unavailable for this OS or architecture."}
 	if not FileAccess.file_exists(worker_path):
 		return {"ok": false, "message": "Worker executable was not found: " + worker_path}
 	var output: Array = []

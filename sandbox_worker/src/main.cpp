@@ -1,7 +1,14 @@
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <processthreadsapi.h>
 #include <userenv.h>
 #include <aclapi.h>
 #include <sddl.h>
@@ -434,9 +441,13 @@ fs::path make_run_directory(const std::string& run_id, const std::string& token)
     return run_directory;
 }
 
-void copy_python_runtime_to_run(const fs::path& run_directory) {
-    const fs::path runtime_source =
-        fs::current_path() / "sandbox_worker" / "runtime" / "python";
+void copy_python_runtime_to_run(const fs::path& run_directory, const fs::path& runtime_source) {
+    if (!fs::is_directory(runtime_source)) {
+        throw std::runtime_error(
+            "Sandbox Python runtime was not found: "
+            + runtime_source.string()
+        );
+    }
 
     const fs::path runtime_destination =
         run_directory / "python";
@@ -722,7 +733,7 @@ std::string receive_line(SOCKET socket_handle) {
 
 int main(int argc, char* argv[]) {
     if (argc == 2 && std::string(argv[1]) == "--ping") {
-        std::cout << R"({"type":"ready","protocol":1})" << std::endl;
+        std::cout << R"({"type":"ready","protocol":2})" << std::endl;
         return 0;
     }
     if (argc == 4 && std::string(argv[1]) == "--prepare-run") {
@@ -742,12 +753,12 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (argc == 4 && std::string(argv[1]) == "--prepare-python-run") {
+    if (argc == 5 && std::string(argv[1]) == "--prepare-python-run") {
         try {
             const fs::path path = make_run_directory(argv[2], argv[3]);
 
             try {
-                copy_python_runtime_to_run(path);
+                copy_python_runtime_to_run(path, fs::path(argv[4]));
             } catch (...) {
                 std::error_code error;
                 fs::remove_all(path, error);
@@ -1020,6 +1031,6 @@ int main(int argc, char* argv[]) {
     }
 }
  
-    std::cerr << "Usage: sandbox_runner --ping | --prepare-run <run-id> <token> | --delete-run-dir <run-id> <token> | --launch-cpp <run-id> <token> | --run-cpp <run-id> <token> <godot-port> <ipc-token>" << std::endl;
+    std::cerr << "Usage: sandbox_runner --ping | --prepare-run <run-id> <token> | --prepare-python-run <run-id> <token> <runtime-source> | --delete-run-dir <run-id> <token> | --launch-cpp <run-id> <token> | --run-cpp <run-id> <token> <godot-port> <ipc-token>" << std::endl;
     return 1;
 }
