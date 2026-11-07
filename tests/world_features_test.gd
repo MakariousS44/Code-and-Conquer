@@ -100,6 +100,9 @@ func run_tests() -> void:
 	world.level_data.walls.clear()
 	await station.player_node.move_forward(0.001)
 	check(station.lose_overlay.visible, "Moving into void must lose")
+	# In headless runs the audio driver never finishes a playback, so each
+	# play() orphans the previous one. Stop the lose sound between losses.
+	station.get_node("LoseSound").stop()
 	station._on_lose_retry()
 	await process_frame
 	check(station.player_node.modulate.a == 1.0, "Retry must restore character visibility")
@@ -113,9 +116,20 @@ func run_tests() -> void:
 		check(station._answer_query("FRONT_IS_CLEAR") == "false", "Keep the original boundary sensor behavior for campaign solutions")
 		await station.player_node.move_forward(0.001)
 		check(station.lose_overlay.visible and station.player_node.modulate.a == 1.0 and station.player_node.grid_x == 1, "Map edges must behave like walls at every rotation")
+		station.get_node("LoseSound").stop()
 		station._on_lose_retry()
 		await process_frame
+	# Stop any playing audio before freeing so playbacks don't leak at exit.
+	for player in station.find_children("*", "AudioStreamPlayer", true, false):
+		player.stop()
 	station.queue_free()
 	await process_frame
 	print("WORLD FEATURE TESTS: %d failures" % failures)
+	# Stop any playing audio and free anything still in the tree.
+	for player in root.find_children("*", "AudioStreamPlayer", true, false):
+		player.stop()
+	for child in root.get_children():
+		child.queue_free()
+	await process_frame
+	await process_frame
 	quit(0 if failures == 0 else 1)

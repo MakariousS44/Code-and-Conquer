@@ -219,8 +219,18 @@ func run_tests() -> void:
 	workstation._on_win_retry()
 	await process_frame
 	check(not workstation.win_overlay.visible and workstation.editor.editable, "Replay must restore controls")
+	# Stop win audio before freeing so its playback doesn't leak at exit.
+	for player in workstation.find_children("*", "AudioStreamPlayer", true, false):
+		player.stop()
 	workstation.queue_free()
 	await process_frame
 	DirAccess.remove_absolute(save_path)
 	print("CAMPAIGN TESTS: %d failures" % failures)
+	# Stop any playing audio and free anything still in the tree.
+	for player in root.find_children("*", "AudioStreamPlayer", true, false):
+		player.stop()
+	for child in root.get_children():
+		child.queue_free()
+	await process_frame
+	await process_frame
 	quit(0 if failures == 0 else 1)
