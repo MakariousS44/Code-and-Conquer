@@ -397,6 +397,11 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
 		saved_camera_state = game_instance.get_camera_state()
 
+	# A freshly loaded level is a fresh run: clear any win/lose/done state
+	# left over from the previous level so the next victory is handled.
+	_run_outcome = "incomplete"
+	_run_had_error = false
+
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
