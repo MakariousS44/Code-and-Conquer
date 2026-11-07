@@ -188,9 +188,9 @@ func run_tests() -> void:
 	await process_frame
 	check(workstation.editor.text.begins_with("from robot"), "Python selection must load Python scaffold")
 	for i in range(Campaign.LEVELS.size()):
-		# The test moves the player directly instead of running code, so reset
-		# the outcome that _on_run would normally clear between levels.
-		workstation._run_outcome = "incomplete"
+		# Level loads must reset run state themselves; the test moves the
+		# player directly, so it relies on production doing this reset.
+		check(workstation._run_outcome == "incomplete", "Loading a level must reset the run outcome")
 		if workstation.game_instance.level_data.has("random_maze") or i >= solutions.size():
 			await _solve_labyrinth(workstation.game_instance, workstation.player_node)
 		else:
@@ -206,6 +206,9 @@ func run_tests() -> void:
 		workstation.game_instance.check_win_condition(workstation.player_node.grid_x, workstation.player_node.grid_y)
 		check(workstation.win_overlay.visible, "Campaign victory must show overlay")
 		check(Campaign.LEVELS[i].id in Campaign.completed_ids(save_path), "Workstation victory must save completion")
+		# Headless audio never finishes a playback, so each play() would
+		# orphan the previous one. Stop the win sound between victories.
+		workstation.get_node("WinSound").stop()
 		if i + 1 < Campaign.LEVELS.size():
 			check(workstation.campaign_next_button.visible, "Next Level must appear after victory")
 			workstation.campaign_next_button.pressed.emit()
