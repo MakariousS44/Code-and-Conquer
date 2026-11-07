@@ -1,6 +1,7 @@
 extends Node2D
 
 signal lose_triggered(reason: String)
+signal move_finished()
 
 # === player state ===
 # Array ordered to exactly match your rotation_step integers
@@ -16,6 +17,14 @@ var current_tween: Tween
 
 func _ready() -> void:
 	pass
+
+
+func _exit_tree() -> void:
+	# Kill any in-flight movement tween so a stale animation cannot keep
+	# modifying this player while the level is being torn down.
+	if current_tween != null and is_instance_valid(current_tween):
+		current_tween.kill()
+	current_tween = null
 	
 
 func update_animation(is_running: bool = false) -> void:
@@ -86,6 +95,7 @@ func _get_world() -> Node:
 ## Advances the player one step to where its facing
 func move_forward(duration: float = 0.5) -> void:
 	if _has_lost:
+		move_finished.emit()
 		return
 	var world = _get_world()
 	var next_x = grid_x
@@ -103,6 +113,7 @@ func move_forward(duration: float = 0.5) -> void:
 	if world.has_method("is_move_blocked"):
 		if world.is_move_blocked(grid_x, grid_y, facing):
 			_trigger_lose("You lose: attempted to move through a wall.")
+			move_finished.emit()
 			return
 	# -------------------------------------------------------
 
@@ -130,7 +141,8 @@ func move_forward(duration: float = 0.5) -> void:
 		current_tween.tween_property(self, "position:y", position.y + 80.0, maxf(duration, 0.15))
 		await current_tween.finished
 		_trigger_lose("You fell into the void. Watch for missing floor tiles!")
-		return
+
+	move_finished.emit()
 
 
 func _trigger_lose(reason: String) -> void:

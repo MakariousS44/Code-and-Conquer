@@ -2,6 +2,13 @@
 
 [ext_resource type="Script" uid="uid://d73mgft27kc8" path="res://level_editor/scripts/level_editor.gd" id="1_bwncy"]
 [ext_resource type="Script" uid="uid://8jwyqdors2sj" path="res://level_editor/scripts/editor_grid_view.gd" id="2_vaajg"]
+[ext_resource type="Texture2D" path="res://assets/objects/robot.png" id="3_robot"]
+[ext_resource type="Texture2D" path="res://assets/objects/goal.png" id="4_goal"]
+[ext_resource type="Texture2D" path="res://assets/objects/wall.png" id="5_wall"]
+[ext_resource type="Texture2D" path="res://assets/objects/apple.png" id="6_object"]
+[ext_resource type="Texture2D" path="res://assets/objects/token.png" id="6_token"]
+[ext_resource type="Texture2D" path="res://assets/objects/void.png" id="7_void"]
+[ext_resource type="Texture2D" path="res://assets/objects/close.png" id="8_erase"]
 
 [node name="LevelEditor" type="Control" unique_id=1046537004]
 layout_mode = 3
@@ -29,6 +36,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 280.0
+offset_right = -300.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -98,26 +106,80 @@ placeholder_text = "Tell players what they need to solve."
 layout_mode = 2
 text = "GRID SETUP"
 
-[node name="PlacementLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-text = "PLACE"
-
-[node name="WallsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-text = "WALLS"
-
-[node name="ObjectsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-text = "OBJECTS"
-
 [node name="ActionsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "LEVEL ACTIONS"
 
-[node name="StatusLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-autowrap_mode = 2
+[node name="ActiveToolLabel" type="Label" parent="."]
+z_index = 5
+layout_mode = 1
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -170.0
+offset_top = 18.0
+offset_right = 170.0
+offset_bottom = 46.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.3, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 16
 text = "Active tool: Robot"
+horizontal_alignment = 1
+
+[node name="RightToolbar" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -292.0
+offset_top = 22.0
+offset_right = -18.0
+offset_bottom = -22.0
+grow_horizontal = 0
+theme_override_constants/separation = 10
+
+[node name="NavigationHint" type="Label" parent="RightToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.72, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "MAP CONTROLS\nRight-click: pan mode\nLeft-drag: move map\nMouse wheel: zoom"
+autowrap_mode = 2
+
+[node name="PlacementLabel" type="Label" parent="RightToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "PLACE"
+
+[node name="PlacementGrid" type="GridContainer" parent="RightToolbar"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="WallsLabel" type="Label" parent="RightToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "WALLS"
+
+[node name="WallsGrid" type="GridContainer" parent="RightToolbar"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="ObjectsLabel" type="Label" parent="RightToolbar"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.3, 0.82, 1, 1)
+theme_override_font_sizes/font_size = 14
+text = "OBJECTS"
+
+[node name="ObjectsGrid" type="GridContainer" parent="RightToolbar"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 2
 
 [node name="NewButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=1135570829]
 layout_mode = 2
@@ -127,33 +189,80 @@ text = "New Level"
 layout_mode = 2
 text = "Load Level"
 
-[node name="RobotButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=2106580057]
+[node name="RobotButton" type="Button" parent="RightToolbar/PlacementGrid" unique_id=2106580057]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Place robot"
+icon = ExtResource("3_robot")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "ROBOT"
 
-[node name="GoalButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=1081014911]
+[node name="GoalButton" type="Button" parent="RightToolbar/PlacementGrid" unique_id=1081014911]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Place Goal"
+icon = ExtResource("4_goal")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "GOAL"
 
-[node name="WallButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=795082478]
+[node name="WallButton" type="Button" parent="RightToolbar/WallsGrid" unique_id=795082478]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Toggle North Wall"
+icon = ExtResource("5_wall")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "NORTH WALL"
 
-[node name="EastWallButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+[node name="EastWallButton" type="Button" parent="RightToolbar/WallsGrid"]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Toggle East Wall"
+icon = ExtResource("5_wall")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "EAST WALL"
 
 [node name="SaveButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=781972552]
 layout_mode = 2
 text = "Save Level"
 
-[node name="ObjectButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=676626797]
+[node name="AppleButton" type="Button" parent="RightToolbar/ObjectsGrid" unique_id=676626797]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Place Token" ; starting text as Token is default selected object type
+icon = ExtResource("6_object")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "APPLE"
 
-[node name="EraseButton" type="Button" parent="SidebarScroll/VBoxContainer" unique_id=826979752]
+[node name="TokenButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-text = "Erase Tile"
+icon = ExtResource("6_token")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "TOKEN"
+
+[node name="VoidButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("7_void")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "VOID"
+tooltip_text = "Remove the floor. Sensors cannot detect voids. Erase restores floor."
 
 [node name="ColumnsLabel" type="Label" parent="SidebarScroll/VBoxContainer" unique_id=2010761909]
 layout_mode = 2
@@ -190,96 +299,15 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "← BACK TO MAIN MENU"
 
-[node name="ViewControls" type="VBoxContainer" parent="."]
-z_index = 10
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -156.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = 176.0
-grow_horizontal = 0
-theme_override_constants/separation = 8
-alignment = 0
-
-[node name="ZoomControls" type="HBoxContainer" parent="ViewControls"]
+[node name="EraseButton" type="Button" parent="RightToolbar/ObjectsGrid" unique_id=826979752]
+custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="ZoomOutButton" type="Button" parent="ViewControls/ZoomControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-tooltip_text = "Zoom out"
-text = "−"
-
-[node name="ZoomInButton" type="Button" parent="ViewControls/ZoomControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-tooltip_text = "Zoom in"
-text = "+"
-
-[node name="PanControls" type="GridContainer" parent="ViewControls"]
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 3
-
-[node name="PanPadTL" type="Control" parent="ViewControls/PanControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="PanUpButton" type="Button" parent="ViewControls/PanControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-tooltip_text = "Pan up"
-text = "↑"
-
-[node name="PanPadTR" type="Control" parent="ViewControls/PanControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-mouse_filter = 2
-
-[node name="PanLeftButton" type="Button" parent="ViewControls/PanControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-tooltip_text = "Pan left"
-text = "←"
-
-[node name="PanDownButton" type="Button" parent="ViewControls/PanControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-tooltip_text = "Pan down"
-text = "↓"
-
-[node name="PanRightButton" type="Button" parent="ViewControls/PanControls"]
-custom_minimum_size = Vector2(44, 40)
-layout_mode = 2
-tooltip_text = "Pan right"
-text = "→"
-
-[node name="VoidButton" type="Button" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-text = "Void Tile"
-tooltip_text = "Remove the floor. Sensors cannot detect voids. Erase restores floor."
-
-[node name="ObjectTypeLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-text = "OBJECT TYPE"
-
-[node name="ObjectTypeSelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
-layout_mode = 2
-custom_minimum_size = Vector2(0, 34)
-item_count = 2
-selected = 0
-popup/item_0/text = "Token"
-popup/item_0/id = 0
-popup/item_1/text = "Apple"
-popup/item_1/id = 1
+icon = ExtResource("8_erase")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "ERASE"
 
 [node name="ObjectCountLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
@@ -307,7 +335,7 @@ text = "CARRY REQUIREMENT"
 [node name="GoalCarrySelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
-item_count = 2
+item_count = 6
 selected = 0
 popup/item_0/text = "None"
 popup/item_0/id = 0
@@ -315,6 +343,12 @@ popup/item_1/text = "Token"
 popup/item_1/id = 1
 popup/item_2/text = "Apple"
 popup/item_2/id = 2
+popup/item_3/text = "All Apples"
+popup/item_3/id = 3
+popup/item_4/text = "All Tokens"
+popup/item_4/id = 4
+popup/item_5/text = "All Apples and Tokens"
+popup/item_5/id = 5
 
 [node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2

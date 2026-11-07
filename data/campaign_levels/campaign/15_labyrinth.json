@@ -10,7 +10,7 @@
     "You are trapped in the labyrinth! Random walls and random start position.",
     "Your robot starts facing east. Write a program that can solve any maze."
   ],
-  "hint": "Try the right-hand rule: if the right side is clear, turn right and move; otherwise move forward if the front is clear; otherwise turn left.",
+  "hint": "Try hugging the right wall.",
   "limits": {"move_limit": 400},
   "editor": {
     "cpp": [
@@ -44,5 +44,8 @@
       "    # Add your maze-solving logic here.",
       "    move()"
     ]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 300
+    }
 }

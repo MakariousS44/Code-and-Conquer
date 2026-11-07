@@ -62,5 +62,8 @@
       "",
       "# Collect every stack, then unload at the goal."
     ]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 180
+    }
 }

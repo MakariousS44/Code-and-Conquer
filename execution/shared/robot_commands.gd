@@ -85,6 +85,73 @@ func get_python_bootstrap(port: int, token: String) -> String:
 	return "\n".join(lines)
 
 
+func get_python_pipe_bootstrap(pipe_name: String) -> String:
+	var escaped_pipe_name := pipe_name.replace("\\", "\\\\").replace("'", "\\'")
+
+	var lines := [
+		"import sys, traceback, types",
+		"",
+		"_pipe = open('%s', 'r+b', buffering=0)" % escaped_pipe_name,
+		"_sock = _pipe",
+		"",
+		"def _robot_send(msg):",
+		"    _pipe.write((msg + '\\n').encode())",
+		"    _pipe.flush()",
+		"",
+		"def _robot_recv():",
+		"    _reply = bytearray()",
+		"    while True:",
+		"        _byte = _pipe.read(1)",
+		"        if not _byte:",
+		"            return ''",
+		"        if _byte == b'\\n':",
+		"            return _reply.decode().rstrip('\\r')",
+		"        _reply.extend(_byte)",
+		"",
+		"class _PipeStdout:",
+		"    def write(self, text):",
+		"        for _line in text.splitlines():",
+		"            if _line:",
+		"                _robot_send('[PRINT] ' + _line)",
+		"    def flush(self):",
+		"        pass",
+		"",
+		"sys.stdout = _PipeStdout()",
+		"",
+		"_robot_mod = types.ModuleType('robot')",
+		"_robot_exports = []",
+		"",
+		"def _mk_cmd(_cmd):",
+		"    def _fn():",
+		"        _frame = traceback.extract_stack()[-2]",
+		"        _robot_send('[CMD] ' + _cmd + ' [LINE] ' + str(_frame.lineno))",
+		"        _robot_recv()",
+		"    return _fn",
+		"",
+		"def _mk_sensor(_query):",
+		"    def _fn():",
+		"        _frame = traceback.extract_stack()[-2]",
+		"        _robot_send('[QUERY] ' + _query + ' [LINE] ' + str(_frame.lineno))",
+		"        return _robot_recv() == 'true'",
+		"    return _fn",
+		"",
+	]
+
+	for cmd in COMMANDS:
+		lines.append("setattr(_robot_mod, '%s', _mk_cmd('%s'))" % [cmd.name, cmd.cmd])
+		lines.append("_robot_exports.append('%s')" % cmd.name)
+
+	for sensor in SENSORS:
+		lines.append("setattr(_robot_mod, '%s', _mk_sensor('%s'))" % [sensor.name, sensor.query])
+		lines.append("_robot_exports.append('%s')" % sensor.name)
+
+	lines.append("_robot_mod.__all__ = _robot_exports")
+	lines.append("sys.modules['robot'] = _robot_mod")
+	lines.append("")
+
+	return "\n".join(lines)
+
+
 ## Error-catching wrapper around the student's code. Always sends [DONE].
 func get_python_runner(student_code: String) -> String:
 	var escaped := student_code.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
@@ -197,6 +264,82 @@ func get_cpp_source(port: int, token: String) -> String:
 		lines.append("    return __robot_recv() == \"true\";")
 		lines.append("}")
 		lines.append("")
+	return "\n".join(lines)
+
+
+func get_cpp_pipe_source() -> String:
+
+	var lines := [
+		"#include <fstream>",
+		"#include \"robot.hpp\"",
+		"#include <windows.h>",
+		"#include <string>",
+		"#include <cstdint>",
+		"",
+		"static HANDLE __robot_pipe = INVALID_HANDLE_VALUE;",
+		"",
+		"static void __robot_connect() {",
+		"    std::wifstream pipe_file(L\"connection.txt\");",
+		"    std::wstring pipe_name;",
+		"    std::getline(pipe_file, pipe_name);",
+		"    if (pipe_name.empty()) return;",
+		"    WaitNamedPipeW(pipe_name.c_str(), 5000);",
+		"    __robot_pipe = CreateFileW(",
+		"        pipe_name.c_str(),",
+		"        GENERIC_READ | GENERIC_WRITE,",
+		"        0,",
+		"        nullptr,",
+		"        OPEN_EXISTING,",
+		"        0,",
+		"        nullptr",
+		"    );",
+		"    if (__robot_pipe != INVALID_HANDLE_VALUE) {",
+		"        DWORD mode = PIPE_READMODE_MESSAGE;",
+		"        SetNamedPipeHandleState(__robot_pipe, &mode, nullptr, nullptr);",
+		"    }",
+		"}",
+		"",
+		"static void __robot_send(const std::string& message) {",
+		"    if (__robot_pipe == INVALID_HANDLE_VALUE) return;",
+		"    std::string line = message + \"\\n\";",
+		"    DWORD written = 0;",
+		"    WriteFile(__robot_pipe, line.data(), static_cast<DWORD>(line.size()), &written, nullptr);",
+		"}",
+		"",
+		"static std::string __robot_recv() {",
+		"    if (__robot_pipe == INVALID_HANDLE_VALUE) return \"\";",
+		"    char buffer[8192]{};",
+		"    DWORD read = 0;",
+		"    if (!ReadFile(__robot_pipe, buffer, sizeof(buffer), &read, nullptr)) return \"\";",
+		"    std::string reply(buffer, read);",
+		"    while (!reply.empty() && (reply.back() == '\\n' || reply.back() == '\\r')) reply.pop_back();",
+		"    return reply;",
+		"}",
+		"",
+		"struct __RobotLifetime {",
+		"    __RobotLifetime() { __robot_connect(); }",
+		"    ~__RobotLifetime() {",
+		"        __robot_send(\"[DONE]\");",
+		"        if (__robot_pipe != INVALID_HANDLE_VALUE) CloseHandle(__robot_pipe);",
+		"    }",
+		"} __robot_lifetime;",
+		"",
+	]
+
+	for cmd in COMMANDS:
+		lines.append("void %s(int __src_line) {" % cmd.name)
+		lines.append("    __robot_send(\"[CMD] %s [LINE] \" + std::to_string(__src_line));" % cmd.cmd)
+		lines.append("    __robot_recv();")
+		lines.append("}")
+		lines.append("")
+
+	for sensor in SENSORS:
+		lines.append("bool %s(int __src_line) {" % sensor.name)
+		lines.append("    __robot_send(\"[QUERY] %s [LINE] \" + std::to_string(__src_line));" % sensor.query)
+		lines.append("    return __robot_recv() == \"true\";")
+		lines.append("}")
+		lines.append("")
+
 	return "\n".join(lines)
 
 

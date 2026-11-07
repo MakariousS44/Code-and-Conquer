@@ -9,5 +9,8 @@
   "editor": {
 	"cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Add your moves here.", "    move();", "", "    return 0;", "}"],
 	"python": ["from robot import *", "", "# Add your moves here.", "move()"]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 60
+    }
 }

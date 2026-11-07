@@ -3,6 +3,7 @@ extends Control
 const Campaign = preload("res://config/campaign_levels.gd")
 var campaign_progress_path: String = Campaign.SAVE_PATH
 var campaign_instructions: Label
+var campaign_limits: Label
 var campaign_hint: Label
 var campaign_panel: VBoxContainer
 var campaign_next_button: Button
@@ -15,6 +16,7 @@ var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").
 @onready var output_box: RichTextLabel = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin/Output
 @onready var status_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/StatusLabel
 @onready var run_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/RunButton
+@onready var check_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/CheckButton
 @onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
@@ -101,6 +103,8 @@ var _is_2d_mode: bool = false
 # === IPC state ===
 var _ipc_server = null
 var _subprocess_pid: int = -1
+var _sandbox_run_id: String = ""
+var _sandbox_cleanup_token: String = ""
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
 
@@ -120,7 +124,6 @@ var global_level_name := ""
 var exec_speed: float = 0.5
 var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit" | "cmd_limit" | "time_limit" | "done"
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
-
 # === execution limits ===
 # Default limits
 const DEFAULT_MOVE_LIMIT := 999
@@ -131,6 +134,16 @@ const DEFAULT_TIME_LIMIT_SECONDS := 300.0
 var _move_limit: int = DEFAULT_MOVE_LIMIT
 var _cmd_limit: int = DEFAULT_CMD_LIMIT
 var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
+var _run_id := 0  # incremented by _stop_execution; stale coroutines compare against it
+var _program_time_remaining := -1.0  # program-seconds left; <0 = not tracking
+var _program_time_elapsed := 0.0     # program-seconds consumed this run (displayed as "used" when unlimited)
+var _program_animating := false      # true while a command animation runs
+
+var checked_code := ""
+var has_checked_code := false
+var checked_cpp_executable := ""
+var checked_cpp_line_offset := 0
+var _compile_thread: Thread
 
 const ALLOWED_IPC_COMMANDS := ["MOVE", "TURN_LEFT", "PICK_OBJECT", "PUT_OBJECT"]
 const ALLOWED_IPC_QUERIES := [
@@ -183,6 +196,9 @@ func _ready() -> void:
 	
 	run_button.text = "▶ Run"
 	run_button.pressed.connect(_on_run_button_pressed)
+	check_button.pressed.connect(_on_check_button_pressed)
+	editor.text_changed.connect(_on_editor_text_changed)
+	run_button.disabled = true
 	step_button.pressed.connect(_on_step_button_pressed)
 	prev_button.pressed.connect(_on_prev_button_pressed)
 	prev_button.disabled = true
@@ -225,6 +241,42 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_load_level_scene(true)
 
+func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
+	var background_compiler = preload(Paths.CPP_DRIVER).new()
+
+	background_compiler.prepare_build_files(
+		source,
+		0,
+		"",
+		build_dir,
+		"\\\\.\\pipe\\CodeAndConquer-check"
+	)
+
+	return background_compiler.compile_program()
+
+func _finish_cpp_check(source: String, line_offset: int) -> void:
+	while _compile_thread.is_alive():
+		await get_tree().process_frame
+
+	var build: Dictionary = _compile_thread.wait_to_finish()
+	_compile_thread = null
+
+	check_button.disabled = false
+	editor.editable = true
+	language_selector.disabled = false
+
+	if not build.ok:
+		log_error(compiler.remap_diagnostics(build.output, line_offset))
+		_set_status("Compile failed", "error")
+		return
+
+	checked_code = source
+	has_checked_code = true
+	checked_cpp_executable = ProjectSettings.globalize_path("user://checked_build").path_join("student_program.exe")
+	checked_cpp_line_offset = line_offset
+	run_button.disabled = false
+	_set_status("C++ compiled successfully — ready to run.", "")
+	log_line("C++ compilation passed.")
 
 func _setup_campaign_ui() -> void:
 	campaign_panel = VBoxContainer.new()
@@ -236,6 +288,11 @@ func _setup_campaign_ui() -> void:
 	campaign_instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	campaign_instructions.add_theme_font_size_override("font_size", 20)
 	campaign_panel.add_child(campaign_instructions)
+	campaign_limits = Label.new()
+	campaign_limits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_limits.add_theme_font_size_override("font_size", 16)
+	campaign_limits.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_limits)
 	campaign_hint_button = Button.new()
 	campaign_hint_button.text = "Show Hint"
 	campaign_hint_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -268,6 +325,7 @@ func _apply_saved_preferences() -> void:
 	language_selector.select(1 if language_setting == 0 else 0)
 	_on_language_changed(language_selector.selected)
 
+
 	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
 	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
 
@@ -290,14 +348,48 @@ func _saved_setting(section: String, key: String, fallback):
 
 func _refresh_campaign_instructions() -> void:
 	var index := Campaign.index_for_path(SelectedLevel.path)
-	campaign_panel.visible = index >= 0
+	# The same instruction panel is useful for player-created levels too.
+	campaign_panel.visible = true
 	campaign_hint.hide()
 	campaign_hint_button.text = "Show Hint"
+	_show_level_limits(_time_limit_seconds)
 	if index < 0:
+		var custom_name := str(current_level_definition.get("name", "Custom Level"))
+		var custom_description := PackedStringArray(current_level_definition.get("description", []))
+		campaign_instructions.text = "%s\n%s" % [custom_name, " ".join(custom_description)]
+		campaign_hint_button.hide()
+		campaign_hint.text = ""
 		return
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
 	var description := PackedStringArray(current_level_definition.get("description", []))
 	campaign_instructions.text = "Level %d / %d - %s\n%s" % [index + 1, Campaign.LEVELS.size(), Campaign.LEVELS[index].title, " ".join(description)]
 	campaign_hint.text = current_level_definition.get("hint", "")
+
+
+func _format_duration(seconds: float) -> String:
+	var total_seconds := maxi(0, ceili(seconds))
+	return "%d:%02d" % [total_seconds / 60, total_seconds % 60]
+
+
+func _format_count_detail(limit: int, used: int) -> String:
+	if limit <= 0:
+		return "Unlimited (used: %d)" % used
+	return "%d (used: %d, remaining: %d)" % [limit, used, maxi(0, limit - used)]
+
+
+func _format_time_detail(remaining_seconds: float) -> String:
+	if _time_limit_seconds <= 0.0:
+		return "Unlimited (used: %s)" % _format_duration(_program_time_elapsed)
+	# Round remaining up first, then derive used from the rounded values so the
+	# displayed used + remaining always equals the displayed limit.
+	var limit := ceili(_time_limit_seconds)
+	var remaining := ceili(maxf(0.0, remaining_seconds))
+	var used := maxi(0, limit - remaining)
+	return "%s (used: %s, remaining: %s)" % [
+		_format_duration(limit),
+		_format_duration(used),
+		_format_duration(remaining)
+	]
 
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
@@ -356,7 +448,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		return
 
 	current_level_definition = raw.definition
-	_refresh_campaign_instructions()
 
 	# load limits from JSON if present, otherwise use defaults
 	var limits_data = current_level_definition.get("limits", {})
@@ -368,6 +459,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		_move_limit = DEFAULT_MOVE_LIMIT
 		_cmd_limit = DEFAULT_CMD_LIMIT
 		_time_limit_seconds = DEFAULT_TIME_LIMIT_SECONDS
+	_refresh_campaign_instructions()
 
 	# preload starter code into editor only when requested
 	if load_editor_text:
@@ -468,6 +560,7 @@ func _on_language_changed(index: int) -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	output_box.clear()
 	_clear_editor_highlights()
 
@@ -576,7 +669,7 @@ func _on_run_button_pressed() -> void:
 	if _ipc_active:
 		if _paused:
 			if _step_index < _cmd_history.size():
-				await _resume_after_step_back()
+				await _resume_after_step_back(_run_id)
 			else:
 				_paused = false
 				run_button.text = "❚❚ Pause"
@@ -588,6 +681,10 @@ func _on_run_button_pressed() -> void:
 			_set_status("Paused", "")
 		return
 
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	_paused = false
 	_run_pipeline()
 
@@ -596,7 +693,7 @@ func _on_run_button_pressed() -> void:
 # Replay cached commands at the user's selected speed to catch the world up,
 # so it looks like seamless continuation, then unblock the IPC loop.
 # Pause check between commands so the user can interrupt the catch-up.
-func _resume_after_step_back() -> void:
+func _resume_after_step_back(run_id: int) -> void:
 	_in_replay = false
 	_paused = false
 	run_button.text = "❚❚ Pause"
@@ -604,11 +701,11 @@ func _resume_after_step_back() -> void:
 	step_button.disabled = true
 	_set_status("Running...", "")
 
-	while _step_index < _cmd_history.size() and _ipc_active:
+	while _step_index < _cmd_history.size() and _ipc_active and _run_id == run_id:
 		var entry = _cmd_history[_step_index]
 		_step_index += 1
-		await _execute_cmd(entry.cmd, entry.src_line)
-		if not _ipc_active:
+		await _animate_command(entry.cmd, entry.src_line, run_id)
+		if _run_id != run_id or not _ipc_active:
 			return
 		if _paused:
 			# User pressed Pause mid-replay. Stop catching up.
@@ -620,8 +717,9 @@ func _resume_after_step_back() -> void:
 			step_button.disabled = false
 			prev_button.disabled = _step_index <= 0
 			return
-	
-	_resume.emit()
+
+	if _run_id == run_id and _ipc_active:
+		_resume.emit()
 
 
 func _on_step_button_pressed() -> void:
@@ -637,12 +735,16 @@ func _on_step_button_pressed() -> void:
 		step_button.disabled = true
 		prev_button.disabled = true
 		if _in_replay:
-			await _replay_step_forward()
+			await _replay_step_forward(_run_id)
 		else:
 			_resume.emit()	# loop executes one cmd then re-pauses
 		return
 
 	# start a fresh run, but begin paused so the first command is a single step
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	_paused = true
 	_run_pipeline()
 
@@ -654,6 +756,7 @@ func _on_prev_button_pressed() -> void:
 	_step_index -= 1
 	_in_replay = true
 	_restore_snapshot(_cmd_history[_step_index].snap)
+	_refresh_level_limits()
 	if flat_grid_node != null and is_instance_valid(flat_grid_node):
 		# Build path: every snapshot up to and including the restored one is a
 		# (gx, gy, facing) point the player has actually stood at, oldest first
@@ -700,11 +803,11 @@ func _restore_snapshot(snap: Dictionary) -> void:
 		_clear_editor_highlights()
 
 
-func _replay_step_forward() -> void:
+func _replay_step_forward(run_id: int) -> void:
 	var entry = _cmd_history[_step_index]
 	_step_index += 1
-	await _execute_cmd(entry.cmd, entry.src_line)
-	if not _ipc_active:
+	await _animate_command(entry.cmd, entry.src_line, run_id)
+	if _run_id != run_id or not _ipc_active:
 		return
 
 	log_line("✓ %s" % entry.cmd.to_lower())
@@ -821,6 +924,7 @@ func _trigger_move_limit_lose() -> void:
 	
 	_is_handling_lose = true
 	_run_outcome = "move_limit"
+	_refresh_level_limits()
 	_stop_execution()
 		
 	$LoseSound.play()
@@ -839,6 +943,7 @@ func _trigger_cmd_limit_lose() -> void:
 	
 	_is_handling_lose = true
 	_run_outcome = "cmd_limit"
+	_refresh_level_limits()
 	_stop_execution()
 	
 	$LoseSound.play()
@@ -857,6 +962,7 @@ func _trigger_time_limit_lose() -> void:
 	
 	_is_handling_lose = true
 	_run_outcome = "time_limit"
+	_refresh_level_limits()
 	_stop_execution()
 	$LoseSound.play()
 	log_header("lose")
@@ -876,6 +982,7 @@ func _trigger_incomplete_lose(reason: String) -> void:
 		return
 	_is_handling_lose = true
 	_run_outcome = "incomplete"
+	_refresh_level_limits()
 	_stop_execution()
 
 	$LoseSound.play()
@@ -893,6 +1000,7 @@ func _on_player_lose(reason: String) -> void:
 		return
 	_is_handling_lose = true
 	_run_outcome = "lose"
+	_refresh_level_limits()
 	_stop_execution()
 
 	$LoseSound.play()
@@ -906,6 +1014,8 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	if _is_handling_lose or _run_outcome == "win":
+		return
 	$WinSound.play()
 	_run_outcome = "win"
 	_stop_execution()
@@ -962,12 +1072,40 @@ func _on_go_to_menu() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
 
 
+func _cleanup_sandbox_run() -> void:
+	if _sandbox_run_id.is_empty() or _sandbox_cleanup_token.is_empty():
+		return
+
+	var cleanup: Dictionary = {}
+
+	for attempt in range(5):
+		cleanup = sandbox_worker.delete_run_directory(
+			_sandbox_run_id,
+			_sandbox_cleanup_token
+		)
+
+		if cleanup.ok:
+			_sandbox_run_id = ""
+			_sandbox_cleanup_token = ""
+			return
+
+		OS.delay_msec(250)
+
+	log_warning(
+		"Could not remove secure run folder after retries: "
+		+ cleanup.message
+	)
+
 # === pipeline execution ===
 
 func _stop_execution() -> void:
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
+	_program_animating = false
+	_program_time_remaining = -1.0
+	_program_time_elapsed = 0.0
+	_run_id += 1  # invalidate every async continuation belonging to the old run
 
 	if _ipc_server != null:
 		_ipc_server.stop()
@@ -975,26 +1113,116 @@ func _stop_execution() -> void:
 	if _subprocess_pid != -1:
 		OS.kill(_subprocess_pid)
 		_subprocess_pid = -1
+	
+	_cleanup_sandbox_run()
 
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
-func _enforce_program_time_limit(pid: int) -> void:
-	if _time_limit_seconds <= 0:
-		return  # No time limit
-	
-	await get_tree().create_timer(_time_limit_seconds).timeout
+const PROGRAM_TIME_REFRESH_SECONDS := 0.2
+const BASE_EXEC_SPEED := 0.5
 
-	if _ipc_active and _subprocess_pid == pid:
+func _start_program_time_limit(pid: int) -> void:
+	var run_id := _run_id
+	_program_time_elapsed = 0.0
+
+	# The time limit is a program execution limit, measuring program runtime
+	# (not time spent in the level). Command animations are charged per command
+	# at their baseline-speed cost, and all other program runtime (startup,
+	# queries, student compute) accrues at wall-clock rate. So the budget is
+	# identical no matter which speed setting is selected. Elapsed program time
+	# is tracked even without a limit so the label can show time used.
+	var has_time_limit := _time_limit_seconds > 0.0
+	if has_time_limit:
+		_program_time_remaining = _time_limit_seconds
+	_show_level_limits(_program_time_remaining if has_time_limit else _time_limit_seconds)
+	var last_ms := Time.get_ticks_msec()
+	while _run_id == run_id and _subprocess_pid == pid:
+		var now_ms := Time.get_ticks_msec()
+		var elapsed := float(now_ms - last_ms) / 1000.0
+		last_ms = now_ms
+		if elapsed > 0.0 and not _paused and not _program_animating:
+			_program_time_elapsed += elapsed
+			if has_time_limit:
+				_program_time_remaining -= elapsed
+				_show_level_limits(maxf(0.0, _program_time_remaining))
+				if _program_time_remaining <= 0.0:
+					_trigger_time_limit_lose()
+					return
+			else:
+				_show_level_limits(_time_limit_seconds)
+		await get_tree().create_timer(PROGRAM_TIME_REFRESH_SECONDS).timeout
+
+
+# Flat per-command cost in program-seconds at the baseline exec speed.
+# Independent of exec_speed and of the animation's real duration.
+func _baseline_command_cost(cmd: String) -> float:
+	match cmd:
+		"MOVE":
+			return BASE_EXEC_SPEED
+		"TURN_LEFT", "TURN_RIGHT":
+			return BASE_EXEC_SPEED * 0.2
+	return 0.0
+
+
+func _charge_program_time(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	_program_time_elapsed += seconds
+	if _program_time_remaining < 0.0:
+		_show_level_limits(_time_limit_seconds)
+		return
+	_program_time_remaining -= seconds
+	_show_level_limits(maxf(0.0, _program_time_remaining))
+	if _program_time_remaining <= 0.0:
 		_trigger_time_limit_lose()
+
+
+# Runs one command's animation with _program_animating set so the program
+# clock does not double-count it. `live` commands also charge their baseline
+# cost — but only if this continuation still belongs to the active run.
+func _animate_command(cmd: String, src_line: int, run_id: int, live: bool = false) -> void:
+	_program_animating = true
+	await _execute_cmd(cmd, src_line)
+	if _run_id != run_id:
+		return
+	_program_animating = false
+	_refresh_level_limits()
+	if live and _ipc_active:
+		_charge_program_time(_baseline_command_cost(cmd))
+
+
+func _moves_used() -> int:
+	var count := 0
+	for i in range(mini(_step_index, _cmd_history.size())):
+		if _cmd_history[i].cmd == "MOVE":
+			count += 1
+	return count
+
+
+func _refresh_level_limits() -> void:
+	var time_left := _program_time_remaining
+	_show_level_limits(maxf(0.0, time_left) if time_left >= 0.0 else _time_limit_seconds)
+
+
+func _show_level_limits(time_remaining: float) -> void:
+	if campaign_limits == null:
+		return
+	campaign_limits.text = "LEVEL LIMITS  •  Moves: %s  •  Commands: %s  •  Time: %s" % [
+		_format_count_detail(_move_limit, _moves_used()),
+		_format_count_detail(_cmd_limit, _cmd_history.size()),
+		_format_time_detail(time_remaining)
+	]
 
 func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
 	var start_paused: bool = _paused
 	_stop_execution()
+	var run_id := _run_id
 	_student_output_lines = 0
+	var source := checked_code
 
-	if editor.text.length() > MAX_STUDENT_SOURCE_CHARS:
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
 		log_error("Source code is too large. Maximum size is 100,000 characters.")
 		_set_status("Validation failed", "error")
 		_re_enable_buttons()
@@ -1012,13 +1240,17 @@ func _run_pipeline() -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	_run_outcome = "incomplete"
 	_run_had_error = false
 	await get_tree().process_frame
+	if _run_id != run_id:
+		return
+
 
 	# Python path
 	if current_language == Language.PYTHON:
-		var v: Dictionary = py_pipeline.validate(editor.text)
+		var v: Dictionary = py_pipeline.validate(source)
 		if not v.ok:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
@@ -1026,7 +1258,7 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 	else:
-		var v: Dictionary = validator.validate(editor.text)
+		var v: Dictionary = validator.validate(source)
 		if not v.ok:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
@@ -1034,11 +1266,6 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 
-	if current_language == Language.PYTHON and not py_pipeline.is_available():
-		log_error("Python 3 was not found. Please install Python 3 first, then restart the game.")
-		_set_status("Python unavailable", "error")
-		_re_enable_buttons()
-		return
 
 	if current_language == Language.CPP and not compiler.is_available():
 		log_error("A C++ compiler(g++) was not found. Please install C++ first, then restart the game.")
@@ -1050,8 +1277,38 @@ func _run_pipeline() -> void:
 	var IPCServer = preload(Paths.IPC_SERVER)
 	_ipc_server = IPCServer.new()
 	var crypto := Crypto.new()
-	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
 
+	var sandbox_run_id := crypto.generate_random_bytes(16).hex_encode()
+	var sandbox_cleanup_token := crypto.generate_random_bytes(32).hex_encode()
+
+	var sandbox_run: Dictionary
+
+	if current_language == Language.PYTHON:
+		sandbox_run = sandbox_worker.prepare_python_run(
+			sandbox_run_id,
+			sandbox_cleanup_token
+		)
+	else:
+		sandbox_run = sandbox_worker.prepare_run(
+			sandbox_run_id,
+			sandbox_cleanup_token
+		)
+
+	if not sandbox_run.ok:
+		log_error("Could not prepare the secure run folder: " + sandbox_run.message)
+		_set_status("Sandbox setup failed", "error")
+		_re_enable_buttons()
+		return
+	
+	
+	log_line("Secure run folder prepared.")
+	_sandbox_run_id = sandbox_run_id
+	_sandbox_cleanup_token = sandbox_cleanup_token
+
+	var sandbox_pipe_name := "\\\\.\\pipe\\CodeAndConquer-" + sandbox_run_id
+
+	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
+	
 	if not _ipc_server.start(ipc_token):
 		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
 		_set_status("IPC failed", "error")
@@ -1060,42 +1317,123 @@ func _run_pipeline() -> void:
 
 	# C++ path
 	if current_language == Language.CPP:
-		var generated: Dictionary = generator.generate(editor.text)
-		current_line_offset = generated.line_offset
-		compiler.prepare_build_files(generated.generated_source, _ipc_server.port, ipc_token)
-
-		var build: Dictionary = compiler.compile_program()
-		if not build.ok:
-			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
-			_set_status("Compile failed", "error")
+		if checked_cpp_executable.is_empty() or not FileAccess.file_exists(checked_cpp_executable):
+			log_error("Check Code must compile your C++ program before you can run it.")
+			_set_status("No checked C++ build", "error")
 			_ipc_server.stop()
 			_ipc_server = null
 			_re_enable_buttons()
 			return
-		_set_status("Compiled - launching...", "")
-		_subprocess_pid = compiler.start_program()
+
+		current_line_offset = checked_cpp_line_offset
+
+		var run_folder := str(sandbox_run.get("path", ""))
+		var executable_destination := run_folder.path_join("student_program.exe")
+
+		var copy_error := DirAccess.copy_absolute(
+			checked_cpp_executable,
+			executable_destination
+		)
+
+		if copy_error != OK:
+			log_error("Could not copy the checked C++ program into the secure run folder.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		var connection_file := FileAccess.open(
+			run_folder.path_join("connection.txt"),
+			FileAccess.WRITE
+		)
+
+		if connection_file == null:
+			log_error("Could not create the secure program connection.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		connection_file.store_string(sandbox_pipe_name)
+		connection_file.close()
+		
+		_set_status("Launching checked C++ program...", "")
+
+		var launch: Dictionary = sandbox_worker.start_cpp_runner(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			_ipc_server.port,
+			ipc_token
+		)
+
+		if not launch.ok:
+			log_error("Could not start secure C++ runner: " + launch.message)
+			_set_status("Secure launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		_subprocess_pid = int(launch.pid)
 	else:
 		current_line_offset = 0
-		_subprocess_pid = py_pipeline.start(editor.text, _ipc_server.port, ipc_token)
+		var python_build: Dictionary = py_pipeline.prepare_sandbox_files(
+			source,
+			str(sandbox_run.get("path", "")),
+			sandbox_pipe_name
+		)
 
-	if _subprocess_pid == -1:
-		log_error("Failed to launch subprocess.")
-		_set_status("Launch failed", "error")
-		_ipc_server.stop()
-		_ipc_server = null
-		_re_enable_buttons()
-		return
+		if not python_build.ok:
+			log_error("Could not prepare secure Python code: " + python_build.message)
+			_set_status("Python setup failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_cleanup_sandbox_run()
+			_re_enable_buttons()
+			return
 
-	_enforce_program_time_limit(_subprocess_pid)
+		var launch: Dictionary = sandbox_worker.start_python_runner(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			_ipc_server.port,
+			ipc_token
+		)
+
+		if not launch.ok:
+			log_error("Could not start secure Python runner: " + launch.message)
+			_set_status("Secure Python launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_cleanup_sandbox_run()
+			_re_enable_buttons()
+			return
+
+		_subprocess_pid = int(launch.pid)
+		if _subprocess_pid == -1:
+			log_error("Failed to launch subprocess.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+	if _subprocess_pid != -1:
+		_start_program_time_limit(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
+		if _run_id != run_id:
+			return
 		log_error("Subprocess did not connect within 5 seconds.")
 		_set_status("Timeout", "error")
 		_stop_execution()
 		_re_enable_buttons()
 		return
 
+	if _run_id != run_id:
+		return
 	_ipc_active = true
 	_paused = start_paused
 	log_header("executing")
@@ -1106,14 +1444,14 @@ func _run_pipeline() -> void:
 		_set_status("Paused", "")
 	else:
 		run_button.text = "❚❚ Pause"
-	await _run_ipc_loop()
+	await _run_ipc_loop(run_id)
 
 
-func _run_ipc_loop() -> void:
-	while _ipc_active:
+func _run_ipc_loop(run_id: int) -> void:
+	while _ipc_active and _run_id == run_id:
 		var line: String = await _ipc_server.read_line(get_tree())
 
-		if not _ipc_active:
+		if _run_id != run_id or not _ipc_active:
 			break
 
 		if line == "[CANCELLED]" or line == "[DISCONNECT]":
@@ -1150,9 +1488,9 @@ func _run_ipc_loop() -> void:
 			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
 			_step_index = _cmd_history.size()
 
-			await _execute_cmd(cmd, src_line)
+			await _animate_command(cmd, src_line, run_id, true)
 
-			if not _ipc_active:
+			if _run_id != run_id or not _ipc_active:
 				break
 
 			if _paused:
@@ -1161,7 +1499,7 @@ func _run_ipc_loop() -> void:
 				step_button.disabled = false
 				prev_button.disabled = false
 				await _resume
-				if not _ipc_active:
+				if _run_id != run_id or not _ipc_active:
 					break
 			_ipc_server.send("OK")
 
@@ -1197,7 +1535,7 @@ func _run_ipc_loop() -> void:
 			break
 
 	_ipc_loop_running = false
-	if _ipc_active:
+	if _ipc_active and _run_id == run_id:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
@@ -1225,6 +1563,8 @@ func _run_ipc_loop() -> void:
 
 
 func _on_execution_done() -> void:
+	if _is_handling_lose or _run_outcome == "done":
+		return
 	_run_outcome = "done"
 	_stop_execution()
 	run_button.text = "▶ Run"
@@ -1264,14 +1604,33 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		return
 	match cmd:
 		"MOVE":
-			var moves_so_far := 0
-			for i in range(min(_step_index, _cmd_history.size())):
-				if _cmd_history[i].cmd == "MOVE":
-					moves_so_far += 1
+			var moves_so_far := _moves_used()
 			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
-			await player_node.move_forward(exec_speed)
+			# Wait for move_finished so a void fall (a second tween inside
+			# move_forward) completes before the next command runs — otherwise
+			# the IPC loop would acknowledge and execute commands after the
+			# fatal step. The loop also exits if the player is freed mid-run
+			# (level reload/reset) or execution is stopped, and a generous
+			# timeout covers a killed tween whose coroutine never resumes.
+			var move_done := [false]
+			player_node.move_finished.connect(func(): move_done[0] = true, CONNECT_ONE_SHOT)
+			player_node.move_forward(exec_speed)
+			var waited := 0.0
+			var move_timeout := exec_speed * 3.0 + 0.5
+			while is_instance_valid(player_node) and _ipc_active and not move_done[0] and waited < move_timeout:
+				await get_tree().create_timer(0.05).timeout
+				waited += 0.05
+			if _ipc_active and is_instance_valid(player_node) and not move_done[0]:
+				# The move never finished (stuck/killed tween). Treat it as a
+				# failed run rather than acknowledging the command and letting
+				# later commands execute before movement or loss handling ends.
+				log_error("Movement did not complete; stopping execution.")
+				_set_status("Execution stopped", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return
 		"TURN_LEFT":
 			player_node.turn_left()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
@@ -1750,3 +2109,88 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 
 func _on_player_facing_changed(facing_index: int) -> void:
 	compass.texture = COMPASS_TEXTURES[facing_index]
+
+
+func _on_editor_text_changed() -> void:
+	has_checked_code = false
+	if not _ipc_active:
+		run_button.disabled = true
+	checked_cpp_executable = ""
+
+func _on_check_button_pressed() -> void:
+	if _ipc_active:
+		_set_status("Stop the current program before checking code.", "error")
+		return
+
+	var source := editor.text
+
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
+		output_box.clear()
+		log_error("Source code is too large. Maximum size is 100,000 characters.")
+		_set_status("Check failed", "error")
+		return
+
+	output_box.clear()
+	log_header("check code")
+
+	# Python: validate only.
+	if current_language == Language.PYTHON:
+		var python_validation: Dictionary = py_pipeline.validate(source)
+		if not python_validation.ok:
+			for err in python_validation.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Check failed", "error")
+			return
+
+		checked_code = source
+		has_checked_code = true
+		run_button.disabled = false
+		_set_status("Python code is valid — ready to run.", "")
+		log_line("Python validation passed.")
+		return
+
+	# C++: validate first.
+	var cpp_validation: Dictionary = validator.validate(source)
+	if not cpp_validation.ok:
+		for err in cpp_validation.errors:
+			log_error("line %d: %s" % [err.line, err.message])
+		_set_status("Check failed", "error")
+		return
+
+	# C++: then compile only after validation passes.
+	if not compiler.is_available():
+		log_error("C++ compiler (g++) was not found.")
+		_set_status("C++ compiler unavailable", "error")
+		return
+
+	if _compile_thread != null:
+		return
+
+	var generated: Dictionary = generator.generate(source)
+	var check_build_dir := ProjectSettings.globalize_path("user://checked_build")
+
+	check_button.disabled = true
+	run_button.disabled = true
+	editor.editable = false
+	language_selector.disabled = true
+	_set_status("Compiling C++...", "")
+
+	_compile_thread = Thread.new()
+
+	var thread_error := _compile_thread.start(
+		_compile_cpp_in_background.bind(
+			generated.generated_source,
+			check_build_dir
+		)
+	)
+
+	if thread_error != OK:
+		_compile_thread = null
+		check_button.disabled = false
+		editor.editable = true
+		language_selector.disabled = false
+		log_error("Could not start the C++ compiler thread.")
+		_set_status("Compile failed", "error")
+		return
+
+	await _finish_cpp_check(source, generated.line_offset)

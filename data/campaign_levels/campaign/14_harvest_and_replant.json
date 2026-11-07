@@ -86,5 +86,8 @@
       "",
       "# Balance both rows, then return to the goal."
     ]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 150
+    }
 }
