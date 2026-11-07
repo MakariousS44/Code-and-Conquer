@@ -136,6 +136,7 @@ var _cmd_limit: int = DEFAULT_CMD_LIMIT
 var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
 var _run_id := 0  # incremented by _stop_execution; stale coroutines compare against it
 var _program_time_remaining := -1.0  # program-seconds left; <0 = not tracking
+var _program_time_elapsed := 0.0     # program-seconds consumed this run (displayed as "used" when unlimited)
 var _program_animating := false      # true while a command animation runs
 
 var checked_code := ""
@@ -365,15 +366,30 @@ func _refresh_campaign_instructions() -> void:
 	campaign_hint.text = current_level_definition.get("hint", "")
 
 
-func _format_limit(limit: int, unit: String) -> String:
-	return "Unlimited" if limit <= 0 else "%d %s" % [limit, unit]
-
-
-func _format_time_limit(seconds: float) -> String:
-	if seconds <= 0.0:
-		return "Unlimited"
+func _format_duration(seconds: float) -> String:
 	var total_seconds := maxi(0, ceili(seconds))
 	return "%d:%02d" % [total_seconds / 60, total_seconds % 60]
+
+
+func _format_count_detail(limit: int, used: int) -> String:
+	if limit <= 0:
+		return "Unlimited (used: %d)" % used
+	return "%d (used: %d, remaining: %d)" % [limit, used, maxi(0, limit - used)]
+
+
+func _format_time_detail(remaining_seconds: float) -> String:
+	if _time_limit_seconds <= 0.0:
+		return "Unlimited (used: %s)" % _format_duration(_program_time_elapsed)
+	# Round remaining up first, then derive used from the rounded values so the
+	# displayed used + remaining always equals the displayed limit.
+	var limit := ceili(_time_limit_seconds)
+	var remaining := ceili(maxf(0.0, remaining_seconds))
+	var used := maxi(0, limit - remaining)
+	return "%s (used: %s, remaining: %s)" % [
+		_format_duration(limit),
+		_format_duration(used),
+		_format_duration(remaining)
+	]
 
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
@@ -544,6 +560,7 @@ func _on_language_changed(index: int) -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	output_box.clear()
 	_clear_editor_highlights()
 
@@ -739,6 +756,7 @@ func _on_prev_button_pressed() -> void:
 	_step_index -= 1
 	_in_replay = true
 	_restore_snapshot(_cmd_history[_step_index].snap)
+	_refresh_level_limits()
 	if flat_grid_node != null and is_instance_valid(flat_grid_node):
 		# Build path: every snapshot up to and including the restored one is a
 		# (gx, gy, facing) point the player has actually stood at, oldest first
@@ -906,6 +924,7 @@ func _trigger_move_limit_lose() -> void:
 	
 	_is_handling_lose = true
 	_run_outcome = "move_limit"
+	_refresh_level_limits()
 	_stop_execution()
 		
 	$LoseSound.play()
@@ -924,6 +943,7 @@ func _trigger_cmd_limit_lose() -> void:
 	
 	_is_handling_lose = true
 	_run_outcome = "cmd_limit"
+	_refresh_level_limits()
 	_stop_execution()
 	
 	$LoseSound.play()
@@ -942,6 +962,7 @@ func _trigger_time_limit_lose() -> void:
 	
 	_is_handling_lose = true
 	_run_outcome = "time_limit"
+	_refresh_level_limits()
 	_stop_execution()
 	$LoseSound.play()
 	log_header("lose")
@@ -961,6 +982,7 @@ func _trigger_incomplete_lose(reason: String) -> void:
 		return
 	_is_handling_lose = true
 	_run_outcome = "incomplete"
+	_refresh_level_limits()
 	_stop_execution()
 
 	$LoseSound.play()
@@ -978,6 +1000,7 @@ func _on_player_lose(reason: String) -> void:
 		return
 	_is_handling_lose = true
 	_run_outcome = "lose"
+	_refresh_level_limits()
 	_stop_execution()
 
 	$LoseSound.play()
@@ -1081,6 +1104,7 @@ func _stop_execution() -> void:
 	_ipc_loop_running = false
 	_program_animating = false
 	_program_time_remaining = -1.0
+	_program_time_elapsed = 0.0
 	_run_id += 1  # invalidate every async continuation belonging to the old run
 
 	if _ipc_server != null:
@@ -1100,28 +1124,33 @@ const BASE_EXEC_SPEED := 0.5
 
 func _start_program_time_limit(pid: int) -> void:
 	var run_id := _run_id
-	if _time_limit_seconds <= 0.0:
-		_show_level_limits(_time_limit_seconds)
-		return
+	_program_time_elapsed = 0.0
 
 	# The time limit is a program execution limit, measuring program runtime
 	# (not time spent in the level). Command animations are charged per command
 	# at their baseline-speed cost, and all other program runtime (startup,
 	# queries, student compute) accrues at wall-clock rate. So the budget is
-	# identical no matter which speed setting is selected.
-	_program_time_remaining = _time_limit_seconds
-	_show_level_limits(_program_time_remaining)
+	# identical no matter which speed setting is selected. Elapsed program time
+	# is tracked even without a limit so the label can show time used.
+	var has_time_limit := _time_limit_seconds > 0.0
+	if has_time_limit:
+		_program_time_remaining = _time_limit_seconds
+	_show_level_limits(_program_time_remaining if has_time_limit else _time_limit_seconds)
 	var last_ms := Time.get_ticks_msec()
 	while _run_id == run_id and _subprocess_pid == pid:
 		var now_ms := Time.get_ticks_msec()
 		var elapsed := float(now_ms - last_ms) / 1000.0
 		last_ms = now_ms
 		if elapsed > 0.0 and not _paused and not _program_animating:
-			_program_time_remaining -= elapsed
-			_show_level_limits(maxf(0.0, _program_time_remaining))
-			if _program_time_remaining <= 0.0:
-				_trigger_time_limit_lose()
-				return
+			_program_time_elapsed += elapsed
+			if has_time_limit:
+				_program_time_remaining -= elapsed
+				_show_level_limits(maxf(0.0, _program_time_remaining))
+				if _program_time_remaining <= 0.0:
+					_trigger_time_limit_lose()
+					return
+			else:
+				_show_level_limits(_time_limit_seconds)
 		await get_tree().create_timer(PROGRAM_TIME_REFRESH_SECONDS).timeout
 
 
@@ -1137,7 +1166,11 @@ func _baseline_command_cost(cmd: String) -> float:
 
 
 func _charge_program_time(seconds: float) -> void:
-	if _program_time_remaining < 0.0 or seconds <= 0.0:
+	if seconds <= 0.0:
+		return
+	_program_time_elapsed += seconds
+	if _program_time_remaining < 0.0:
+		_show_level_limits(_time_limit_seconds)
 		return
 	_program_time_remaining -= seconds
 	_show_level_limits(maxf(0.0, _program_time_remaining))
@@ -1154,17 +1187,31 @@ func _animate_command(cmd: String, src_line: int, run_id: int, live: bool = fals
 	if _run_id != run_id:
 		return
 	_program_animating = false
+	_refresh_level_limits()
 	if live and _ipc_active:
 		_charge_program_time(_baseline_command_cost(cmd))
+
+
+func _moves_used() -> int:
+	var count := 0
+	for i in range(mini(_step_index, _cmd_history.size())):
+		if _cmd_history[i].cmd == "MOVE":
+			count += 1
+	return count
+
+
+func _refresh_level_limits() -> void:
+	var time_left := _program_time_remaining
+	_show_level_limits(maxf(0.0, time_left) if time_left >= 0.0 else _time_limit_seconds)
 
 
 func _show_level_limits(time_remaining: float) -> void:
 	if campaign_limits == null:
 		return
 	campaign_limits.text = "LEVEL LIMITS  •  Moves: %s  •  Commands: %s  •  Time: %s" % [
-		_format_limit(_move_limit, "moves"),
-		_format_limit(_cmd_limit, "commands"),
-		_format_time_limit(time_remaining)
+		_format_count_detail(_move_limit, _moves_used()),
+		_format_count_detail(_cmd_limit, _cmd_history.size()),
+		_format_time_detail(time_remaining)
 	]
 
 func _run_pipeline() -> void:
@@ -1193,6 +1240,7 @@ func _run_pipeline() -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	_run_outcome = "incomplete"
 	_run_had_error = false
 	await get_tree().process_frame
@@ -1556,10 +1604,7 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		return
 	match cmd:
 		"MOVE":
-			var moves_so_far := 0
-			for i in range(min(_step_index, _cmd_history.size())):
-				if _cmd_history[i].cmd == "MOVE":
-					moves_so_far += 1
+			var moves_so_far := _moves_used()
 			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
