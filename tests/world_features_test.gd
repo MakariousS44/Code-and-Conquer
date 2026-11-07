@@ -112,7 +112,7 @@ func run_tests() -> void:
 		station.player_node.facing = "west"
 		check(station._answer_query("FRONT_IS_CLEAR") == "false", "Keep the original boundary sensor behavior for campaign solutions")
 		await station.player_node.move_forward(0.001)
-		check(station.lose_overlay.visible and station.player_node.modulate.a == 0.0, "Outside edges must trigger a visible fall at every rotation")
+		check(station.lose_overlay.visible and station.player_node.modulate.a == 1.0 and station.player_node.grid_x == 1, "Map edges must behave like walls at every rotation")
 		station._on_lose_retry()
 		await process_frame
 	station.queue_free()
