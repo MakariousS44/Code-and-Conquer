@@ -67,8 +67,32 @@ func check_gap_hazards(world) -> void:
 	hazard_world.queue_free()
 	await process_frame
 
+# Same ordering as player.DIRS, so index + 1 is a right turn.
+const FACING_ORDER := ["east", "south", "west", "north"]
+
+func _right_of(facing: String) -> String:
+	return FACING_ORDER[(FACING_ORDER.find(facing) + 1) % 4]
+
+# Right-hand wall follower for "random_maze" levels. The generated mazes are
+# perfect mazes, so this always reaches the goal (same strategy as the
+# 15_labyrinth.cpp reference solution).
+func _solve_labyrinth(world, player) -> void:
+	var iterations := 0
+	while not world.is_at_goal(player.grid_x, player.grid_y) and iterations < 2000:
+		iterations += 1
+		if not world.is_move_blocked(player.grid_x, player.grid_y, _right_of(player.facing)):
+			player.turn_left()
+			player.turn_left()
+			player.turn_left()
+			await player.move_forward(0.001)
+		elif not world.is_move_blocked(player.grid_x, player.grid_y, player.facing):
+			await player.move_forward(0.001)
+		else:
+			player.turn_left()
+	check(world.is_at_goal(player.grid_x, player.grid_y), "Labyrinth must be solvable by wall following")
+
 func run_tests() -> void:
-	check(Campaign.LEVELS.size() == 14, "Campaign must have fourteen levels")
+	check(Campaign.LEVELS.size() == 15, "Campaign must have fifteen levels")
 	var save_path := OS.get_temp_dir().path_join("campaign-test-%d.cfg" % OS.get_process_id())
 	check(Campaign.completed_ids(save_path).is_empty(), "Fresh progress must be empty")
 	check(Campaign.is_unlocked(0, []), "First level must be unlocked")
@@ -116,20 +140,23 @@ func run_tests() -> void:
 		var outcome := {"won": false, "lost": false}
 		world.level_complete.connect(func(): outcome.won = true)
 		world.player.lose_triggered.connect(func(_reason): outcome.lost = true)
-		for action in solutions[i]:
-			if i == 13:
-				if action == "P":
-					check(world.get_objects_at(world.player.grid_x, world.player.grid_y).get("token", 0) > 1, "Level 14 must leave one token in each starting stack")
+		if world.level_data.has("random_maze"):
+			await _solve_labyrinth(world, world.player)
+		else:
+			for action in solutions[i]:
+				if i == 13:
+					if action == "P":
+						check(world.get_objects_at(world.player.grid_x, world.player.grid_y).get("token", 0) > 1, "Level 14 must leave one token in each starting stack")
+					elif action == "U":
+						check(not world.tile_has_any_object(world.player.grid_x, world.player.grid_y), "Level 14 must fill only empty planting spots")
+				if action == "M":
+					await world.player.move_forward(0.001)
+				elif action == "P":
+					world.player.pick_object()
 				elif action == "U":
-					check(not world.tile_has_any_object(world.player.grid_x, world.player.grid_y), "Level 14 must fill only empty planting spots")
-			if action == "M":
-				await world.player.move_forward(0.001)
-			elif action == "P":
-				world.player.pick_object()
-			elif action == "U":
-				world.player.put_object()
-			else:
-				world.player.turn_left()
+					world.player.put_object()
+				else:
+					world.player.turn_left()
 		world.check_win_condition(world.player.grid_x, world.player.grid_y)
 		check(outcome.won and not outcome.lost, "Level %d must be solvable without collisions" % (i + 1))
 		if i >= 10:
@@ -161,18 +188,27 @@ func run_tests() -> void:
 	await process_frame
 	check(workstation.editor.text.begins_with("from robot"), "Python selection must load Python scaffold")
 	for i in range(Campaign.LEVELS.size()):
-		for action in solutions[i]:
-			if action == "M":
-				await workstation.player_node.move_forward(0.001)
-			elif action == "P":
-				workstation.player_node.pick_object()
-			elif action == "U":
-				workstation.player_node.put_object()
-			else:
-				workstation.player_node.turn_left()
+		# Level loads must reset run state themselves; the test moves the
+		# player directly, so it relies on production doing this reset.
+		check(workstation._run_outcome == "incomplete", "Loading a level must reset the run outcome")
+		if workstation.game_instance.level_data.has("random_maze") or i >= solutions.size():
+			await _solve_labyrinth(workstation.game_instance, workstation.player_node)
+		else:
+			for action in solutions[i]:
+				if action == "M":
+					await workstation.player_node.move_forward(0.001)
+				elif action == "P":
+					workstation.player_node.pick_object()
+				elif action == "U":
+					workstation.player_node.put_object()
+				else:
+					workstation.player_node.turn_left()
 		workstation.game_instance.check_win_condition(workstation.player_node.grid_x, workstation.player_node.grid_y)
 		check(workstation.win_overlay.visible, "Campaign victory must show overlay")
 		check(Campaign.LEVELS[i].id in Campaign.completed_ids(save_path), "Workstation victory must save completion")
+		# Headless audio never finishes a playback, so each play() would
+		# orphan the previous one. Stop the win sound between victories.
+		workstation.get_node("WinSound").stop()
 		if i + 1 < Campaign.LEVELS.size():
 			check(workstation.campaign_next_button.visible, "Next Level must appear after victory")
 			workstation.campaign_next_button.pressed.emit()
@@ -182,12 +218,22 @@ func run_tests() -> void:
 		else:
 			check(not workstation.campaign_next_button.visible, "Final level must hide Next Level")
 			check(workstation.get_node("WinOverlay/WinCard/WinContent/WinTitle").text == "Campaign Complete!", "Final victory must celebrate campaign completion")
-			check("14 levels" in workstation.get_node("WinOverlay/WinCard/WinContent/WinMessage").text, "Final victory must show the correct campaign size")
+			check("%d levels" % Campaign.LEVELS.size() in workstation.get_node("WinOverlay/WinCard/WinContent/WinMessage").text, "Final victory must show the correct campaign size")
 	workstation._on_win_retry()
 	await process_frame
 	check(not workstation.win_overlay.visible and workstation.editor.editable, "Replay must restore controls")
+	# Stop win audio before freeing so its playback doesn't leak at exit.
+	for player in workstation.find_children("*", "AudioStreamPlayer", true, false):
+		player.stop()
 	workstation.queue_free()
 	await process_frame
 	DirAccess.remove_absolute(save_path)
 	print("CAMPAIGN TESTS: %d failures" % failures)
+	# Stop any playing audio and free anything still in the tree.
+	for player in root.find_children("*", "AudioStreamPlayer", true, false):
+		player.stop()
+	for child in root.get_children():
+		child.queue_free()
+	await process_frame
+	await process_frame
 	quit(0 if failures == 0 else 1)
