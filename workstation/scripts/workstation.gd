@@ -784,7 +784,7 @@ func _take_snapshot() -> Dictionary:
 		grid_x = player_node.grid_x,
 		grid_y = player_node.grid_y,
 		facing = player_node.facing,
-		carried_object = player_node.carried_object,
+		carried_object = player_node.carried_object.duplicate(),
 		object_data = obj_copy
 	}
 
@@ -796,7 +796,7 @@ func _restore_snapshot(snap: Dictionary) -> void:
 	player_node.grid_x = snap.grid_x
 	player_node.grid_y = snap.grid_y
 	player_node.facing = snap.facing
-	player_node.carried_object = snap.carried_object
+	player_node.carried_object = snap.carried_object.duplicate()
 	player_node.position = game_instance.player_grid_position(snap.grid_x, snap.grid_y)
 
 	player_node.update_animation(false)
