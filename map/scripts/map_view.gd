@@ -925,6 +925,13 @@ func _build_objects() -> void:
 		if not is_goal_tile:
 			_add_object_count_label(gx, gy, tile_objects)
 
+## Computes a uniform sprite scale so any object texture renders at roughly
+## one tile-sized visual (200px), without shrinking already-small icons.
+func _object_sprite_scale(tex: Texture2D) -> float:
+	var largest_side := maxf(float(tex.get_width()), float(tex.get_height()))
+	return minf(5.0, 200.0 / maxf(largest_side, 1.0))
+
+
 func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 	var sprite := Sprite2D.new()
 	var tex := load("res://assets/objects/" + object_name + ".png") as Texture2D
@@ -932,9 +939,7 @@ func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 		sprite.texture = tex
 		# Old object art was tiny, while the new token icon is high-resolution.
 		# Cap every object at one tile-sized visual without making old icons smaller.
-		var largest_side := maxf(float(tex.get_width()), float(tex.get_height()))
-		var scale_factor := minf(5.0, 200.0 / maxf(largest_side, 1.0))
-		sprite.scale = Vector2.ONE * scale_factor
+		sprite.scale = Vector2.ONE * _object_sprite_scale(tex)
 	else:
 		sprite.scale = Vector2(5.0, 5.0)
 	var grid_pos = object_grid_position(gx, gy + 1)
@@ -972,10 +977,12 @@ func _build_goal_object_markers() -> void:
 ## satisfied = the matching object has already been placed here.
 func _spawn_goal_marker(object_name: String, gx: int, gy: int, satisfied: bool) -> void:
 	var sprite := Sprite2D.new()
-	var tex = load("res://assets/objects/" + object_name + "_goal.png")
-	if tex:
+	var tex := load("res://assets/objects/" + object_name + "_goal.png") as Texture2D
+	if tex != null:
 		sprite.texture = tex
-	sprite.scale = Vector2(4.8, 4.8)
+		sprite.scale = Vector2.ONE * _object_sprite_scale(tex)
+	else:
+		sprite.scale = Vector2(4.8, 4.8)
 
 	if satisfied:
 		sprite.modulate = Color(0.35, 0.9, 0.45, 0.55)
