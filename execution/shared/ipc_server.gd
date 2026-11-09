@@ -43,15 +43,13 @@ func read_line(tree: SceneTree) -> String:
 			return "[DISCONNECT]"
 		_peer.poll()
 		var status := _peer.get_status()
-		if status == StreamPeerTCP.STATUS_ERROR or status == StreamPeerTCP.STATUS_NONE:
-			return "[DISCONNECT]"
 		var available := _peer.get_available_bytes()
 
 		if available > 0:
 			_buf += _peer.get_utf8_string(available)
 
-			if _buf.length() > MAX_MESSAGE_CHARS:
-				return "[PROTOCOL_ERROR]"
+		if _buf.length() > MAX_MESSAGE_CHARS:
+			return "[PROTOCOL_ERROR]"
 
 		var idx := _buf.find("\n")
 		if idx != -1:
@@ -63,6 +61,11 @@ func read_line(tree: SceneTree) -> String:
 					continue
 				return "[AUTH_FAILED]"
 			return line
+
+		# The worker can relay final messages and close within one poll interval.
+		# Drain _buf first so a fast-finishing program's last lines aren't lost.
+		if status == StreamPeerTCP.STATUS_ERROR or status == StreamPeerTCP.STATUS_NONE:
+			return "[DISCONNECT]"
 		await tree.process_frame
 		
 	return "[CANCELLED]"
