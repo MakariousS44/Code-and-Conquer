@@ -831,8 +831,9 @@ func check_win_condition(gx: int, gy: int) -> void:
 	level_complete.emit()
 
 
-## Returns how many objects must still be carried at the finish.
-## `require_carry_object` is supported for levels created before carry modes existed.
+## Returns the minimum number of each object that must be carried at the finish.
+## `require_carry` may be a Dictionary of {object_name: count}; the older string
+## modes and `require_carry_object` are still supported for existing levels.
 func _get_carry_requirement() -> Dictionary:
 	if not level_data.has("goal"):
 		return {}
@@ -841,7 +842,15 @@ func _get_carry_requirement() -> Dictionary:
 		var legacy_object := str(goal["require_carry_object"])
 		return {legacy_object: 1} if not legacy_object.is_empty() else {}
 
-	var mode := str(goal.get("require_carry", "none"))
+	var carry = goal.get("require_carry", "none")
+	if carry is Dictionary:
+		var required := {}
+		for object_name in carry:
+			var count := int(carry[object_name])
+			if count > 0:
+				required[str(object_name)] = count
+		return required
+	var mode := str(carry)
 	if mode == "none":
 		return {}
 	if mode == "apple":

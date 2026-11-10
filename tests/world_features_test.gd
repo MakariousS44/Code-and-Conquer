@@ -60,6 +60,33 @@ func run_tests() -> void:
 	level_editor.queue_free()
 	await process_frame
 
+	var carry_world = load("res://map/scenes/map_view.tscn").instantiate()
+	root.add_child(carry_world)
+	carry_world.build_level({
+		"cols": 3, "rows": 3,
+		"robots": [{"x": 1, "y": 1, "_orientation": 0, "objects": {}}],
+		"walls": {},
+		"objects": {"1,2": {"apple": 2, "token": 1}},
+		"goal": {"possible_final_positions": [[3, 3]], "require_carry": {"apple": 2, "token": 1}}
+	})
+	check(carry_world._get_carry_requirement() == {"apple": 2, "token": 1}, "Carry requirements must read per-object minimums")
+	var carry_outcome := {"won": false, "incomplete": 0}
+	carry_world.level_complete.connect(func(): carry_outcome.won = true)
+	carry_world.level_incomplete.connect(func(_msg): carry_outcome.incomplete += 1)
+	carry_world.player.carried_object = {"apple": 2}
+	carry_world.check_win_condition(3, 3)
+	check(not carry_outcome.won and carry_outcome.incomplete == 1, "Missing a required object must block the win")
+	carry_world.player.carried_object = {"apple": 3, "token": 1}
+	carry_world.check_win_condition(3, 3)
+	check(carry_outcome.won, "Carrying more than the minimum must still win")
+	carry_world.level_data["goal"]["require_carry"] = "all_tokens"
+	check(carry_world._get_carry_requirement() == {"token": 1}, "Legacy carry modes must still resolve")
+	carry_world.level_data["goal"].erase("require_carry")
+	carry_world.level_data["goal"]["require_carry_object"] = "apple"
+	check(carry_world._get_carry_requirement() == {"apple": 1}, "Legacy carry object must still resolve")
+	carry_world.queue_free()
+	await process_frame
+
 	root.get_node("SelectedLevel").path = "res://data/custom_levels/VoidCrossing.json"
 	var station = load("res://workstation/scenes/workstation.tscn").instantiate()
 	station.set_script(load("res://tests/campaign_workstation_fixture.gd"))

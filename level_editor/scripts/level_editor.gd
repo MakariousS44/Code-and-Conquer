@@ -31,7 +31,7 @@ var is_panning := false
 @onready var status_label: Label = $ActiveToolLabel
 @onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
 @onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
-@onready var goal_carry_selector: OptionButton = $SidebarScroll/VBoxContainer/GoalCarrySelector
+@onready var carry_requirements_button: Button = $SidebarScroll/VBoxContainer/CarryRequirementsButton
 @onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
 @onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
 @onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
@@ -41,7 +41,6 @@ var is_panning := false
 func _ready() -> void:
 	_arrange_sidebar()
 	document.create_blank(10, 10)
-	_set_goal_carry_selector()
 
 	grid.set_document(document)
 	grid.view_changed.connect(_layout_grid)
@@ -68,7 +67,7 @@ func _ready() -> void:
 	robot_button.button_pressed = true
 	object_count_input.value_changed.connect(_on_object_count_changed)
 	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
-	goal_carry_selector.item_selected.connect(_on_goal_carry_changed)
+	carry_requirements_button.pressed.connect(_open_carry_requirements_dialog)
 	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
 	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
 	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
@@ -80,7 +79,7 @@ func _arrange_sidebar() -> void:
 		"TitleLabel", "LevelNameLabel", "LevelNameInput", "DescriptionLabel", "DescriptionInput",
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"ObjectCountLabel", "ObjectCountInput",
-		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "GoalCarrySelector",
+		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "CarryRequirementsButton",
 		"LimitsLabel", "MoveLimitDefaultCheckbox", "MoveLimitLabel", "MoveLimitInput", "CmdLimitDefaultCheckbox", "CmdLimitLabel", "CmdLimitInput", "TimeLimitDefaultCheckbox", "TimeLimitLabel", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
@@ -257,7 +256,6 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
-		_set_goal_carry_selector()
 		# Load limits
 		var limits_data = document.data.get("limits", {})
 		if limits_data.has("move_limit"):
@@ -314,7 +312,6 @@ func _on_new_button_pressed() -> void:
 	var rows := int(rows_input.value)
 
 	document.create_blank(cols, rows)
-	_set_goal_carry_selector()
 	grid.set_document(document)
 	grid.reset_pan()
 	_layout_grid()
@@ -349,27 +346,122 @@ func _on_object_count_changed(value: float) -> void:
 func _on_goal_objects_button_pressed() -> void:
 	_open_goal_objects_dialog()
 
-func _on_goal_carry_changed(index: int) -> void:
-	var carry_modes := ["none", "token", "apple", "all_apples", "all_tokens", "all_apples_and_tokens"]
-	var selected_carry := goal_carry_selector.get_item_text(index)
-	var carry_mode: String = carry_modes[index]
-	# Keep the requirement as a mode so it can describe one item or every placed item.
+## Total number of each object type placed on the map, optionally filtered
+## to the given names. Used both for "carry everything" presets and for the
+## carry-requirements dialog defaults.
+func _placed_object_totals(filter: Array = []) -> Dictionary:
+	var totals := {}
+	for tile_objects in document.data.get("objects", {}).values():
+		if not (tile_objects is Dictionary):
+			continue
+		for object_name in tile_objects:
+			var name := str(object_name)
+			if not filter.is_empty() and name not in filter:
+				continue
+			totals[name] = int(totals.get(name, 0)) + int(tile_objects[object_name])
+	return totals
+
+
+## The carry requirement as {object_name: minimum count}, translating legacy
+## string modes so old levels open sensibly in the dialog.
+func _normalized_carry_requirement() -> Dictionary:
+	var goal: Dictionary = document.data.get("goal", {})
+	var carry = goal.get("require_carry", {})
+	if carry is Dictionary:
+		var required := {}
+		for object_name in carry:
+			var count := int(carry[object_name])
+			if count > 0:
+				required[str(object_name)] = count
+		return required
+	if goal.has("require_carry_object"):
+		var legacy_object := str(goal["require_carry_object"])
+		return {legacy_object: 1} if not legacy_object.is_empty() else {}
+	match str(carry):
+		"token":
+			return {"token": 1}
+		"apple":
+			return {"apple": 1}
+		"all_apples":
+			return _placed_object_totals(["apple"])
+		"all_tokens":
+			return _placed_object_totals(["token"])
+		"all_apples_and_tokens":
+			return _placed_object_totals(["apple", "token"])
+	return {}
+
+
+func _open_carry_requirements_dialog() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Carry Requirements"
+	dialog.ok_button_text = "Apply"
+
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+
+	var instruction := Label.new()
+	instruction.text = "Minimum number of each object the robot must be carrying when it reaches the goal:"
+	vbox.add_child(instruction)
+
+	var requirement := _normalized_carry_requirement()
+	var types := {}
+	for object_name in _placed_object_totals():
+		types[object_name] = true
+	for object_name in requirement:
+		types[object_name] = true
+
+	var rows := VBoxContainer.new()
+	vbox.add_child(rows)
+	var spinboxes := {}
+	for object_name in types.keys():
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = str(object_name).capitalize()
+		label.custom_minimum_size = Vector2(140, 0)
+		row.add_child(label)
+		var spin := SpinBox.new()
+		spin.min_value = 0
+		spin.max_value = 99
+		spin.step = 1
+		spin.value = int(requirement.get(object_name, 0))
+		row.add_child(spin)
+		rows.add_child(row)
+		spinboxes[object_name] = spin
+
+	if types.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "Place objects on the map first."
+		rows.add_child(empty_label)
+
+	var fill_button := Button.new()
+	fill_button.text = "Fill placed totals"
+	fill_button.tooltip_text = "Set every requirement to the number of that object on the map"
+	fill_button.pressed.connect(_fill_carry_placed_totals.bind(spinboxes))
+	vbox.add_child(fill_button)
+
+	dialog.confirmed.connect(_apply_carry_requirements.bind(spinboxes))
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _fill_carry_placed_totals(spinboxes: Dictionary) -> void:
+	var totals := _placed_object_totals()
+	for object_name in spinboxes:
+		(spinboxes[object_name] as SpinBox).value = int(totals.get(object_name, 0))
+
+
+func _apply_carry_requirements(spinboxes: Dictionary) -> void:
+	var required := {}
+	for object_name in spinboxes:
+		var count := int((spinboxes[object_name] as SpinBox).value)
+		if count > 0:
+			required[str(object_name)] = count
 	document.data["goal"].erase("require_carry_object")
-	if carry_mode == "none":
+	if required.is_empty():
 		document.data["goal"].erase("require_carry")
 	else:
-		document.data["goal"]["require_carry"] = carry_mode
-	status_label.text = "Goal carry requirement: %s" % selected_carry
-
-
-func _set_goal_carry_selector() -> void:
-	var carry_modes := ["none", "token", "apple", "all_apples", "all_tokens", "all_apples_and_tokens"]
-	var goal: Dictionary = document.data.get("goal", {})
-	var mode := str(goal.get("require_carry", ""))
-	if mode.is_empty() and goal.has("require_carry_object"):
-		mode = str(goal["require_carry_object"])
-	var selected_index := carry_modes.find(mode)
-	goal_carry_selector.select(selected_index if selected_index >= 0 else 0)
+		document.data["goal"]["require_carry"] = required
+	status_label.text = "Carry requirements updated"
 
 func _open_goal_objects_dialog() -> void:
 	var dialog := AcceptDialog.new()
