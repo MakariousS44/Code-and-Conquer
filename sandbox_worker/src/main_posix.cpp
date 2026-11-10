@@ -515,6 +515,14 @@ int run_student(bool is_python, const std::string& run_id, const std::string& cl
     } else {
         executable = run_directory / "student_program";
         if (!fs::is_regular_file(executable)) throw std::runtime_error("Student executable was not found in the run directory.");
+        std::error_code permission_error;
+        fs::permissions(
+            executable,
+            fs::perms::owner_exe | fs::perms::group_exe | fs::perms::others_exe,
+            fs::perm_options::add,
+            permission_error
+        );
+        if (permission_error) throw std::runtime_error("Could not mark the student executable as runnable: " + permission_error.message());
     }
 
     UnixListener listener = create_unix_listener(run_directory);
