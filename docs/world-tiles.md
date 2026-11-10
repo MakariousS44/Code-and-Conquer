@@ -15,13 +15,14 @@ as walls and objects:
 ```
 
 Omitting `void_tiles` gives the original solid rectangular floor. Moving onto a
-void tile or off an open outside edge triggers a fall and ends the run. Clear-path
-sensors retain the original wall and grid-boundary checks, but ignore void tiles
-inside the grid. This preserves existing campaign sensor solutions.
+void tile triggers a fall and ends the run, while the outer edge of the grid
+behaves like a wall: stepping off the map is blocked like walking into a wall.
+Clear-path sensors retain the original wall and grid-boundary checks, but ignore
+void tiles inside the grid. This preserves existing campaign sensor solutions.
 Players must plan around the visible gaps. Reports use `~` for missing floor.
 
 Campaign layouts and objectives are unchanged. Add holes to custom levels with
-the Void Tile tool; stepping past an unprotected map edge also plays the fall.
+the Void Tile tool; the grid boundary is always solid.
 
 Try **Custom Worlds → Void Crossing** for a bridge example, or load its JSON from
 `data/custom_levels/VoidCrossing.json` in the level editor.
