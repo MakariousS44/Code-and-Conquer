@@ -333,8 +333,97 @@ std::string find_in_path(const std::string& name) {
     return "";
 }
 
-std::string sandbox_prefix_description(const fs::path& run_directory) {
-    const std::string run_path = run_directory.string();
+std::string escape_sbpl_string(const std::string& value) {
+    std::string escaped;
+    escaped.reserve(value.size());
+    for (char character : value) {
+        if (character == '\\' || character == '"') escaped += '\\';
+        escaped += character;
+    }
+    return escaped;
+}
+
+std::string macos_sandbox_profile(const fs::path& run_directory, const fs::path& executable) {
+    const std::string run_path = escape_sbpl_string(run_directory.string());
+    const std::string socket_path = escape_sbpl_string((run_directory / SOCKET_NAME).string());
+    const std::string executable_path = escape_sbpl_string(executable.string());
+    std::error_code canonical_error;
+    const fs::path canonical_executable = fs::canonical(executable, canonical_error);
+    const std::string canonical_executable_path = canonical_error
+        ? ""
+        : escape_sbpl_string(canonical_executable.string());
+
+    std::ostringstream profile;
+    profile << "(version 1)\n"
+            << "(deny default)\n\n"
+            << "(allow process-exec (literal \"" << executable_path << "\"))\n";
+    if (!canonical_executable_path.empty() && canonical_executable_path != executable_path) {
+        profile << "(allow process-exec (literal \"" << canonical_executable_path << "\"))\n";
+    }
+    profile << "(allow process-info* (target same-sandbox))\n"
+            << "(allow signal (target same-sandbox))\n"
+            << "(allow sysctl-read)\n"
+            << "(allow mach-lookup\n"
+            << "  (global-name \"com.apple.system.opendirectoryd.libinfo\")\n"
+            << "  (global-name \"com.apple.system.DirectoryService.libinfo_v1\")\n"
+            << "  (global-name \"com.apple.bsd.dirhelper\"))\n"
+            << "(allow iokit-open (iokit-registry-entry-class \"RootDomainUserClient\"))\n\n"
+            << "(allow system-socket (socket-domain AF_UNIX))\n"
+            << "(allow network-outbound (literal \"" << socket_path << "\"))\n\n"
+            << "(allow file-read* file-write* file-test-existence (subpath \"" << run_path << "\"))\n"
+            << "(allow file-read* file-test-existence\n"
+            << "  (subpath \"/usr\")\n"
+            << "  (subpath \"/bin\")\n"
+            << "  (subpath \"/sbin\")\n"
+            << "  (subpath \"/System/Library\")\n"
+            << "  (subpath \"/System/Volumes/Preboot\")\n"
+            << "  (subpath \"/System/iOSSupport\")\n"
+            << "  (subpath \"/Library/Apple\")\n"
+            << "  (subpath \"/private/etc\")\n"
+            << "  (subpath \"/etc\")\n"
+            << "  (subpath \"/private/var/db/dyld\")\n"
+            << "  (subpath \"/private/var/db/timezone\")\n"
+            << "  (subpath \"/var/db/dyld\")\n"
+            << "  (subpath \"/var/db/timezone\")\n"
+            << "  (subpath \"/opt/homebrew\")\n"
+            << "  (subpath \"/opt/local\")\n"
+            << "  (subpath \"/usr/local\")\n"
+            << "  (subpath \"/System/Volumes/Data/Library/Apple\")\n"
+            << "  (subpath \"/System/Volumes/Data/private/etc\")\n"
+            << "  (subpath \"/System/Volumes/Data/private/var/db/dyld\")\n"
+            << "  (subpath \"/System/Volumes/Data/private/var/db/timezone\")\n"
+            << "  (subpath \"/System/Volumes/Data/opt/homebrew\")\n"
+            << "  (subpath \"/System/Volumes/Data/opt/local\")\n"
+            << "  (subpath \"/System/Volumes/Data/usr/local\"))\n"
+            << "(allow file-map-executable\n"
+            << "  (subpath \"" << run_path << "\")\n"
+            << "  (subpath \"/usr\")\n"
+            << "  (subpath \"/bin\")\n"
+            << "  (subpath \"/sbin\")\n"
+            << "  (subpath \"/System/Library\")\n"
+            << "  (subpath \"/System/Volumes/Preboot\")\n"
+            << "  (subpath \"/System/iOSSupport\")\n"
+            << "  (subpath \"/Library/Apple\")\n"
+            << "  (subpath \"/opt/homebrew\")\n"
+            << "  (subpath \"/opt/local\")\n"
+            << "  (subpath \"/usr/local\")\n"
+            << "  (subpath \"/System/Volumes/Data/Library/Apple\")\n"
+            << "  (subpath \"/System/Volumes/Data/opt/homebrew\")\n"
+            << "  (subpath \"/System/Volumes/Data/opt/local\")\n"
+            << "  (subpath \"/System/Volumes/Data/usr/local\"))\n"
+            << "(allow file-read* file-test-existence\n"
+            << "  (literal \"/dev/null\")\n"
+            << "  (literal \"/dev/zero\")\n"
+            << "  (literal \"/dev/urandom\")\n"
+            << "  (literal \"/dev/random\"))\n"
+            << "(allow file-write-data\n"
+            << "  (literal \"/dev/null\")\n"
+            << "  (literal \"/dev/zero\"))\n"
+            << "(allow file-read-metadata file-test-existence)\n";
+    return profile.str();
+}
+
+std::string sandbox_prefix_description() {
 #if defined(__linux__)
     const std::string bwrap = find_in_path("bwrap");
     if (!bwrap.empty()) return "bwrap";
@@ -343,8 +432,6 @@ std::string sandbox_prefix_description(const fs::path& run_directory) {
 #elif defined(__APPLE__)
     const std::string sandbox_exec = find_in_path("sandbox-exec");
     if (!sandbox_exec.empty()) return "sandbox-exec";
-#else
-    (void)run_path;
 #endif
     return "";
 }
@@ -354,14 +441,15 @@ std::pair<std::string, std::vector<std::string>> launch_command(
     const std::vector<std::string>& arguments,
     const fs::path& run_directory
 ) {
-    const std::string tool = sandbox_prefix_description(run_directory);
-    const std::string run_path = run_directory.string();
+    const std::string tool = sandbox_prefix_description();
     std::vector<std::string> wrapped;
 
 #if defined(__linux__)
+    const std::string run_path = run_directory.string();
     if (tool == "bwrap") {
         wrapped = {
             "--die-with-parent",
+            "--unshare-net",
             "--ro-bind", "/", "/",
             "--bind", run_path, run_path,
             "--chdir", run_path,
@@ -381,12 +469,11 @@ std::pair<std::string, std::vector<std::string>> launch_command(
         const fs::path profile = run_directory / "sandbox.profile";
         {
             std::ofstream output(profile, std::ios::trunc);
-            output << "(version 1)\n"
-                   << "(allow default)\n"
-                   << "(deny file-write*)\n"
-                   << "(allow file-write* (subpath \"" << run_path << "\") (literal \"/dev/null\"))\n";
+            output << macos_sandbox_profile(run_directory, executable);
+            output.close();
+            if (!output) throw std::runtime_error("Could not write the macOS sandbox profile.");
         }
-        wrapped = {"-p", profile.string()};
+        wrapped = {"-f", profile.string()};
     }
 #endif
 
@@ -443,6 +530,11 @@ pid_t launch_process(
         setpgid(0, 0);
         if (chdir(run_directory.c_str()) != 0) _exit(126);
         umask(077);
+
+        const std::string run_path = run_directory.string();
+        setenv("TMPDIR", run_path.c_str(), 1);
+        setenv("TMP", run_path.c_str(), 1);
+        setenv("TEMP", run_path.c_str(), 1);
 
         const int dev_null = open("/dev/null", O_RDONLY);
         if (dev_null >= 0) {
