@@ -77,8 +77,9 @@ Godot is downloaded as an executable inside a zip file. To start Godot, unzip an
 
 **Sandbox worker** — Built per platform/architecture.
 
-- Windows: `powershell -File sandbox_worker/build.ps1`
-- Linux/macOS: `bash sandbox_worker/build.sh`
+- Windows: `powershell -File sandbox_worker/build.ps1` (requires an x86_64 g++ target)
+- Linux: `bash sandbox_worker/build.sh` on x86_64 Linux with a toolchain that supports `g++ -static`
+- macOS: `bash sandbox_worker/build.sh` on Apple Silicon
 
 On Linux/macOS, student execution uses best-effort isolation when `bwrap`, `firejail`, or `sandbox-exec` is available; otherwise it falls back to a private run directory with resource limits and reduced isolation.
 
