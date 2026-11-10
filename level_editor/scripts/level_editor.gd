@@ -168,11 +168,11 @@ func _on_save_button_pressed() -> void:
 	document.data["description"] = [description_input.text]
 	# Save limits
 	var limits_data := {}
-	if not move_limit_default_checkbox.button_pressed and move_limit_input.value > 0:
+	if not move_limit_default_checkbox.button_pressed:
 		limits_data["move_limit"] = int(move_limit_input.value)
-	if not cmd_limit_default_checkbox.button_pressed and cmd_limit_input.value > 0:
+	if not cmd_limit_default_checkbox.button_pressed:
 		limits_data["cmd_limit"] = int(cmd_limit_input.value)
-	if not time_limit_default_checkbox.button_pressed and time_limit_input.value > 0:
+	if not time_limit_default_checkbox.button_pressed:
 		limits_data["time_limit_seconds"] = float(time_limit_input.value)
 	if not limits_data.is_empty():
 		document.data["limits"] = limits_data
