@@ -11,7 +11,6 @@
     "Your robot starts facing east. Write a program that can solve any maze."
   ],
   "hint": "Try hugging the right wall.",
-  "limits": {"move_limit": 400},
   "editor": {
     "cpp": [
       "#include \"robot.hpp\"",
@@ -46,6 +45,7 @@
     ]
   },
     "limits": {
+      "move_limit": 400,
       "time_limit_seconds": 300
     }
 }
