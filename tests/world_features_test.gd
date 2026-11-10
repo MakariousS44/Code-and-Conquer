@@ -80,10 +80,7 @@ func run_tests() -> void:
 	carry_world.check_win_condition(3, 3)
 	check(carry_outcome.won, "Carrying more than the minimum must still win")
 	carry_world.level_data["goal"]["require_carry"] = "all_tokens"
-	check(carry_world._get_carry_requirement() == {"token": 1}, "Legacy carry modes must still resolve")
-	carry_world.level_data["goal"].erase("require_carry")
-	carry_world.level_data["goal"]["require_carry_object"] = "apple"
-	check(carry_world._get_carry_requirement() == {"apple": 1}, "Legacy carry object must still resolve")
+	check(carry_world._get_carry_requirement().is_empty(), "Non-dictionary carry requirements must be ignored")
 	carry_world.queue_free()
 	await process_frame
 

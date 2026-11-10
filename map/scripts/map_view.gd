@@ -832,46 +832,19 @@ func check_win_condition(gx: int, gy: int) -> void:
 
 
 ## Returns the minimum number of each object that must be carried at the finish.
-## `require_carry` may be a Dictionary of {object_name: count}; the older string
-## modes and `require_carry_object` are still supported for existing levels.
+## `require_carry` is a Dictionary of {object_name: count}.
 func _get_carry_requirement() -> Dictionary:
 	if not level_data.has("goal"):
 		return {}
 	var goal: Dictionary = level_data["goal"]
-	if goal.has("require_carry_object"):
-		var legacy_object := str(goal["require_carry_object"])
-		return {legacy_object: 1} if not legacy_object.is_empty() else {}
-
-	var carry = goal.get("require_carry", "none")
-	if carry is Dictionary:
-		var required := {}
-		for object_name in carry:
-			var count := int(carry[object_name])
-			if count > 0:
-				required[str(object_name)] = count
-		return required
-	var mode := str(carry)
-	if mode == "none":
+	var carry = goal.get("require_carry", {})
+	if not (carry is Dictionary):
 		return {}
-	if mode == "apple":
-		return {"apple": 1}
-	if mode == "token":
-		return {"token": 1}
-
-	var required: Dictionary = {}
-	for tile_objects in level_data.get("objects", {}).values():
-		if not (tile_objects is Dictionary):
-			continue
-		for object_name in tile_objects:
-			if mode == "all_apples" and object_name != "apple":
-				continue
-			if mode == "all_tokens" and object_name != "token":
-				continue
-			if mode == "all_apples_and_tokens" and object_name != "apple" and object_name != "token":
-				continue
-			if mode != "all_apples" and mode != "all_tokens" and mode != "all_apples_and_tokens":
-				continue
-			required[object_name] = int(required.get(object_name, 0)) + int(tile_objects[object_name])
+	var required := {}
+	for object_name in carry:
+		var count := int(carry[object_name])
+		if count > 0:
+			required[str(object_name)] = count
 	return required
 
 

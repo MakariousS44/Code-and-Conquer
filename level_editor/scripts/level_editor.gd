@@ -346,49 +346,30 @@ func _on_object_count_changed(value: float) -> void:
 func _on_goal_objects_button_pressed() -> void:
 	_open_goal_objects_dialog()
 
-## Total number of each object type placed on the map, optionally filtered
-## to the given names. Used both for "carry everything" presets and for the
-## carry-requirements dialog defaults.
-func _placed_object_totals(filter: Array = []) -> Dictionary:
+## Total number of each object type placed on the map.
+func _placed_object_totals() -> Dictionary:
 	var totals := {}
 	for tile_objects in document.data.get("objects", {}).values():
 		if not (tile_objects is Dictionary):
 			continue
 		for object_name in tile_objects:
 			var name := str(object_name)
-			if not filter.is_empty() and name not in filter:
-				continue
 			totals[name] = int(totals.get(name, 0)) + int(tile_objects[object_name])
 	return totals
 
 
-## The carry requirement as {object_name: minimum count}, translating legacy
-## string modes so old levels open sensibly in the dialog.
+## The carry requirement as {object_name: minimum count}.
 func _normalized_carry_requirement() -> Dictionary:
 	var goal: Dictionary = document.data.get("goal", {})
 	var carry = goal.get("require_carry", {})
-	if carry is Dictionary:
-		var required := {}
-		for object_name in carry:
-			var count := int(carry[object_name])
-			if count > 0:
-				required[str(object_name)] = count
-		return required
-	if goal.has("require_carry_object"):
-		var legacy_object := str(goal["require_carry_object"])
-		return {legacy_object: 1} if not legacy_object.is_empty() else {}
-	match str(carry):
-		"token":
-			return {"token": 1}
-		"apple":
-			return {"apple": 1}
-		"all_apples":
-			return _placed_object_totals(["apple"])
-		"all_tokens":
-			return _placed_object_totals(["token"])
-		"all_apples_and_tokens":
-			return _placed_object_totals(["apple", "token"])
-	return {}
+	if not (carry is Dictionary):
+		return {}
+	var required := {}
+	for object_name in carry:
+		var count := int(carry[object_name])
+		if count > 0:
+			required[str(object_name)] = count
+	return required
 
 
 func _open_carry_requirements_dialog() -> void:
@@ -456,7 +437,6 @@ func _apply_carry_requirements(spinboxes: Dictionary) -> void:
 		var count := int((spinboxes[object_name] as SpinBox).value)
 		if count > 0:
 			required[str(object_name)] = count
-	document.data["goal"].erase("require_carry_object")
 	if required.is_empty():
 		document.data["goal"].erase("require_carry")
 	else:

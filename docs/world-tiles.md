@@ -48,12 +48,20 @@ This requires 5 tokens at tile (6,4) and 2 apples at tile (1,5). The level is on
 
 ### Carry Requirements
 
-Use **Goal Configuration → Carry Requirement** to specify an object type that the robot must be carrying when reaching the goal. Options include:
-- None (no carry requirement)
-- Token
-- Apple
+Use **Goal Configuration → Set Carry Requirements** to specify the minimum number of each object the robot must be carrying when it reaches the goal. The dialog lists every object type on the map with a count; **Fill placed totals** sets each requirement to the number of that object on the map.
 
-The level is only complete if the robot is carrying the required object when it reaches the goal position.
+The level is only complete if the robot is carrying at least the required number of each object when it reaches the goal position. Carrying extra objects is fine — they can be delivered to goal tiles or left over.
+
+In the level JSON this is stored as a count map:
+
+```json
+"goal": {
+  "require_carry": {
+    "apple": 2,
+    "token": 1
+  }
+}
+```
 
 ### Visual Feedback
 

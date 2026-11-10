@@ -61,7 +61,7 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 		return {"ok": false, "error": "Robot position is outside the grid."}
 	goal["objects"] = goal.get("objects", {}) if goal.get("objects", {}) is Dictionary else {}
 	var carry = goal.get("require_carry", {})
-	if not (carry is Dictionary or carry is String):
+	if not (carry is Dictionary):
 		return {"ok": false, "error": "Goal carry requirement is invalid."}
 	candidate["goal"] = goal
 	if not candidate.has("objects"):
