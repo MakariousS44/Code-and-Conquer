@@ -98,8 +98,9 @@ void make_private(const fs::path& path) {
 }
 
 fs::path ensure_private_root() {
-    const fs::path root = fs::temp_directory_path() / "CodeAndConquer" / "sandbox-runs";
+    const fs::path root = fs::path("/tmp") / ("CodeAndConquer-" + std::to_string(static_cast<long long>(getuid()))) / "sandbox-runs";
     ensure_real_directory(root.parent_path());
+    make_private(root.parent_path());
     std::error_code error;
     ensure_real_directory(root);
     make_private(root);
