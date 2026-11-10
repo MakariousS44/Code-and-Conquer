@@ -115,5 +115,8 @@
 	  "x": 12,
 	  "y": 2
 	}
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 60
+    }
 }

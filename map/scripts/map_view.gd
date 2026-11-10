@@ -696,12 +696,25 @@ func is_in_bounds(gx: int, gy: int) -> bool:
 
 
 func is_void(gx: int, gy: int) -> bool:
-	return not is_in_bounds(gx, gy) or preload("res://map/scripts/void_tiles.gd").contains(level_data, gx, gy)
+	return preload("res://map/scripts/void_tiles.gd").contains(level_data, gx, gy)
 
 ## Check if movement in dir from (gx,gy) is blocked by a wall.
 ## Walls are stored as "east" and "north" only (Reborg format).
 ## Moving west/south requires checking the adjacent cell's east/north wall.
 func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
+	# Check if moving would go out of bounds
+	# (Map edges are treated as walls)
+	var next_x := gx
+	var next_y := gy
+	match dir:
+		"east": next_x += 1
+		"west": next_x -= 1
+		"north": next_y += 1
+		"south": next_y -= 1
+	
+	if not is_in_bounds(next_x, next_y):
+		return true
+	
 	# Check if wall even exist
 	if not level_data.has("walls"):
 		return false
@@ -802,10 +815,12 @@ func check_win_condition(gx: int, gy: int) -> void:
 		return
 
 	# --- object carry check ---
-	if goal.has("require_carry_object"):
-		var required_obj = goal["require_carry_object"]
-		if not player.carried_object.has(required_obj) or player.carried_object[required_obj] <= 0:
-			level_incomplete.emit("Reached the goal without carrying " + required_obj + ".")
+	var carry_requirement := _get_carry_requirement()
+	for object_name in carry_requirement:
+		var required_count: int = carry_requirement[object_name]
+		var carried_count: int = int(player.carried_object.get(object_name, 0))
+		if carried_count < required_count:
+			level_incomplete.emit("Reached the goal without carrying all required " + object_name + "s.")
 			return
 
 	# --- object goal check ---
@@ -814,6 +829,41 @@ func check_win_condition(gx: int, gy: int) -> void:
 		return
 
 	level_complete.emit()
+
+
+## Returns how many objects must still be carried at the finish.
+## `require_carry_object` is supported for levels created before carry modes existed.
+func _get_carry_requirement() -> Dictionary:
+	if not level_data.has("goal"):
+		return {}
+	var goal: Dictionary = level_data["goal"]
+	if goal.has("require_carry_object"):
+		var legacy_object := str(goal["require_carry_object"])
+		return {legacy_object: 1} if not legacy_object.is_empty() else {}
+
+	var mode := str(goal.get("require_carry", "none"))
+	if mode == "none":
+		return {}
+	if mode == "apple":
+		return {"apple": 1}
+	if mode == "token":
+		return {"token": 1}
+
+	var required: Dictionary = {}
+	for tile_objects in level_data.get("objects", {}).values():
+		if not (tile_objects is Dictionary):
+			continue
+		for object_name in tile_objects:
+			if mode == "all_apples" and object_name != "apple":
+				continue
+			if mode == "all_tokens" and object_name != "token":
+				continue
+			if mode == "all_apples_and_tokens" and object_name != "apple" and object_name != "token":
+				continue
+			if mode != "all_apples" and mode != "all_tokens" and mode != "all_apples_and_tokens":
+				continue
+			required[object_name] = int(required.get(object_name, 0)) + int(tile_objects[object_name])
+	return required
 
 
 # === objects ===
@@ -875,12 +925,23 @@ func _build_objects() -> void:
 		if not is_goal_tile:
 			_add_object_count_label(gx, gy, tile_objects)
 
+## Computes a uniform sprite scale so any object texture renders at roughly
+## one tile-sized visual (200px), without shrinking already-small icons.
+func _object_sprite_scale(tex: Texture2D) -> float:
+	var largest_side := maxf(float(tex.get_width()), float(tex.get_height()))
+	return minf(5.0, 200.0 / maxf(largest_side, 1.0))
+
+
 func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 	var sprite := Sprite2D.new()
-	var tex = load("res://assets/objects/" + object_name + ".png")
-	if tex:
+	var tex := load("res://assets/objects/" + object_name + ".png") as Texture2D
+	if tex != null:
 		sprite.texture = tex
-	sprite.scale = Vector2(5.0, 5.0)
+		# Old object art was tiny, while the new token icon is high-resolution.
+		# Cap every object at one tile-sized visual without making old icons smaller.
+		sprite.scale = Vector2.ONE * _object_sprite_scale(tex)
+	else:
+		sprite.scale = Vector2(5.0, 5.0)
 	var grid_pos = object_grid_position(gx, gy + 1)
 	sprite.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
 	sprite.z_index = 0
@@ -916,10 +977,12 @@ func _build_goal_object_markers() -> void:
 ## satisfied = the matching object has already been placed here.
 func _spawn_goal_marker(object_name: String, gx: int, gy: int, satisfied: bool) -> void:
 	var sprite := Sprite2D.new()
-	var tex = load("res://assets/objects/" + object_name + "_goal.png")
-	if tex:
+	var tex := load("res://assets/objects/" + object_name + "_goal.png") as Texture2D
+	if tex != null:
 		sprite.texture = tex
-	sprite.scale = Vector2(4.8, 4.8)
+		sprite.scale = Vector2.ONE * _object_sprite_scale(tex)
+	else:
+		sprite.scale = Vector2(4.8, 4.8)
 
 	if satisfied:
 		sprite.modulate = Color(0.35, 0.9, 0.45, 0.55)

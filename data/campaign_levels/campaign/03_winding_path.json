@@ -9,5 +9,8 @@
   "editor": {
 	"cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Find the gaps and reach the goal.", "", "    return 0;", "}"],
 	"python": ["from robot import *", "", "# Find the gaps and reach the goal."]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 90
+    }
 }

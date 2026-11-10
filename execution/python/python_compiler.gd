@@ -7,6 +7,42 @@ extends RefCounted
 const Paths = preload("res://execution/shared/paths.gd")
 var _commands = preload(Paths.ROBOT_COMMANDS).new()
 
+func prepare_sandbox_files(
+	player_code: String,
+	sandbox_path: String,
+	pipe_name: String
+) -> Dictionary:
+	var python_exe := sandbox_path.path_join("python").path_join("python.exe")
+
+	if not FileAccess.file_exists(python_exe):
+		return {
+			"ok": false,
+			"message": "Private Python runtime was not found in the secure folder."
+		}
+
+	var script := _commands.get_python_pipe_bootstrap(pipe_name) \
+		+ "\n" \
+		+ _commands.get_python_runner(player_code)
+
+	var script_path := sandbox_path.path_join("student_program.py")
+	var file := FileAccess.open(script_path, FileAccess.WRITE)
+
+	if file == null:
+		return {
+			"ok": false,
+			"message": "Could not write the secure Python program."
+		}
+
+	file.store_string(script)
+	file.close()
+
+	return {
+		"ok": true,
+		"python_exe": python_exe,
+		"script_path": script_path
+	}
+
+
 ## Write the generated script and launch it. Returns OS PID or -1 on failure.
 func start(player_code: String, port: int, token: String) -> int:
 	var python_info := _find_python()

@@ -5,24 +5,30 @@ const STUDENT_CPP := "user://build/student_code.cpp"
 const ROBOT_HPP := "user://build/robot.hpp"
 const ROBOT_CPP := "user://build/robot_runtime.cpp"
 const OUTPUT_EXE := "user://build/student_program"
-
 const Paths = preload("res://execution/shared/paths.gd")
 
 var _commands = preload(Paths.ROBOT_COMMANDS).new()
+var _active_build_dir: String = ""
 
 func _get_exe_path() -> String:
-	var base := ProjectSettings.globalize_path(OUTPUT_EXE)
+	var base := _active_build_dir.path_join("student_program")
+
 	if OS.get_name() == "Windows":
 		return base + ".exe"
+
 	return base
 
 
-func prepare_build_files(source: String, port: int, token: String) -> void:
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(BUILD_DIR))
-	_write_file(STUDENT_CPP, source)
-	_write_file(ROBOT_HPP,   _commands.get_cpp_header())
-	_write_file(ROBOT_CPP,   _commands.get_cpp_source(port, token))
-
+func prepare_build_files(source: String, port: int, token: String, sandbox_path: String = "", pipe_name: String = "") -> void:
+	
+	var build_dir := sandbox_path if not sandbox_path.is_empty() else ProjectSettings.globalize_path(BUILD_DIR)
+	_active_build_dir = build_dir
+	DirAccess.make_dir_recursive_absolute(build_dir)
+	_write_file(build_dir.path_join("student_code.cpp"), source)
+	_write_file(build_dir.path_join("robot.hpp"), _commands.get_cpp_header())
+	var runtime_source := _commands.get_cpp_pipe_source()
+	
+	_write_file(build_dir.path_join("robot_runtime.cpp"), runtime_source)
 
 func is_available() -> bool:
 	var output: Array = []
@@ -30,14 +36,25 @@ func is_available() -> bool:
 
 func compile_program() -> Dictionary:
 	var output: Array = []
-	var student_cpp := ProjectSettings.globalize_path(STUDENT_CPP)
-	var robot_cpp   := ProjectSettings.globalize_path(ROBOT_CPP)
+	if _active_build_dir.is_empty():
+		return {
+			"ok": false,
+			"output": "No build directory was prepared."
+		}
+
+	var student_cpp := _active_build_dir.path_join("student_code.cpp")
+	var robot_cpp := _active_build_dir.path_join("robot_runtime.cpp")
 	var exe         := _get_exe_path()
 	
 	if FileAccess.file_exists(exe):
 		DirAccess.remove_absolute(exe)
 	
-	var args := ["-std=c++17", "-Wall", "-Wextra", student_cpp, robot_cpp, "-o", exe]
+	var args := ["-std=c++17", "-Wall", "-Wextra"]
+
+	if OS.get_name() == "Windows":
+		args.append("-static")
+
+	args.append_array([student_cpp, robot_cpp, "-o", exe])
 	
 	if OS.get_name() == "Windows":
 		args.append("-lws2_32")

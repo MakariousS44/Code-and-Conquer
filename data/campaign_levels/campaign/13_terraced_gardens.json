@@ -108,5 +108,8 @@
       "",
       "# Plant each row and move to the next terrace."
     ]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 150
+    }
 }

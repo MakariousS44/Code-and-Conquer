@@ -9,5 +9,8 @@
   "editor": {
     "cpp": ["#include \"robot.hpp\"", "", "// Walk one side of the room and leave a token on the corner.", "void walk_side() {", "    // Write the steps for ONE side here.", "}", "", "int main() {", "    // Call walk_side() once for each side of the room.", "", "    return 0;", "}"],
     "python": ["from robot import *", "", "# Walk one side of the room and leave a token on the corner.", "def walk_side():", "    pass  # Write the steps for ONE side here.", "", "# Call walk_side() once for each side of the room."]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 120
+    }
 }

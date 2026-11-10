@@ -10,5 +10,8 @@
   "editor": {
     "cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Collect every token, then drop them all on the goal.", "", "    return 0;", "}"],
     "python": ["from robot import *", "", "# Collect every token, then drop them all on the goal."]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 180
+    }
 }

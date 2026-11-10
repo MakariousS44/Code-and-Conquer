@@ -13,6 +13,118 @@ func ping() -> Dictionary:
 		return {"ok": false, "message": "Worker returned an incompatible ready response."}
 	return {"ok": true, "message": "Worker connected successfully."}
 
+func start_cpp_runner(
+	run_id: String,
+	cleanup_token: String,
+	godot_port: int,
+	ipc_token: String
+) -> Dictionary:
+	var worker_path := ProjectSettings.globalize_path(DEV_WORKER_PATH)
+
+	if not FileAccess.file_exists(worker_path):
+		return {
+			"ok": false,
+			"message": "Sandbox worker executable was not found."
+		}
+
+	var pid := OS.create_process(
+		worker_path,
+		[
+			"--run-cpp",
+			run_id,
+			cleanup_token,
+			str(godot_port),
+			ipc_token
+		]
+	)
+
+	if pid == -1:
+		return {
+			"ok": false,
+			"message": "Could not start the sandbox worker."
+		}
+
+	return {
+		"ok": true,
+		"pid": pid
+	}
+
+func start_python_runner(
+	run_id: String,
+	cleanup_token: String,
+	godot_port: int,
+	ipc_token: String
+) -> Dictionary:
+	var worker_path := ProjectSettings.globalize_path(DEV_WORKER_PATH)
+
+	if not FileAccess.file_exists(worker_path):
+		return {
+			"ok": false,
+			"message": "Sandbox worker executable was not found."
+		}
+
+	var pid := OS.create_process(
+		worker_path,
+		[
+			"--run-python",
+			run_id,
+			cleanup_token,
+			str(godot_port),
+			ipc_token
+		]
+	)
+
+	if pid == -1:
+		return {
+			"ok": false,
+			"message": "Could not start the secure Python runner."
+		}
+
+	return {
+		"ok": true,
+		"pid": pid
+	}
+
+
+func prepare_run(run_id: String, cleanup_token: String) -> Dictionary:
+	var result := _run_worker(["--prepare-run", run_id, cleanup_token])
+	if not result.ok:
+		return {"ok": false, "message": result.message}
+
+	var response := _parse_json_response(result.output)
+	if response.get("type", "") != "sandbox_ready":
+		return {"ok": false, "message": "Worker returned an invalid sandbox response."}
+
+	var run_path := str(response.get("path", ""))
+	if run_path.is_empty():
+		return {"ok": false, "message": "Worker did not provide a sandbox directory."}
+
+	return {"ok": true, "path": run_path}
+
+func prepare_python_run(run_id: String, cleanup_token: String) -> Dictionary:
+	var result := _run_worker(["--prepare-python-run", run_id, cleanup_token])
+
+	if not result.ok:
+		return {"ok": false, "message": result.message}
+
+	var response := _parse_json_response(result.output)
+
+	if response.get("type", "") != "sandbox_ready":
+		return {
+			"ok": false,
+			"message": "Worker returned an invalid Python sandbox response."
+		}
+
+	var run_path := str(response.get("path", ""))
+
+	if run_path.is_empty():
+		return {
+			"ok": false,
+			"message": "Worker did not provide a Python sandbox directory."
+		}
+
+	return {"ok": true, "path": run_path}
+
 
 func create_run_directory(run_id: String, cleanup_token: String) -> Dictionary:
 	var result := _run_worker(["--make-run-dir", run_id, cleanup_token])

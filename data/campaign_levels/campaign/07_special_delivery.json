@@ -10,5 +10,8 @@
   "editor": {
     "cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Pick up the token, carry it to the goal, and put it down.", "", "    return 0;", "}"],
     "python": ["from robot import *", "", "# Pick up the token, carry it to the goal, and put it down."]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 90
+    }
 }

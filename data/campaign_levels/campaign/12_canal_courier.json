@@ -77,5 +77,8 @@
       "",
       "# Collect both stacks, cross on row 4, and unload at the goal."
     ]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 150
+    }
 }

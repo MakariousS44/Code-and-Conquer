@@ -133,5 +133,8 @@
 	  "x": 9,
 	  "y": 9
 	}
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 90
+    }
 }

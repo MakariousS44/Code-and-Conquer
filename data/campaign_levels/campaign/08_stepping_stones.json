@@ -9,5 +9,8 @@
   "editor": {
     "cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Place a token on every other tile.", "", "    return 0;", "}"],
     "python": ["from robot import *", "", "# Place a token on every other tile."]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 90
+    }
 }

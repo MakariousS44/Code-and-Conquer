@@ -2,6 +2,7 @@ class_name EditorGridView
 extends Node2D
 
 const CELL_SIZE := 48.0
+const VOID_ICON = preload("res://assets/objects/void.png")
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 3.0
 const ZOOM_STEP := 1.12
@@ -32,6 +33,18 @@ var zoom_level := 1.0
 var zoom_initialized := false
 var pan_offset := Vector2.ZERO
 var _panning := false
+const ROBOT_ICON = preload("res://assets/objects/robot.png")
+const GOAL_ICON = preload("res://assets/objects/goal.png")
+const APPLE_ICON = preload("res://assets/objects/apple.png")
+const TOKEN_ICON = preload("res://assets/objects/token.png")
+
+
+func _draw_icon(texture: Texture2D, center: Vector2, icon_size := 32.0) -> void:
+	var rect := Rect2(
+		center - Vector2.ONE * icon_size * 0.5,
+		Vector2.ONE * icon_size
+	)
+	draw_texture_rect(texture, rect, false)
 
 
 func _ready() -> void:
@@ -72,8 +85,7 @@ func _draw() -> void:
 			draw_rect(rect, tile_color)
 			if preload("res://map/scripts/void_tiles.gd").contains(document.data, x + 1, y + 1):
 				draw_rect(rect, Color("0b1020"))
-				draw_line(rect.position + Vector2(12, 12), rect.end - Vector2(12, 12), Color("68718e"), 2.0)
-				draw_line(rect.position + Vector2(12, 36), rect.position + Vector2(36, 12), Color("68718e"), 2.0)
+				draw_texture_rect(VOID_ICON, rect.grow(-8.0), false)
 			draw_rect(rect, Color("#668099"), false, 1.0)
 			if show_coordinates:
 				draw_string(ThemeDB.fallback_font, rect.position + Vector2(4, 15), "%d,%d" % [x + 1, rows - y], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color("#b9d8e8"))
@@ -100,7 +112,7 @@ func _draw() -> void:
 		# Apples
 		if tile_objects.has("apple"):
 			var apple_center := _cell_center(object_x, object_y, rows)
-			draw_circle(apple_center, CELL_SIZE * 0.16, Color("#e74c3c"))  # Red for apples
+			_draw_icon(APPLE_ICON, apple_center)
 			var apple_count := int(tile_objects["apple"])
 			if apple_count > 1:
 				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
@@ -108,7 +120,7 @@ func _draw() -> void:
 		# Tokens
 		if tile_objects.has("token"):
 			var token_center := _cell_center(object_x, object_y, rows)
-			draw_circle(token_center, CELL_SIZE * 0.16, Color("#ffff00"))  # Yellow for tokens
+			_draw_icon(TOKEN_ICON, token_center)
 			var token_count := int(tile_objects["token"])
 			if token_count > 1:
 				draw_string(ThemeDB.fallback_font, token_center + Vector2(9, 14), str(token_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
@@ -142,7 +154,7 @@ func _draw() -> void:
 		int(robot["y"]),
 		rows
 	)
-	draw_circle(robot_center, CELL_SIZE * 0.25, Color("#9b59ff"))
+	_draw_icon(ROBOT_ICON, robot_center, 36.0)
 
 	# Draw goal.
 	var finish: Array = document.data["goal"]["possible_final_positions"][0]
@@ -151,8 +163,8 @@ func _draw() -> void:
 		int(finish[1]),
 		rows
 	)
-	draw_circle(goal_center, CELL_SIZE * 0.25, Color("#f5a623"))
-	
+	_draw_icon(GOAL_ICON, goal_center, 36.0)
+
 func set_tool(tool: Tool) -> void:
 	active_tool = tool
 
@@ -217,7 +229,9 @@ func apply_layout(available_size: Vector2, unscaled_grid_size: Vector2) -> void:
 
 func _clamp_pan_axis(pan: float, available: float, scaled: float) -> float:
 	if scaled <= available + 0.5:
-		return 0.0
+		# Keep small maps movable while the editor is in pan mode instead of
+		# forcing them back to the exact center every time the view updates.
+		return clampf(pan, -available * 0.35, available * 0.35)
 	var centered := (available - scaled) * 0.5
 	var min_pan := (available - scaled) - centered
 	var max_pan := -centered
@@ -339,11 +353,15 @@ func apply_tool(gx: int, gy: int) -> void:
 	var key := "%d,%d" % [gx, gy]
 	if not document.data.has("void_tiles"):
 		document.data["void_tiles"] = {}
-	if active_tool in [Tool.ROBOT, Tool.GOAL, Tool.OBJECT]:
+	if active_tool in [Tool.ROBOT, Tool.GOAL]:
 		document.data["void_tiles"].erase(key)
+	elif active_tool == Tool.OBJECT and document.data["void_tiles"].has(key):
+		return
 	if active_tool == Tool.VOID:
 		var robot: Dictionary = document.data["robots"][0]
 		if int(robot.x) == gx and int(robot.y) == gy:
+			return
+		if document.data["objects"].has(key):
 			return
 		for pos in document.data["goal"].get("possible_final_positions", []):
 			if int(pos[0]) == gx and int(pos[1]) == gy:
@@ -389,7 +407,10 @@ func apply_tool(gx: int, gy: int) -> void:
 		var object_key := "%d,%d" % [gx, gy]
 		var objects: Dictionary = document.data["objects"]
 		var tile_objects: Dictionary = objects.get(object_key, {})
-		
+		# A tile can stack one object type, but it cannot mix object types.
+		# Use Erase before placing a different object on the tile.
+		if not tile_objects.is_empty() and not tile_objects.has(object_type):
+			return
 		tile_objects[object_type] = int(tile_objects.get(object_type, 0)) + object_count
 		objects[object_key] = tile_objects
 		document.data["objects"] = objects

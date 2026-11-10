@@ -9,5 +9,8 @@
   "editor": {
 	"cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Follow the corridor, turn, then reach the goal.", "", "    return 0;", "}"],
 	"python": ["from robot import *", "", "# Follow the corridor, turn, then reach the goal."]
-  }
+  },
+    "limits": {
+      "time_limit_seconds": 60
+    }
 }

@@ -13,8 +13,6 @@ const LEVELS := [
 	{"id": "stepping_stones", "title": "Stepping Stones", "concept": "A pattern plus a leftover step", "path": "res://data/campaign_levels/campaign/08_stepping_stones.json"},
 	{"id": "cornern_stones", "title": "Corner Stones", "concept": "Nested loops and your own function", "path": "res://data/campaign_levels/campaign/09_corner_stones.json"},
 	{"id": "spiral_harvest", "title": "Spiral Harvest", "concept": "Using new sensors", "path": "res://data/campaign_levels/campaign/10_spiral_harvest.json"},
-	# Fixed preparation for a later maze (considered challenging for CSCI 2170 students) campaign level
-	# with randomized robot starts and walls. That maze is planned, not implemented yet.
 	{"id": "depot_sweep", "title": "Depot Sweep", "concept": "Nested sensor loops and stack collection", "path": "res://data/campaign_levels/campaign/11_depot_sweep.json"},
 	{"id": "canal_courier", "title": "Canal Courier", "concept": "Parameterized movement, sensor loops, and safe crossing", "path": "res://data/campaign_levels/campaign/12_canal_courier.json"},
 	{"id": "terraced_gardens", "title": "Terraced Gardens", "concept": "Side sensors and a reusable planting pattern", "path": "res://data/campaign_levels/campaign/13_terraced_gardens.json"},

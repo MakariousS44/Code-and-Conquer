@@ -33,7 +33,7 @@ Code & Conquer, heavily inspired by Reeborg's World, is an educational programmi
 
 ## Download & Play
 
-Just want to play? Download a pre-built executable — no Godot required.
+Just want to play? Download a pre-built executable -- no Godot required.
 
 <!-- Will need to update this when we make our own release -->
 Head to the [**Releases**](https://github.com/MakariousS44/Code-and-Conquer/releases/tag/v1.0.0) page and grab the latest build for your OS:
