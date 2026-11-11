@@ -49,7 +49,6 @@ func _ready() -> void:
 	grid.view_changed.connect(_layout_grid)
 	resized.connect(_layout_grid)
 	call_deferred("_layout_grid")
-	save_button.disabled = true
 
 	robot_button.pressed.connect(_on_robot_button_pressed)
 	goal_button.pressed.connect(_on_goal_button_pressed)
@@ -68,6 +67,7 @@ func _ready() -> void:
 	resize_button.pressed.connect(_on_resize_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
 	level_name_input.text_changed.connect(_on_level_name_changed)
+	_update_save_button_availability()
 	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
@@ -238,8 +238,12 @@ func _on_save_button_pressed() -> void:
 	print("Level saved to: ", ProjectSettings.globalize_path(save_path))
 
 
-func _on_level_name_changed(new_name: String) -> void:
-	save_button.disabled = new_name.strip_edges().is_empty()
+func _on_level_name_changed(_new_name: String) -> void:
+	_update_save_button_availability()
+
+
+func _update_save_button_availability() -> void:
+	save_button.disabled = level_name_input.text.strip_edges().is_empty()
 	if not save_button.disabled:
 		save_button.text = "Save Level"
 
@@ -268,6 +272,7 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 			dialog.queue_free()
 			return
 		level_name_input.text = str(document.data.get("name", path.get_file().get_basename()))
+		_update_save_button_availability()
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
@@ -346,6 +351,7 @@ func _on_new_button_pressed() -> void:
 	grid.reset_pan()
 	_layout_grid()
 	level_name_input.clear()
+	_update_save_button_availability()
 	description_input.clear()
 	move_limit_default_checkbox.button_pressed = false
 	cmd_limit_default_checkbox.button_pressed = false
