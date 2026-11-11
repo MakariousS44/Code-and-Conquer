@@ -286,7 +286,7 @@ vertical_icon_alignment = 0
 vertical_alignment = 2
 text = "TOKEN"
 
-[node name="VoidButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+[node name="VoidButton" type="Button" parent="RightToolbar"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 icon = ExtResource("7_void")
@@ -332,7 +332,7 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "← BACK TO MAIN MENU"
 
-[node name="EraseButton" type="Button" parent="RightToolbar/ObjectsGrid" unique_id=826979752]
+[node name="EraseButton" type="Button" parent="RightToolbar" unique_id=826979752]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 icon = ExtResource("8_erase")

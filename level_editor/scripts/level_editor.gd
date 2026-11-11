@@ -24,8 +24,8 @@ var is_panning := false
 @onready var carrot_button: Button = $RightToolbar/ObjectsGrid/CarrotButton
 @onready var star_button: Button = $RightToolbar/ObjectsGrid/StarButton
 @onready var token_button: Button = $RightToolbar/ObjectsGrid/TokenButton
-@onready var erase_button: Button = $RightToolbar/ObjectsGrid/EraseButton
-@onready var void_button: Button = $RightToolbar/ObjectsGrid/VoidButton
+@onready var erase_button: Button = $RightToolbar/EraseButton
+@onready var void_button: Button = $RightToolbar/VoidButton
 @onready var new_button: Button = $SidebarScroll/VBoxContainer/NewButton
 @onready var columns_input: SpinBox = $SidebarScroll/VBoxContainer/ColumnsInput
 @onready var rows_input: SpinBox = $SidebarScroll/VBoxContainer/RowsInput
@@ -86,7 +86,7 @@ func _arrange_sidebar() -> void:
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"ObjectCountLabel", "ObjectCountInput",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "CarryRequirementsButton",
-		"LimitsLabel", "MoveLimitDefaultCheckbox", "MoveLimitLabel", "MoveLimitInput", "CmdLimitDefaultCheckbox", "CmdLimitLabel", "CmdLimitInput", "TimeLimitDefaultCheckbox", "TimeLimitLabel", "TimeLimitInput",
+		"LimitsLabel", "MoveLimitLabel", "MoveLimitDefaultCheckbox", "MoveLimitInput", "CmdLimitLabel", "CmdLimitDefaultCheckbox", "CmdLimitInput", "TimeLimitLabel", "TimeLimitDefaultCheckbox", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
 	for index in range(order.size()):
