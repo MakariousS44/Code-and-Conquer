@@ -68,6 +68,7 @@ func run_tests() -> void:
 			carry_dialog = child
 	check(carry_dialog != null, "Carry requirements dialog must open")
 	if carry_dialog != null:
+		check(not carry_dialog.exclusive, "Carry requirements must stay editable while the map changes")
 		var found_token := false
 		var found_gem := false
 		var max_ok := true
@@ -78,8 +79,83 @@ func run_tests() -> void:
 			max_ok = max_ok and node.max_value >= 150
 		check(found_token and found_gem, "Dialog must list placed and starting-inventory object types")
 		check(max_ok, "Carry count spinboxes must allow totals above 99")
+		check(carry_dialog.find_children("*", "CheckBox", true, false).size() == 2, "Each carry requirement needs a map-max checkbox")
+
+		var token_auto: CheckBox = null
+		var token_spin: SpinBox = null
+		for node in carry_dialog.find_children("*", "HBoxContainer", true, false):
+			if node.get_child_count() < 3:
+				continue
+			var row_label := node.get_child(0) as Label
+			if row_label != null and row_label.text == "Token":
+				token_auto = node.get_child(1) as CheckBox
+				token_spin = node.get_child(2) as SpinBox
+		check(token_auto != null and token_spin != null, "Token row must contain a checkbox and spinbox")
+		if token_auto != null and token_spin != null:
+			check(not token_auto.button_pressed and token_spin.editable, "Map-max mode must start off and editable")
+			token_auto.button_pressed = true
+			check(token_spin.value == 150 and not token_spin.editable, "Checking map max must fill and disable the count")
+
+			level_editor.grid.set_tool(EditorGridView.Tool.OBJECT)
+			level_editor.grid.set_object_type("token")
+			level_editor.grid.set_object_count(5)
+			level_editor.grid.apply_tool(3, 3)
+			check(token_spin.value == 155, "Map max must update when objects are added")
+			level_editor.grid.set_tool(EditorGridView.Tool.ERASE)
+			level_editor.grid.apply_tool(1, 2)
+			check(token_spin.value == 5, "Map max must update when objects are removed")
+
+			level_editor._apply_carry_requirements(level_editor._carry_requirement_rows)
+			check(doc.data["goal"]["require_carry"] == {"token": 5}, "Apply must save refreshed map-max counts")
+			check(doc.data["goal"]["require_carry_auto"] == {"token": true}, "Apply must remember map-max selections")
+			token_auto.button_pressed = false
+			check(token_spin.editable, "Unchecking map max must re-enable manual counts")
+			token_spin.value = 7
+			level_editor._apply_carry_requirements(level_editor._carry_requirement_rows)
+			check(doc.data["goal"]["require_carry"] == {"token": 7}, "Manual counts must still apply")
+			check(not doc.data["goal"].has("require_carry_auto"), "Manual counts must clear map-max selections")
+
+			token_auto.button_pressed = true
+			level_editor._apply_carry_requirements(level_editor._carry_requirement_rows)
+			check(doc.data["goal"]["require_carry"] == {"token": 5}, "Re-enabling map max must restore the map total")
+			check(doc.data["goal"]["require_carry_auto"] == {"token": true}, "Map max must be saved again")
 		carry_dialog.canceled.emit()
 		check(carry_dialog.is_queued_for_deletion(), "Closing the carry dialog must free it")
+		await process_frame
+
+		level_editor.grid.set_tool(EditorGridView.Tool.OBJECT)
+		level_editor.grid.set_object_type("token")
+		level_editor.grid.set_object_count(3)
+		level_editor.grid.apply_tool(4, 4)
+		check(doc.data["goal"]["require_carry"] == {"token": 8}, "Closed dialog map-max counts must track map changes")
+		check(doc.data["goal"]["require_carry_auto"] == {"token": true}, "Map-max selection must persist after closing")
+
+		var saved_data: Dictionary = JSON.parse_string(JSON.stringify(doc.data))
+		var reloaded := LevelDocument.new()
+		check(reloaded.load_level(saved_data).ok, "Levels with map-max selections must load")
+		check(int(reloaded.data["goal"]["require_carry"].get("token", 0)) == 8, "Map-max counts must survive JSON round trip")
+		check(reloaded.data["goal"].get("require_carry_auto", {}) == {"token": true}, "Map-max selections must survive JSON round trip")
+
+		level_editor._open_carry_requirements_dialog()
+		var reopened_dialog: Window = null
+		for child in level_editor.get_children():
+			if child is ConfirmationDialog and child.title == "Carry Requirements":
+				reopened_dialog = child
+		check(reopened_dialog != null, "Carry requirements dialog must reopen")
+		if reopened_dialog != null:
+			var reopened_auto: CheckBox = null
+			var reopened_spin: SpinBox = null
+			for node in reopened_dialog.find_children("*", "HBoxContainer", true, false):
+				if node.get_child_count() < 3:
+					continue
+				var row_label := node.get_child(0) as Label
+				if row_label != null and row_label.text == "Token":
+					reopened_auto = node.get_child(1) as CheckBox
+					reopened_spin = node.get_child(2) as SpinBox
+			check(reopened_auto != null and reopened_auto.button_pressed and reopened_spin != null and reopened_spin.value == 8 and not reopened_spin.editable, "Reopened dialog must restore map-max state")
+			reopened_dialog.canceled.emit()
+			check(reopened_dialog.is_queued_for_deletion(), "Reopened carry dialog must free itself")
+		await process_frame
 
 	level_editor._open_goal_objects_dialog()
 	var goal_dialog: Window = null
@@ -124,6 +200,11 @@ func run_tests() -> void:
 	check(not carry_rules.validate({"goal": {"require_carry": {"apple": "lots"}}}).is_empty(), "Non-integer counts must be rejected")
 	check(not carry_rules.validate({"goal": {"require_carry": {"apple": 1.5}}}).is_empty(), "Fractional counts must be rejected")
 	check(not carry_rules.validate({"goal": {"require_carry": {"[b]x": 1}}}).is_empty(), "Markup object names must be rejected")
+	check(carry_rules.validate({"goal": {"require_carry_auto": {"apple": true}}}).is_empty(), "Valid carry auto requirements must pass validation")
+	check(not carry_rules.validate({"goal": {"require_carry_auto": "all"}}).is_empty(), "String carry auto requirements must be rejected")
+	check(not carry_rules.validate({"goal": {"require_carry_auto": {"[b]x": true}}}).is_empty(), "Markup auto object names must be rejected")
+	check(not carry_rules.validate({"goal": {"require_carry_auto": {"apple": 1}}}).is_empty(), "Non-boolean auto values must be rejected")
+	check(carry_rules.normalize_auto({"apple": true, "[b]x": true, "token": 1}) == {"apple": true}, "Auto normalization must keep only valid true flags")
 	var bad_carry_level: Dictionary = doc.data.duplicate(true)
 	bad_carry_level["goal"]["require_carry"] = {"apple": "lots"}
 	check(not restored.load_level(bad_carry_level).ok, "Level editor must reject malformed carry requirements")

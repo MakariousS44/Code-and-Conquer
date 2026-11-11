@@ -22,6 +22,7 @@ enum Tool {
 
 
 signal view_changed
+signal objects_changed
 
 var active_tool := Tool.ROBOT
 
@@ -391,6 +392,7 @@ func _apply_tool_at_mouse_position() -> void:
 
 func apply_tool(gx: int, gy: int) -> void:
 	var key := "%d,%d" % [gx, gy]
+	var did_objects_change := false
 	if not document.data.has("void_tiles"):
 		document.data["void_tiles"] = {}
 	if active_tool in [Tool.ROBOT, Tool.GOAL]:
@@ -409,7 +411,9 @@ func apply_tool(gx: int, gy: int) -> void:
 		if document.data["goal"].get("objects", {}).has(key):
 			return  # Do not void tiles that have goal object requirements.
 		document.data["void_tiles"][key] = true
-		document.data["objects"].erase(key)
+		if document.data["objects"].has(key):
+			document.data["objects"].erase(key)
+			did_objects_change = true
 	elif active_tool == Tool.ROBOT:
 		var robots: Array = document.data["robots"]
 		var robot: Dictionary = robots[0]
@@ -454,12 +458,15 @@ func apply_tool(gx: int, gy: int) -> void:
 		tile_objects[object_type] = int(tile_objects.get(object_type, 0)) + object_count
 		objects[object_key] = tile_objects
 		document.data["objects"] = objects
+		did_objects_change = true
 
 	elif active_tool == Tool.ERASE:
 		document.data["void_tiles"].erase(key)
 		var cell_key := "%d,%d" % [gx, gy]
 
 		var objects: Dictionary = document.data["objects"]
+		if objects.has(cell_key):
+			did_objects_change = true
 		objects.erase(cell_key)
 		document.data["objects"] = objects
 
@@ -475,3 +482,5 @@ func apply_tool(gx: int, gy: int) -> void:
 		document.data["walls"] = walls
 
 	queue_redraw()
+	if did_objects_change:
+		objects_changed.emit()

@@ -8,6 +8,8 @@ const PLAYER_CUSTOM_LEVELS_DIR := "user://custom_levels/"
 var document := LevelDocument.new()
 var pan_mode := false
 var is_panning := false
+var _carry_requirements_dialog: ConfirmationDialog = null
+var _carry_requirement_rows := {}
 
 @onready var grid: EditorGridView = $GridClip/EditorGrid as EditorGridView
 @onready var grid_clip: Control = $GridClip
@@ -47,6 +49,7 @@ func _ready() -> void:
 
 	grid.set_document(document)
 	grid.view_changed.connect(_layout_grid)
+	grid.objects_changed.connect(_on_grid_objects_changed)
 	resized.connect(_layout_grid)
 	call_deferred("_layout_grid")
 
@@ -178,6 +181,7 @@ func _on_save_button_pressed() -> void:
 	var level_name := level_name_input.text.strip_edges()
 	if level_name.is_empty():
 		return
+	_sync_auto_carry_requirements()
 	document.data["name"] = level_name
 	document.data["description"] = [description_input.text]
 	# Save limits
@@ -298,6 +302,8 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		else:
 			time_limit_default_checkbox.button_pressed = true
 			time_limit_input.value = 0
+		_sync_auto_carry_requirements()
+		_close_carry_requirements_dialog()
 		grid.set_document(document)
 		grid.reset_pan()
 		_layout_grid()
@@ -347,6 +353,7 @@ func _on_new_button_pressed() -> void:
 	var rows := int(rows_input.value)
 
 	document.create_blank(cols, rows)
+	_close_carry_requirements_dialog()
 	grid.set_document(document)
 	grid.reset_pan()
 	_layout_grid()
@@ -366,6 +373,8 @@ func _on_resize_button_pressed() -> void:
 	var rows := int(rows_input.value)
 
 	document.resize(cols, rows)
+	_sync_auto_carry_requirements()
+	_refresh_open_carry_requirements()
 	grid.set_document(document)
 	grid.reset_pan()
 	_layout_grid()
@@ -401,9 +410,14 @@ func _normalized_carry_requirement() -> Dictionary:
 
 
 func _open_carry_requirements_dialog() -> void:
+	if _carry_requirements_dialog != null and is_instance_valid(_carry_requirements_dialog) and not _carry_requirements_dialog.is_queued_for_deletion():
+		_carry_requirements_dialog.move_to_foreground()
+		return
+	_sync_auto_carry_requirements()
 	var dialog := ConfirmationDialog.new()
 	dialog.title = "Carry Requirements"
 	dialog.ok_button_text = "Apply"
+	dialog.exclusive = false
 
 	var vbox := VBoxContainer.new()
 	dialog.add_child(vbox)
@@ -414,6 +428,8 @@ func _open_carry_requirements_dialog() -> void:
 
 	var requirement := _normalized_carry_requirement()
 	var carry_rules = preload("res://map/scripts/carry_requirements.gd")
+	var goal: Dictionary = document.data.get("goal", {})
+	var auto_requirement := carry_rules.normalize_auto(goal.get("require_carry_auto", {}))
 	var types := {}
 	for object_name in _placed_object_totals():
 		if carry_rules.is_valid_object_name(str(object_name)):
@@ -426,119 +442,246 @@ func _open_carry_requirements_dialog() -> void:
 			types[name] = true
 	for object_name in requirement:
 		types[object_name] = true
+	for object_name in auto_requirement:
+		types[object_name] = true
 
 	var rows := VBoxContainer.new()
 	vbox.add_child(rows)
-	var spinboxes := {}
+	var carry_rows := {}
 	for object_name in types.keys():
+		var object_name_str := str(object_name)
 		var row := HBoxContainer.new()
 		var label := Label.new()
-		label.text = str(object_name).capitalize()
+		label.text = object_name_str.capitalize()
 		label.custom_minimum_size = Vector2(140, 0)
 		row.add_child(label)
+
+		var auto_check := CheckBox.new()
+		auto_check.text = "Map max"
+		auto_check.tooltip_text = "Use the number of %s objects on the map and keep it updated" % object_name_str
+		row.add_child(auto_check)
+
 		var spin := SpinBox.new()
 		spin.min_value = 0
 		spin.max_value = 9999
 		spin.step = 1
-		spin.value = int(requirement.get(object_name, 0))
+		spin.value = int(requirement.get(object_name_str, 0))
 		row.add_child(spin)
 		rows.add_child(row)
-		spinboxes[object_name] = spin
+		carry_rows[object_name_str] = {"auto": auto_check, "spin": spin}
+		auto_check.toggled.connect(_on_carry_auto_toggled.bind({"name": object_name_str, "spin": spin}))
+		if auto_requirement.has(object_name_str):
+			auto_check.button_pressed = true
 
 	if types.is_empty():
 		var empty_label := Label.new()
 		empty_label.text = "Place objects on the map first."
 		rows.add_child(empty_label)
 
-	var fill_button := Button.new()
-	fill_button.text = "Fill placed totals"
-	fill_button.tooltip_text = "Set every requirement to the number of that object on the map"
-	fill_button.pressed.connect(_fill_carry_placed_totals.bind(spinboxes))
-	vbox.add_child(fill_button)
-
-	dialog.confirmed.connect(_apply_carry_requirements.bind(spinboxes))
+	dialog.confirmed.connect(_apply_carry_requirements.bind(carry_rows))
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.close_requested.connect(dialog.queue_free)
+	_carry_requirements_dialog = dialog
+	_carry_requirement_rows = carry_rows
+	dialog.tree_exited.connect(_on_carry_requirements_dialog_closed.bind(dialog))
 	add_child(dialog)
 	dialog.popup_centered()
 
 
-func _fill_carry_placed_totals(spinboxes: Dictionary) -> void:
+func _on_grid_objects_changed() -> void:
+	_sync_auto_carry_requirements()
+	_refresh_open_carry_requirements()
+
+
+func _sync_auto_carry_requirements() -> void:
+	var goal_value = document.data.get("goal", {})
+	if not (goal_value is Dictionary):
+		return
+	var goal: Dictionary = goal_value
+	var carry_rules = preload("res://map/scripts/carry_requirements.gd")
+	var auto := carry_rules.normalize_auto(goal.get("require_carry_auto", {}))
+	if auto.is_empty():
+		return
 	var totals := _placed_object_totals()
-	for object_name in spinboxes:
-		(spinboxes[object_name] as SpinBox).value = int(totals.get(object_name, 0))
+	var required_value = goal.get("require_carry", {})
+	var required: Dictionary = required_value if required_value is Dictionary else {}
+	for object_name in auto:
+		var total := int(totals.get(object_name, 0))
+		if total > 0:
+			required[object_name] = total
+		else:
+			required.erase(object_name)
+	goal["require_carry"] = required
+	document.data["goal"] = goal
 
 
-func _apply_carry_requirements(spinboxes: Dictionary) -> void:
+func _refresh_open_carry_requirements() -> void:
+	if _carry_requirement_rows.is_empty():
+		return
+	_refresh_carry_auto_totals(_carry_requirement_rows)
+
+
+func _close_carry_requirements_dialog() -> void:
+	if _carry_requirements_dialog != null and is_instance_valid(_carry_requirements_dialog):
+		_carry_requirements_dialog.queue_free()
+	_carry_requirements_dialog = null
+	_carry_requirement_rows.clear()
+
+
+func _on_carry_auto_toggled(pressed: bool, controls: Dictionary) -> void:
+	var spin := controls["spin"] as SpinBox
+	spin.editable = not pressed
+	spin.mouse_filter = Control.MOUSE_FILTER_IGNORE if pressed else Control.MOUSE_FILTER_STOP
+	if pressed:
+		_set_map_max_spin(str(controls["name"]), spin, _placed_object_totals())
+	else:
+		spin.tooltip_text = ""
+
+
+func _refresh_carry_auto_totals(carry_rows: Dictionary) -> void:
+	var totals := _placed_object_totals()
+	for object_name in carry_rows:
+		var controls: Dictionary = carry_rows[object_name]
+		var auto_check := controls["auto"] as CheckBox
+		if auto_check != null and auto_check.button_pressed:
+			_set_map_max_spin(str(object_name), controls["spin"] as SpinBox, totals)
+
+
+func _set_map_max_spin(object_name: String, spin: SpinBox, totals: Dictionary) -> void:
+	var total := int(totals.get(object_name, 0))
+	spin.max_value = maxf(9999.0, float(total))
+	spin.value = total
+	spin.tooltip_text = "Map total: %d" % total
+
+
+func _apply_carry_requirements(carry_rows: Dictionary) -> void:
+	_refresh_carry_auto_totals(carry_rows)
 	var required := {}
-	for object_name in spinboxes:
-		var count := int((spinboxes[object_name] as SpinBox).value)
+	var auto_required := {}
+	for object_name in carry_rows:
+		var controls: Dictionary = carry_rows[object_name]
+		var count := int((controls["spin"] as SpinBox).value)
 		if count > 0:
 			required[str(object_name)] = count
+		if (controls["auto"] as CheckBox).button_pressed:
+			auto_required[str(object_name)] = true
 	if required.is_empty():
 		document.data["goal"].erase("require_carry")
 	else:
 		document.data["goal"]["require_carry"] = required
+	if auto_required.is_empty():
+		document.data["goal"].erase("require_carry_auto")
+	else:
+		document.data["goal"]["require_carry_auto"] = auto_required
 	status_label.text = "Carry requirements updated"
+
+
+func _on_carry_requirements_dialog_closed(dialog: ConfirmationDialog) -> void:
+	if _carry_requirements_dialog == dialog:
+		_carry_requirements_dialog = null
+		_carry_requirement_rows.clear()
+
+const GOAL_OBJECT_TYPES := ["apple", "banana", "carrot", "star", "token"]
 
 func _open_goal_objects_dialog() -> void:
 	var dialog := AcceptDialog.new()
 	dialog.title = "Set Goal Objects"
 	dialog.unresizable = true
-	
+
 	var vbox := VBoxContainer.new()
 	dialog.add_child(vbox)
-	
+
 	var instruction := Label.new()
-	instruction.text = "Add goal object requirements (e.g., '6,4 token 5' for 5 tokens at tile 6,4):"
+	instruction.text = "Add requirements for objects that must be placed at specific tiles when the goal is reached:"
 	vbox.add_child(instruction)
-	
-	var input := TextEdit.new()
-	input.custom_minimum_size = Vector2(400, 150)
-	input.placeholder_text = "Format: x,y object_type count\nExample:\n6,4 token 5\n1,5 apple 2"
-	
+
+	var rows := VBoxContainer.new()
+	vbox.add_child(rows)
+
+	var buttons := HBoxContainer.new()
+	vbox.add_child(buttons)
+	var add_button := Button.new()
+	add_button.text = "Add Requirement"
+	buttons.add_child(add_button)
+
+	var goal_rows := []
+
+	var add_row := func(x: int, y: int, object_type: String, count: int) -> void:
+		var row := HBoxContainer.new()
+		var x_input := SpinBox.new()
+		x_input.min_value = 0
+		x_input.max_value = 9999
+		x_input.value = x
+		x_input.tooltip_text = "X"
+		row.add_child(x_input)
+		var y_input := SpinBox.new()
+		y_input.min_value = 0
+		y_input.max_value = 9999
+		y_input.value = y
+		y_input.tooltip_text = "Y"
+		row.add_child(y_input)
+		var type_option := OptionButton.new()
+		for object_name in GOAL_OBJECT_TYPES:
+			type_option.add_item(object_name.capitalize())
+		type_option.selected = max(0, GOAL_OBJECT_TYPES.find(object_type))
+		row.add_child(type_option)
+		var count_input := SpinBox.new()
+		count_input.min_value = 1
+		count_input.max_value = 9999
+		count_input.value = max(1, count)
+		count_input.tooltip_text = "Required count"
+		row.add_child(count_input)
+		var delete_button := Button.new()
+		delete_button.text = "Delete"
+		delete_button.tooltip_text = "Remove this requirement"
+		row.add_child(delete_button)
+		rows.add_child(row)
+		var row_controls := {"x": x_input, "y": y_input, "type": type_option, "count": count_input}
+		goal_rows.append(row_controls)
+		delete_button.pressed.connect(func() -> void:
+			goal_rows.erase(row_controls)
+			row.queue_free()
+		)
+
+	add_button.pressed.connect(func() -> void:
+		add_row.call(0, 0, GOAL_OBJECT_TYPES[0], 1)
+	)
+
 	# Pre-fill with existing goal objects
 	if document.data.has("goal") and document.data["goal"].has("objects"):
 		var goal_objs: Dictionary = document.data["goal"]["objects"]
-		var lines := []
 		for key in goal_objs:
+			var parts := str(key).split(",")
+			if parts.size() != 2:
+				continue
 			var required: Dictionary = goal_objs[key]
 			for obj_name in required:
-				var count := int(required[obj_name])
-				lines.append("%s %s %d" % [key, obj_name, count])
-		input.text = "\n".join(lines)
-	
-	vbox.add_child(input)
-	
-	dialog.confirmed.connect(_apply_goal_objects.bind(input))
+				add_row.call(int(parts[0]), int(parts[1]), str(obj_name), int(required[obj_name]))
+	else:
+		add_row.call(0, 0, GOAL_OBJECT_TYPES[0], 1)
+
+	dialog.confirmed.connect(_apply_goal_objects.bind(goal_rows))
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.close_requested.connect(dialog.queue_free)
 	add_child(dialog)
 	dialog.popup_centered()
 
-func _apply_goal_objects(input: TextEdit) -> void:
-	var lines := input.text.split("\n")
+func _apply_goal_objects(goal_rows: Array) -> void:
 	var goal_objects := {}
-	
-	for line in lines:
-		line = line.strip_edges()
-		if line.is_empty():
+	for row in goal_rows:
+		var x := int(row["x"].value)
+		var y := int(row["y"].value)
+		var object_type: String = GOAL_OBJECT_TYPES[row["type"].selected]
+		var count := int(row["count"].value)
+		if count <= 0:
 			continue
-		var parts := line.split(" ")
-		if parts.size() >= 3:
-			var coords := parts[0].split(",")
-			if coords.size() == 2:
-				var x := int(coords[0])
-				var y := int(coords[1])
-				var obj_type := parts[1].to_lower()
-				var count := int(parts[2])
-				var key := "%d,%d" % [x, y]
-				if not goal_objects.has(key):
-					goal_objects[key] = {}
-				goal_objects[key][obj_type] = count
-	
+		var key := "%d,%d" % [x, y]
+		if not goal_objects.has(key):
+			goal_objects[key] = {}
+		goal_objects[key][object_type] = count
+
 	document.data["goal"]["objects"] = goal_objects
 	grid.queue_redraw()
 	status_label.text = "Goal objects configured"

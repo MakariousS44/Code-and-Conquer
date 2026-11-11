@@ -34,6 +34,14 @@ static func validate(data: Dictionary) -> String:
 			return "Invalid carry requirement object name: %s" % object_name
 		if not _is_valid_count(carry[object_name]):
 			return "Carry requirement counts must be non-negative integers: %s" % object_name
+	var auto = goal.get("require_carry_auto", {})
+	if not (auto is Dictionary):
+		return "Goal carry auto requirements must be an object of object names and booleans."
+	for object_name in auto:
+		if not is_valid_object_name(str(object_name)):
+			return "Invalid carry auto requirement object name: %s" % object_name
+		if typeof(auto[object_name]) != TYPE_BOOL:
+			return "Carry auto requirements must be booleans: %s" % object_name
 	return ""
 
 
@@ -51,3 +59,14 @@ static func normalize(requirement: Variant) -> Dictionary:
 		if count > 0:
 			required[name] = count
 	return required
+
+
+static func normalize_auto(requirement: Variant) -> Dictionary:
+	var auto := {}
+	if not (requirement is Dictionary):
+		return auto
+	for object_name in requirement:
+		var name := str(object_name)
+		if is_valid_object_name(name) and typeof(requirement[object_name]) == TYPE_BOOL and requirement[object_name]:
+			auto[name] = true
+	return auto
