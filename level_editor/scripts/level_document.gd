@@ -51,14 +51,29 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 	# Older campaign files store their finish tile in goal.position. Convert it once
 	# so the editor and newly saved files use the current format.
 	var goal: Dictionary = candidate["goal"]
-	if not (goal.get("possible_final_positions", []) is Array) or goal["possible_final_positions"].is_empty():
+	var positions = goal.get("possible_final_positions", [])
+	if not (positions is Array) or positions.is_empty():
 		var legacy_position = goal.get("position", {})
 		if not (legacy_position is Dictionary):
 			return {"ok": false, "error": "Goal position is invalid."}
-		goal["possible_final_positions"] = [[int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]]
-	for position in goal["possible_final_positions"]:
+		positions = [[int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]]
+	elif goal.get("position") is Dictionary:
+		# The runtime treats goal.position as an extra finish tile, so a
+		# distinct legacy tile is merged in rather than dropped.
+		var legacy_position: Dictionary = goal["position"]
+		var legacy_tile := [int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]
+		var already_listed := false
+		for position in positions:
+			if position is Array and position.size() >= 2 and int(position[0]) == legacy_tile[0] and int(position[1]) == legacy_tile[1]:
+				already_listed = true
+				break
+		if not already_listed:
+			positions.append(legacy_tile)
+	goal["possible_final_positions"] = positions
+	for position in positions:
 		if not (position is Array) or position.size() < 2 or int(position[0]) < 1 or int(position[0]) > cols or int(position[1]) < 1 or int(position[1]) > rows:
 			return {"ok": false, "error": "Goal position is outside the grid."}
+	goal.erase("position")
 	var robot: Dictionary = candidate["robots"][0]
 	if int(robot.get("x", 0)) < 1 or int(robot.get("x", 0)) > cols or int(robot.get("y", 0)) < 1 or int(robot.get("y", 0)) > rows:
 		return {"ok": false, "error": "Robot position is outside the grid."}

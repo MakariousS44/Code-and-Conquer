@@ -3,7 +3,7 @@
   "cols": 6,
   "robots": [{"x": 1, "y": 1, "_orientation": 0, "objects": {"token": 4}}],
   "walls": {},
-  "goal": {"position": {"x": 1, "y": 1, "image": "green_home_tile"}, "objects": {"6,1": {"token": 1}, "6,6": {"token": 1}, "1,6": {"token": 1}, "1,1": {"token": 1}}},
+  "goal": {"possible_final_positions": [[1, 1]], "objects": {"6,1": {"token": 1}, "6,6": {"token": 1}, "1,6": {"token": 1}, "1,1": {"token": 1}}},
   "description": ["You are carrying 4 tokens. Walk the edge of the room and leave one on each corner: (6, 1), (6, 6), (1, 6), and finally your starting tile (1, 1). Every side needs the same steps, so try writing your own function for it."],
   "hint": "One side = move() five times, put_object(), turn_left(). Write those steps once inside walk_side(), then call walk_side() four times, or put the calls in a loop.",
   "editor": {

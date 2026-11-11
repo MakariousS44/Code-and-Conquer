@@ -29,11 +29,7 @@
   },
   "objects": {},
   "goal": {
-    "position": {
-      "x": 9,
-      "y": 8,
-      "image": "green_home_tile"
-    },
+    "possible_final_positions": [[9, 8]],
     "objects": {
       "1,2": {
         "token": 1
