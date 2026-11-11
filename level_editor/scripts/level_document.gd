@@ -49,27 +49,40 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 	# so the editor and newly saved files use the current format.
 	var goal: Dictionary = candidate["goal"]
 	var positions = goal.get("possible_final_positions", [])
-	if not (positions is Array) or positions.is_empty():
-		var legacy_position = goal.get("position", {})
-		if not (legacy_position is Dictionary):
+	var use_legacy_position: bool = not (positions is Array) or positions.is_empty()
+	var normalized_positions: Array = []
+	if use_legacy_position:
+		var legacy_coordinates := _legacy_goal_coordinates(goal)
+		if legacy_coordinates.is_empty():
 			return {"ok": false, "error": "Goal position is invalid."}
-		positions = [[int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]]
-	elif goal.get("position") is Dictionary:
+		if not _coordinates_in_bounds(legacy_coordinates, cols, rows):
+			return {"ok": false, "error": "Goal position is outside the grid."}
+		normalized_positions = [[int(legacy_coordinates[0]), int(legacy_coordinates[1])]]
+	else:
+		for position in positions:
+			var coordinates := _goal_coordinates(position)
+			if coordinates.is_empty():
+				return {"ok": false, "error": "Goal position is invalid."}
+			if not _coordinates_in_bounds(coordinates, cols, rows):
+				return {"ok": false, "error": "Goal position is outside the grid."}
+			normalized_positions.append([int(coordinates[0]), int(coordinates[1])])
+	if not use_legacy_position and goal.get("position") is Dictionary:
 		# The runtime treats goal.position as an extra finish tile, so a
 		# distinct legacy tile is merged in rather than dropped.
-		var legacy_position: Dictionary = goal["position"]
-		var legacy_tile := [int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]
+		var legacy_coordinates := _legacy_goal_coordinates(goal)
+		if legacy_coordinates.is_empty():
+			return {"ok": false, "error": "Goal position is invalid."}
+		if not _coordinates_in_bounds(legacy_coordinates, cols, rows):
+			return {"ok": false, "error": "Goal position is outside the grid."}
+		var legacy_tile := [int(legacy_coordinates[0]), int(legacy_coordinates[1])]
 		var already_listed := false
-		for position in positions:
-			if position is Array and position.size() >= 2 and int(position[0]) == legacy_tile[0] and int(position[1]) == legacy_tile[1]:
+		for position in normalized_positions:
+			if position[0] == legacy_tile[0] and position[1] == legacy_tile[1]:
 				already_listed = true
 				break
 		if not already_listed:
-			positions.append(legacy_tile)
-	goal["possible_final_positions"] = positions
-	for position in positions:
-		if not (position is Array) or position.size() < 2 or int(position[0]) < 1 or int(position[0]) > cols or int(position[1]) < 1 or int(position[1]) > rows:
-			return {"ok": false, "error": "Goal position is outside the grid."}
+			normalized_positions.append(legacy_tile)
+	goal["possible_final_positions"] = normalized_positions
 	goal.erase("position")
 	var robot: Dictionary = candidate["robots"][0]
 	if int(robot.get("x", 0)) < 1 or int(robot.get("x", 0)) > cols or int(robot.get("y", 0)) < 1 or int(robot.get("y", 0)) > rows:
@@ -115,6 +128,37 @@ func resize(cols: int, rows: int) -> void:
 	data["void_tiles"].erase("%d,%d" % [robot.x, robot.y])
 	for position in goal["possible_final_positions"]:
 		data["void_tiles"].erase("%d,%d" % [position[0], position[1]])
+
+
+func _legacy_goal_coordinates(goal: Dictionary) -> Array:
+	var legacy_position = goal.get("position", {})
+	if not (legacy_position is Dictionary):
+		return []
+	return _coordinate_pair(legacy_position.get("x", 0), legacy_position.get("y", 0))
+
+
+func _goal_coordinates(position: Variant) -> Array:
+	if not (position is Array) or position.size() < 2:
+		return []
+	return _coordinate_pair(position[0], position[1])
+
+
+func _coordinate_pair(x: Variant, y: Variant) -> Array:
+	if not _is_grid_coordinate(x) or not _is_grid_coordinate(y):
+		return []
+	return [float(x), float(y)]
+
+
+func _is_grid_coordinate(value: Variant) -> bool:
+	var value_type := typeof(value)
+	if value_type != TYPE_INT and value_type != TYPE_FLOAT:
+		return false
+	var coordinate := float(value)
+	return coordinate == floor(coordinate)
+
+
+func _coordinates_in_bounds(coordinates: Array, cols: int, rows: int) -> bool:
+	return coordinates[0] >= 1.0 and coordinates[0] <= float(cols) and coordinates[1] >= 1.0 and coordinates[1] <= float(rows)
 
 
 func _items_inside_grid(items: Dictionary) -> Dictionary:
