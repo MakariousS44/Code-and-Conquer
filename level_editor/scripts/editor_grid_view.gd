@@ -33,6 +33,8 @@ var zoom_level := 1.0
 var zoom_initialized := false
 var pan_offset := Vector2.ZERO
 var _panning := false
+var _left_button_down := false
+var _left_button_panned := false
 const ROBOT_ICON = preload("res://assets/objects/robot.png")
 const GOAL_ICON = preload("res://assets/objects/goal.png")
 const APPLE_ICON = preload("res://assets/objects/apple.png")
@@ -204,6 +206,8 @@ func reset_pan() -> void:
 func pan_by(delta: Vector2) -> void:
 	if delta == Vector2.ZERO:
 		return
+	if _left_button_down:
+		_left_button_panned = true
 	pan_offset += delta
 	view_changed.emit()
 
@@ -222,6 +226,26 @@ func pan_left() -> void:
 
 func pan_right() -> void:
 	pan_by(Vector2(-PAN_STEP, 0))
+
+
+func begin_map_click() -> void:
+	_left_button_down = true
+	_left_button_panned = false
+
+
+func end_map_click() -> void:
+	if not _left_button_down:
+		return
+	_left_button_down = false
+	var was_panned := _left_button_panned
+	_left_button_panned = false
+	if not was_panned:
+		_apply_tool_at_mouse_position()
+
+
+func _cancel_map_click() -> void:
+	_left_button_down = false
+	_left_button_panned = false
 
 
 func apply_layout(available_size: Vector2, unscaled_grid_size: Vector2) -> void:
@@ -332,9 +356,20 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 
-	if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
+	if event.pressed:
+		if _should_handle_map_click():
+			begin_map_click()
+		else:
+			_cancel_map_click()
+		return
+
+	end_map_click()
+
+
+func _apply_tool_at_mouse_position() -> void:
 	if not _should_handle_map_click():
 		return
 

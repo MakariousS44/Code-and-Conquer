@@ -156,9 +156,18 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
-		if pan_mode and event.button_index == MOUSE_BUTTON_LEFT and event.position.x > SIDEBAR_WIDTH and event.position.x < size.x - TOOLBAR_WIDTH:
-			is_panning = event.pressed
-			get_viewport().set_input_as_handled()
+		if pan_mode and event.button_index == MOUSE_BUTTON_LEFT:
+			var inside_map: bool = event.position.x > SIDEBAR_WIDTH and event.position.x < size.x - TOOLBAR_WIDTH
+			if event.pressed:
+				is_panning = inside_map
+				if inside_map:
+					grid.begin_map_click()
+					get_viewport().set_input_as_handled()
+			elif is_panning:
+				grid.end_map_click()
+				is_panning = false
+				if inside_map:
+					get_viewport().set_input_as_handled()
 			return
 
 	if pan_mode and is_panning and event is InputEventMouseMotion:
