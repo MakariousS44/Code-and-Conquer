@@ -211,6 +211,7 @@ func _on_east_wall_button_pressed() -> void:
 func _select_tool(tool: int, selected_button: Button, tool_name: String) -> void:
 	pan_mode = false
 	is_panning = false
+	grid.suppress_tool_application = false
 	mouse_default_cursor_shape = Control.CURSOR_ARROW
 	grid_clip.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
@@ -226,6 +227,7 @@ func _input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			pan_mode = true
 			is_panning = false
+			grid.suppress_tool_application = true
 			mouse_default_cursor_shape = Control.CURSOR_DRAG
 			grid_clip.mouse_default_cursor_shape = Control.CURSOR_DRAG
 			Input.set_default_cursor_shape(Input.CURSOR_DRAG)

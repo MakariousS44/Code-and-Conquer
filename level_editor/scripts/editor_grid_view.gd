@@ -25,6 +25,7 @@ signal view_changed
 signal objects_changed
 
 var active_tool := Tool.ROBOT
+var suppress_tool_application := false
 
 var document: LevelDocument
 var show_coordinates := false
@@ -243,7 +244,7 @@ func end_map_click() -> void:
 	var was_panned := _left_button_panned
 	_left_button_panned = false
 	_click_start_tile = Vector2i(-1, -1)
-	if not was_panned:
+	if not was_panned and not suppress_tool_application:
 		_apply_tool_at_mouse_position()
 
 
