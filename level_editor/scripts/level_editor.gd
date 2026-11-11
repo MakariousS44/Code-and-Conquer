@@ -275,6 +275,46 @@ func _on_save_button_pressed() -> void:
 	elif document.data.has("limits"):
 		document.data.erase("limits")
 
+	var issues := document.validate_level()
+	if not issues["errors"].is_empty() or not issues["warnings"].is_empty():
+		_show_save_validation_dialog(issues, level_name)
+		return
+
+	_write_level_file(level_name)
+
+
+func _show_save_validation_dialog(issues: Dictionary, level_name: String) -> void:
+	var lines := PackedStringArray()
+	var errors: PackedStringArray = issues["errors"]
+	var warnings: PackedStringArray = issues["warnings"]
+	if not errors.is_empty():
+		lines.append("Errors (the level may not load):")
+		for error in errors:
+			lines.append("  - " + error)
+	if not warnings.is_empty():
+		if not lines.is_empty():
+			lines.append("")
+		lines.append("Warnings:")
+		for warning in warnings:
+			lines.append("  - " + warning)
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Check Level Before Saving"
+	dialog.dialog_text = "\n".join(lines)
+	dialog.ok_button_text = "Save Anyway"
+	dialog.cancel_button_text = "Keep Editing"
+	dialog.confirmed.connect(func() -> void:
+		dialog.queue_free()
+		_write_level_file(level_name)
+	)
+	var cancel := func() -> void:
+		dialog.queue_free()
+	dialog.canceled.connect(cancel)
+	dialog.close_requested.connect(cancel)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _write_level_file(level_name: String) -> void:
 	# Project levels stay in the repository while developing in Godot. Exported games
 	# cannot write to res://, so player-created levels use the writable user:// folder.
 	var folder_path := PROJECT_CUSTOM_LEVELS_DIR if OS.has_feature("editor") else PLAYER_CUSTOM_LEVELS_DIR
