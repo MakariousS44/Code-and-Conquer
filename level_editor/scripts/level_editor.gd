@@ -814,7 +814,7 @@ func _open_goal_objects_dialog() -> void:
 		var goal_objs: Dictionary = document.data["goal"]["objects"]
 		for key in goal_objs:
 			var parts := str(key).split(",")
-			if parts.size() != 2:
+			if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
 				continue
 			var required: Dictionary = goal_objs[key]
 			for obj_name in required:
