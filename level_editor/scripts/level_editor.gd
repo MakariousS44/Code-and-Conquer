@@ -10,6 +10,8 @@ var pan_mode := false
 var is_panning := false
 var _carry_requirements_dialog: ConfirmationDialog = null
 var _carry_requirement_rows := {}
+var _saved_signature := ""
+var _auto_accept_quit_before := true
 
 @onready var grid: EditorGridView = $GridClip/EditorGrid as EditorGridView
 @onready var grid_clip: Control = $GridClip
@@ -68,7 +70,7 @@ func _ready() -> void:
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
 	new_button.pressed.connect(_on_new_button_pressed)
 	resize_button.pressed.connect(_on_resize_button_pressed)
-	back_button.pressed.connect(_on_back_button_pressed)
+	back_button.pressed.connect(_request_exit)
 	level_name_input.text_changed.connect(_on_level_name_changed)
 	_update_save_button_availability()
 	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
@@ -80,6 +82,69 @@ func _ready() -> void:
 	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
 	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
 	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
+
+	_auto_accept_quit_before = get_tree().auto_accept_quit
+	get_tree().set_auto_accept_quit(false)
+	_saved_signature = _current_signature()
+
+
+func _exit_tree() -> void:
+	get_tree().set_auto_accept_quit(_auto_accept_quit_before)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_node_ready():
+		if _has_unsaved_changes():
+			_show_exit_confirmation(get_tree().quit)
+		else:
+			get_tree().quit()
+
+
+## JSON of the level exactly as Save would write it, including sidebar fields.
+func _current_signature() -> String:
+	_sync_auto_carry_requirements()
+	var state: Dictionary = document.data.duplicate(true)
+	state["name"] = level_name_input.text.strip_edges()
+	state["description"] = [description_input.text]
+	var limits := {}
+	if not move_limit_default_checkbox.button_pressed:
+		limits["move_limit"] = int(move_limit_input.value)
+	if not cmd_limit_default_checkbox.button_pressed:
+		limits["cmd_limit"] = int(cmd_limit_input.value)
+	if not time_limit_default_checkbox.button_pressed:
+		limits["time_limit_seconds"] = float(time_limit_input.value)
+	if not limits.is_empty():
+		state["limits"] = limits
+	elif state.has("limits"):
+		state.erase("limits")
+	return JSON.stringify(state)
+
+
+func _has_unsaved_changes() -> bool:
+	return _current_signature() != _saved_signature
+
+
+func _request_exit() -> void:
+	if _has_unsaved_changes():
+		_show_exit_confirmation(_on_back_button_pressed)
+	else:
+		_on_back_button_pressed()
+
+
+func _show_exit_confirmation(on_confirm: Callable) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Unsaved Changes"
+	dialog.dialog_text = "You have unsaved changes. Leave without saving?"
+	dialog.ok_button_text = "Leave Without Saving"
+	dialog.cancel_button_text = "Keep Editing"
+	dialog.confirmed.connect(func() -> void:
+		dialog.queue_free()
+		on_confirm.call()
+	)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
 
 
 func _arrange_sidebar() -> void:
@@ -240,6 +305,7 @@ func _on_save_button_pressed() -> void:
 	save_button.text = "Saved!"
 	status_label.text = "Saved: %s" % level_name
 	print("Level saved to: ", ProjectSettings.globalize_path(save_path))
+	_saved_signature = _current_signature()
 
 
 func _on_level_name_changed(_new_name: String) -> void:
@@ -307,6 +373,7 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		grid.set_document(document)
 		grid.reset_pan()
 		_layout_grid()
+		_saved_signature = _current_signature()
 	else:
 		status_label.text = "Could not load level: invalid JSON."
 	dialog.queue_free()
@@ -367,7 +434,8 @@ func _on_new_button_pressed() -> void:
 	cmd_limit_input.value = 0
 	time_limit_input.value = 0
 	save_button.text = "Save Level"
-	
+	_saved_signature = _current_signature()
+
 func _on_resize_button_pressed() -> void:
 	var cols := int(columns_input.value)
 	var rows := int(rows_input.value)
@@ -711,4 +779,4 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	get_viewport().set_input_as_handled()
-	_on_back_button_pressed()
+	_request_exit()
