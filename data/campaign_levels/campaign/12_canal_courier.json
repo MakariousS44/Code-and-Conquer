@@ -40,11 +40,7 @@
     "8,6": {"token": 4}
   },
   "goal": {
-    "position": {
-      "x": 8,
-      "y": 2,
-      "image": "green_home_tile"
-    },
+    "possible_final_positions": [[8, 2]],
     "objects": {
       "8,2": {
         "token": 6
