@@ -110,7 +110,12 @@ var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
+<<<<<<< Updated upstream
 var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit"
+=======
+var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit" | "cmd_limit" | "time_limit" | "done"
+var _check_requires_reset := false
+>>>>>>> Stashed changes
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
 const MOVE_LIMIT := 999
 const CMD_LIMIT := 9999
@@ -179,12 +184,175 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_load_level_scene(true)
 
+<<<<<<< Updated upstream
+=======
+func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
+	var background_compiler = preload(Paths.CPP_DRIVER).new()
+
+	background_compiler.prepare_build_files(
+		source,
+		0,
+		"",
+		build_dir,
+		"\\\\.\\pipe\\CodeAndConquer-check"
+	)
+
+	return background_compiler.compile_program()
+
+func _finish_cpp_check(source: String, line_offset: int) -> void:
+	while _compile_thread.is_alive():
+		await get_tree().process_frame
+
+	var build: Dictionary = _compile_thread.wait_to_finish()
+	_compile_thread = null
+
+	check_button.disabled = false
+	editor.editable = true
+	language_selector.disabled = false
+
+	if not build.ok:
+		log_error(compiler.remap_diagnostics(build.output, line_offset))
+		_set_status("Compile failed", "error")
+		return
+
+	checked_code = source
+	has_checked_code = true
+	checked_cpp_executable = ProjectSettings.globalize_path("user://checked_build").path_join("student_program.exe")
+	checked_cpp_line_offset = line_offset
+	run_button.disabled = false
+	_set_status("C++ compiled successfully — ready to run.", "")
+	log_line("C++ code unchanged — previous build reused." if build.get("cached", false) else "C++ compilation passed.")
+
+func _setup_campaign_ui() -> void:
+	campaign_panel = VBoxContainer.new()
+	campaign_panel.add_theme_constant_override("separation", 6)
+	var column := $RootMargin/MainColumn
+	column.add_child(campaign_panel)
+	column.move_child(campaign_panel, 1)
+	campaign_instructions = Label.new()
+	campaign_instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_instructions.add_theme_font_size_override("font_size", 20)
+	campaign_panel.add_child(campaign_instructions)
+	campaign_limits = Label.new()
+	campaign_limits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_limits.add_theme_font_size_override("font_size", 16)
+	campaign_limits.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_limits)
+	campaign_hint_button = Button.new()
+	campaign_hint_button.text = "Show Hint"
+	campaign_hint_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
+	campaign_hint_button.pressed.connect(func():
+		campaign_hint.visible = not campaign_hint.visible
+		campaign_hint_button.text = "Hide Hint" if campaign_hint.visible else "Show Hint")
+	campaign_panel.add_child(campaign_hint_button)
+	campaign_hint = Label.new()
+	campaign_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_hint.add_theme_font_size_override("font_size", 18)
+	campaign_hint.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_hint)
+	campaign_next_button = Button.new()
+	campaign_next_button.text = "Next Level"
+	campaign_next_button.custom_minimum_size.y = 36
+	campaign_next_button.pressed.connect(_on_win_next)
+	var buttons := $WinOverlay/WinCard/WinContent/WinButtons
+	buttons.add_child(campaign_next_button)
+	buttons.move_child(campaign_next_button, 0)
+	campaign_next_button.hide()
+
+
+func _apply_saved_preferences() -> void:
+	var font_sizes := [14, 18, 24]
+	var font_index := clampi(int(_saved_setting("editor", "font_size", 1)), 0, font_sizes.size() - 1)
+	_on_font_size_changed(font_sizes[font_index])
+
+	var language_setting := int(_saved_setting("editor", "default_language", 0))
+	language_selector.select(1 if language_setting == 0 else 0)
+	_on_language_changed(language_selector.selected)
+
+
+	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
+	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
+
+	var use_light_theme := int(_saved_setting("editor", "theme", 0)) == 1
+	if use_light_theme:
+		editor.add_theme_color_override("background_color", Color("#f2f4f8"))
+		editor.add_theme_color_override("font_color", Color("#1b2430"))
+
+	var hints_enabled := bool(_saved_setting("learning", "beginner_hints", true))
+	if campaign_hint_button != null:
+		campaign_hint_button.visible = hints_enabled
+
+
+func _saved_setting(section: String, key: String, fallback):
+	var config := ConfigFile.new()
+	if config.load("user://settings.cfg") == OK:
+		return config.get_value(section, key, fallback)
+	return fallback
+
+
+func _refresh_campaign_instructions() -> void:
+	var index := Campaign.index_for_path(SelectedLevel.path)
+	# The same instruction panel is useful for player-created levels too.
+	campaign_panel.visible = true
+	campaign_hint.hide()
+	campaign_hint_button.text = "Show Hint"
+	_show_level_limits(_time_limit_seconds)
+	if index < 0:
+		var custom_name := str(current_level_definition.get("name", "Custom Level"))
+		var custom_description := PackedStringArray(current_level_definition.get("description", []))
+		campaign_instructions.text = "%s\n%s" % [custom_name, " ".join(custom_description)]
+		campaign_hint_button.hide()
+		campaign_hint.text = ""
+		return
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
+	var description := PackedStringArray(current_level_definition.get("description", []))
+	campaign_instructions.text = "Level %d / %d - %s\n%s" % [index + 1, Campaign.LEVELS.size(), Campaign.LEVELS[index].title, " ".join(description)]
+	campaign_hint.text = current_level_definition.get("hint", "")
+
+
+func _format_duration(seconds: float) -> String:
+	var total_seconds := maxi(0, ceili(seconds))
+	return "%d:%02d" % [total_seconds / 60, total_seconds % 60]
+
+
+func _format_count_detail(limit: int, used: int) -> String:
+	if limit <= 0:
+		return "Unlimited (used: %d)" % used
+	return "%d (used: %d, remaining: %d)" % [limit, used, maxi(0, limit - used)]
+
+
+func _format_time_detail(remaining_seconds: float) -> String:
+	if _time_limit_seconds <= 0.0:
+		return "Unlimited (used: %s)" % _format_duration(_program_time_elapsed)
+	# Round remaining up first, then derive used from the rounded values so the
+	# displayed used + remaining always equals the displayed limit.
+	var limit := ceili(_time_limit_seconds)
+	var remaining := ceili(maxf(0.0, remaining_seconds))
+	var used := maxi(0, limit - remaining)
+	return "%s (used: %s, remaining: %s)" % [
+		_format_duration(limit),
+		_format_duration(used),
+		_format_duration(remaining)
+	]
+
+>>>>>>> Stashed changes
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
 	var saved_camera_state: Dictionary = {}
 	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
 		saved_camera_state = game_instance.get_camera_state()
 
+<<<<<<< Updated upstream
+=======
+	# A freshly loaded level is a fresh run: clear any win/lose/done state
+	# left over from the previous level so the next victory is handled.
+	_run_outcome = "incomplete"
+	_run_had_error = false
+	_check_requires_reset = false
+	check_button.disabled = _compile_thread != null
+
+>>>>>>> Stashed changes
 	# clear out any existing level scene from the viewport
 	for child in game_subviewport.get_children():
 		child.queue_free()
@@ -646,6 +814,7 @@ const LOSE_MESSAGES := [
 ]
 
 func _set_controls_disabled(disabled: bool) -> void:
+	check_button.disabled = disabled or _check_requires_reset or _compile_thread != null
 	run_button.disabled = disabled
 	prev_button.disabled = disabled
 	step_button.disabled = disabled
@@ -755,6 +924,9 @@ func _on_go_to_menu() -> void:
 # === pipeline execution ===
 
 func _stop_execution() -> void:
+	if _ipc_active or _is_handling_lose or _run_outcome != "incomplete":
+		_check_requires_reset = true
+		check_button.disabled = true
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
@@ -854,6 +1026,7 @@ func _run_pipeline() -> void:
 		return
 
 	_ipc_active = true
+	check_button.disabled = true
 	_paused = start_paused
 	log_header("executing")
 
@@ -1461,3 +1634,91 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 
 func _on_player_facing_changed(facing_index: int) -> void:
 	compass.texture = COMPASS_TEXTURES[facing_index]
+<<<<<<< Updated upstream
+=======
+
+
+func _on_editor_text_changed() -> void:
+	has_checked_code = false
+	if not _ipc_active:
+		run_button.disabled = true
+	checked_cpp_executable = ""
+
+func _on_check_button_pressed() -> void:
+	if _check_requires_reset:
+		_set_status("Reset the level before checking code again.", "error")
+		return
+	if check_button.disabled:
+		return
+	if _ipc_active:
+		_set_status("Stop the current program before checking code.", "error")
+		return
+
+	var source := editor.text
+
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
+		output_box.clear()
+		log_error("Source code is too large. Maximum size is 100,000 characters.")
+		_set_status("Check failed", "error")
+		return
+
+	output_box.clear()
+	log_header("check code")
+
+	# Python: validate only.
+	if current_language == Language.PYTHON:
+		var python_validation: Dictionary = py_pipeline.validate(source)
+		if not python_validation.ok:
+			for err in python_validation.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Check failed", "error")
+			return
+
+		checked_code = source
+		has_checked_code = true
+		run_button.disabled = false
+		_set_status("Python code is valid — ready to run.", "")
+		log_line("Python validation passed.")
+		return
+
+	# C++: validate first.
+	var cpp_validation: Dictionary = validator.validate(source)
+	if not cpp_validation.ok:
+		for err in cpp_validation.errors:
+			log_error("line %d: %s" % [err.line, err.message])
+		_set_status("Check failed", "error")
+		return
+
+	# Compiler detection and compilation run on the background thread.
+	if _compile_thread != null:
+		return
+
+	var generated: Dictionary = generator.generate(source)
+	var check_build_dir := ProjectSettings.globalize_path("user://checked_build")
+
+	check_button.disabled = true
+	run_button.disabled = true
+	editor.editable = false
+	language_selector.disabled = true
+	_set_status("Compiling C++...", "")
+
+	_compile_thread = Thread.new()
+
+	var thread_error := _compile_thread.start(
+		_compile_cpp_in_background.bind(
+			generated.generated_source,
+			check_build_dir
+		)
+	)
+
+	if thread_error != OK:
+		_compile_thread = null
+		check_button.disabled = false
+		editor.editable = true
+		language_selector.disabled = false
+		log_error("Could not start the C++ compiler thread.")
+		_set_status("Compile failed", "error")
+		return
+
+	await _finish_cpp_check(source, generated.line_offset)
+>>>>>>> Stashed changes
