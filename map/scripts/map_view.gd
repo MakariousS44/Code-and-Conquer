@@ -831,39 +831,12 @@ func check_win_condition(gx: int, gy: int) -> void:
 	level_complete.emit()
 
 
-## Returns how many objects must still be carried at the finish.
-## `require_carry_object` is supported for levels created before carry modes existed.
+## Returns the minimum number of each object that must be carried at the finish.
+## `require_carry` is a Dictionary of {object_name: count}.
 func _get_carry_requirement() -> Dictionary:
 	if not level_data.has("goal"):
 		return {}
-	var goal: Dictionary = level_data["goal"]
-	if goal.has("require_carry_object"):
-		var legacy_object := str(goal["require_carry_object"])
-		return {legacy_object: 1} if not legacy_object.is_empty() else {}
-
-	var mode := str(goal.get("require_carry", "none"))
-	if mode == "none":
-		return {}
-	if mode == "apple":
-		return {"apple": 1}
-	if mode == "token":
-		return {"token": 1}
-
-	var required: Dictionary = {}
-	for tile_objects in level_data.get("objects", {}).values():
-		if not (tile_objects is Dictionary):
-			continue
-		for object_name in tile_objects:
-			if mode == "all_apples" and object_name != "apple":
-				continue
-			if mode == "all_tokens" and object_name != "token":
-				continue
-			if mode == "all_apples_and_tokens" and object_name != "apple" and object_name != "token":
-				continue
-			if mode != "all_apples" and mode != "all_tokens" and mode != "all_apples_and_tokens":
-				continue
-			required[object_name] = int(required.get(object_name, 0)) + int(tile_objects[object_name])
-	return required
+	return preload("res://map/scripts/carry_requirements.gd").normalize(level_data["goal"].get("require_carry", {}))
 
 
 # === objects ===

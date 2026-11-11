@@ -124,7 +124,9 @@
       "x": 7,
       "y": 9
     },
-    "require_carry_object": "token"
+    "require_carry": {
+      "token": 1
+    }
   },
     "limits": {
       "time_limit_seconds": 120
