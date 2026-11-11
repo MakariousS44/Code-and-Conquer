@@ -68,7 +68,7 @@ func _ready() -> void:
 	token_button.pressed.connect(_on_token_button_pressed)
 	erase_button.pressed.connect(_on_erase_button_pressed)
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
-	new_button.pressed.connect(_on_new_button_pressed)
+	new_button.pressed.connect(_request_new_level)
 	resize_button.pressed.connect(_on_resize_button_pressed)
 	back_button.pressed.connect(_request_exit)
 	level_name_input.text_changed.connect(_on_level_name_changed)
@@ -95,7 +95,7 @@ func _exit_tree() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_node_ready():
 		if _has_unsaved_changes():
-			_show_exit_confirmation(get_tree().quit)
+			_show_unsaved_changes_dialog("You have unsaved changes. Close without saving?", get_tree().quit)
 		else:
 			get_tree().quit()
 
@@ -126,23 +126,34 @@ func _has_unsaved_changes() -> bool:
 
 func _request_exit() -> void:
 	if _has_unsaved_changes():
-		_show_exit_confirmation(_on_back_button_pressed)
+		_show_unsaved_changes_dialog("You have unsaved changes. Leave without saving?", _on_back_button_pressed)
 	else:
 		_on_back_button_pressed()
 
 
-func _show_exit_confirmation(on_confirm: Callable) -> void:
+func _request_new_level() -> void:
+	if _has_unsaved_changes():
+		_show_unsaved_changes_dialog("You have unsaved changes. Start a new level and discard them?", _on_new_button_pressed)
+	else:
+		_on_new_button_pressed()
+
+
+func _show_unsaved_changes_dialog(message: String, on_confirm: Callable, on_cancel: Callable = Callable()) -> void:
 	var dialog := ConfirmationDialog.new()
 	dialog.title = "Unsaved Changes"
-	dialog.dialog_text = "You have unsaved changes. Leave without saving?"
-	dialog.ok_button_text = "Leave Without Saving"
+	dialog.dialog_text = message
+	dialog.ok_button_text = "Discard Changes"
 	dialog.cancel_button_text = "Keep Editing"
 	dialog.confirmed.connect(func() -> void:
 		dialog.queue_free()
 		on_confirm.call()
 	)
-	dialog.canceled.connect(dialog.queue_free)
-	dialog.close_requested.connect(dialog.queue_free)
+	var cancel := func() -> void:
+		dialog.queue_free()
+		if on_cancel.is_valid():
+			on_cancel.call()
+	dialog.canceled.connect(cancel)
+	dialog.close_requested.connect(cancel)
 	add_child(dialog)
 	dialog.popup_centered()
 
@@ -330,6 +341,13 @@ func _on_load_button_pressed() -> void:
 
 
 func _load_level_from_path(path: String, dialog: FileDialog) -> void:
+	if _has_unsaved_changes():
+		_show_unsaved_changes_dialog("You have unsaved changes. Load this level and discard them?", func() -> void: _apply_level_load(path, dialog), dialog.queue_free)
+		return
+	_apply_level_load(path, dialog)
+
+
+func _apply_level_load(path: String, dialog: FileDialog) -> void:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		dialog.queue_free()
