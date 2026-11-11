@@ -271,22 +271,35 @@ func validate_level() -> Dictionary:
 		elif not (editor_value is String) and not (editor_value is Array):
 			errors.append("Starter code must be an object with 'cpp' and 'python' entries.")
 
-	# --- solvability warnings that do not need reachability ---
-	for object_name in required_carry:
-		var needed := int(required_carry[object_name])
-		var available := int(placed_totals.get(object_name, 0)) + int(inventory.get(object_name, 0))
-		if needed > available:
-			warnings.append("Carry requirement needs %d %s but only %d are available (map + starting inventory)." % [needed, object_name, available])
+	# Objects already sitting on a goal tile count toward its requirement, so
+	# only the remainder has to be carried there by the robot.
+	var goal_deliveries := {}
 	for key in goal_objects:
-		var required: Dictionary = goal_objects[key]
-		for object_name in required:
-			var name := str(object_name)
-			if not _is_positive_int(required[object_name]):
+		if not (goal_objects[key] is Dictionary):
+			continue
+		var placed_here = objects.get(key, {})
+		if not (placed_here is Dictionary):
+			placed_here = {}
+		for object_name in goal_objects[key]:
+			if not _is_positive_int(goal_objects[key][object_name]):
 				continue
-			var count := int(required[object_name])
-			var available := int(placed_totals.get(name, 0)) + int(inventory.get(name, 0))
-			if count > available:
-				warnings.append("Goal at %s requires %d %s but only %d exist (map + starting inventory)." % [key, count, name, available])
+			var name := str(object_name)
+			var still_needed := int(goal_objects[key][object_name]) - int(placed_here.get(name, 0))
+			if still_needed > 0:
+				goal_deliveries[name] = int(goal_deliveries.get(name, 0)) + still_needed
+
+	# Carry-at-finish and goal-tile deliveries draw from the same pool: an
+	# object placed on a goal tile is no longer carried, so the demands add up.
+	var demand_names := {}
+	for name in required_carry:
+		demand_names[name] = true
+	for name in goal_deliveries:
+		demand_names[name] = true
+	for name in demand_names:
+		var demand := int(required_carry.get(name, 0)) + int(goal_deliveries.get(name, 0))
+		var available := int(placed_totals.get(name, 0)) + int(inventory.get(name, 0))
+		if demand > available:
+			warnings.append("Level needs %d %s but only %d are available (map + starting inventory)." % [demand, name, available])
 
 	# --- reachability warnings ---
 	if size_ok and robot_position_ok:
@@ -316,28 +329,12 @@ func validate_level() -> Dictionary:
 			if not reachable.has(Vector2i(gx, gy)):
 				warnings.append("Goal object tile %s is unreachable." % key)
 
-		# Objects the robot must pick up: carry demand and goal-tile deliveries
-		# not already covered by the starting inventory.
-		var goal_deliveries := {}
-		for key in goal_objects:
-			if not (goal_objects[key] is Dictionary):
-				continue
-			var placed_here = objects.get(key, {})
-			if not (placed_here is Dictionary):
-				placed_here = {}
-			for object_name in goal_objects[key]:
-				if not _is_positive_int(goal_objects[key][object_name]):
-					continue
-				var name := str(object_name)
-				var still_needed := int(goal_objects[key][object_name]) - int(placed_here.get(name, 0))
-				if still_needed > 0:
-					goal_deliveries[name] = int(goal_deliveries.get(name, 0)) + still_needed
+		# Objects the robot must pick up: combined carry + delivery demand not
+		# already covered by the starting inventory.
 		var needed_names := {}
-		for name in required_carry:
-			if int(required_carry[name]) > int(inventory.get(name, 0)):
-				needed_names[name] = true
-		for name in goal_deliveries:
-			if int(goal_deliveries[name]) > int(inventory.get(name, 0)):
+		for name in demand_names:
+			var demand := int(required_carry.get(name, 0)) + int(goal_deliveries.get(name, 0))
+			if demand > int(inventory.get(name, 0)):
 				needed_names[name] = true
 		if not needed_names.is_empty():
 			for key in objects:
