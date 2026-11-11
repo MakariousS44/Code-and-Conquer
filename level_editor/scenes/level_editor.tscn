@@ -332,23 +332,10 @@ text = "Set Goal Objects"
 layout_mode = 2
 text = "CARRY REQUIREMENT"
 
-[node name="GoalCarrySelector" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+[node name="CarryRequirementsButton" type="Button" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
-item_count = 6
-selected = 0
-popup/item_0/text = "None"
-popup/item_0/id = 0
-popup/item_1/text = "Token"
-popup/item_1/id = 1
-popup/item_2/text = "Apple"
-popup/item_2/id = 2
-popup/item_3/text = "All Apples"
-popup/item_3/id = 3
-popup/item_4/text = "All Tokens"
-popup/item_4/id = 4
-popup/item_5/text = "All Apples and Tokens"
-popup/item_5/id = 5
+text = "Set Carry Requirements"
 
 [node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2

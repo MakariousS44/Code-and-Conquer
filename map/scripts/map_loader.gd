@@ -60,6 +60,9 @@ func load(path: String) -> Dictionary:
 	var void_error := preload("res://map/scripts/void_tiles.gd").validate(data)
 	if not void_error.is_empty():
 		return {"ok": false, "error": void_error}
+	var carry_error := preload("res://map/scripts/carry_requirements.gd").validate(data)
+	if not carry_error.is_empty():
+		return {"ok": false, "error": carry_error}
 	return {
 		"ok": true,
 		"definition": data
