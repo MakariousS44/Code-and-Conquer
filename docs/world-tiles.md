@@ -63,6 +63,10 @@ In the level JSON this is stored as a count map:
 }
 ```
 
+Counts must be non-negative integers and object names are simple identifiers
+(letters, digits, `_`, `-`); levels with malformed carry requirements are
+rejected on load.
+
 ### Visual Feedback
 
 Goal object requirements are displayed as outlined markers on the grid. Unsatisfied requirements show in white, while satisfied requirements turn green when the required objects are placed.

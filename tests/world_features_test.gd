@@ -56,6 +56,41 @@ func run_tests() -> void:
 	check(restored.data == before, "Failed load must preserve editor document")
 	restored.resize(1, 1)
 	check(restored.data.void_tiles.is_empty(), "Resize must discard out-of-bounds voids")
+
+	# Carry requirements dialog lists placed and starting-inventory types,
+	# allows counts above 99, and frees itself when closed.
+	doc.data["objects"] = {"1,2": {"token": 150}}
+	doc.data["robots"][0]["objects"] = {"gem": 2}
+	level_editor._open_carry_requirements_dialog()
+	var carry_dialog: Window = null
+	for child in level_editor.get_children():
+		if child is ConfirmationDialog and child.title == "Carry Requirements":
+			carry_dialog = child
+	check(carry_dialog != null, "Carry requirements dialog must open")
+	if carry_dialog != null:
+		var found_token := false
+		var found_gem := false
+		var max_ok := true
+		for node in carry_dialog.find_children("*", "Label", true, false):
+			found_token = found_token or node.text == "Token"
+			found_gem = found_gem or node.text == "Gem"
+		for node in carry_dialog.find_children("*", "SpinBox", true, false):
+			max_ok = max_ok and node.max_value >= 150
+		check(found_token and found_gem, "Dialog must list placed and starting-inventory object types")
+		check(max_ok, "Carry count spinboxes must allow totals above 99")
+		carry_dialog.canceled.emit()
+		check(carry_dialog.is_queued_for_deletion(), "Closing the carry dialog must free it")
+
+	level_editor._open_goal_objects_dialog()
+	var goal_dialog: Window = null
+	for child in level_editor.get_children():
+		if child is AcceptDialog and child.title == "Set Goal Objects":
+			goal_dialog = child
+	check(goal_dialog != null, "Goal objects dialog must open")
+	if goal_dialog != null:
+		goal_dialog.canceled.emit()
+		check(goal_dialog.is_queued_for_deletion(), "Closing the goal objects dialog must free it")
+
 	await capture("level-editor-updated.png")
 	level_editor.queue_free()
 	await process_frame
@@ -79,8 +114,19 @@ func run_tests() -> void:
 	carry_world.player.carried_object = {"apple": 3, "token": 1}
 	carry_world.check_win_condition(3, 3)
 	check(carry_outcome.won, "Carrying more than the minimum must still win")
+	carry_world.level_data["goal"]["require_carry"] = {"apple": "lots", "token": 1, "[b]x": 2, "coin": 1.5}
+	check(carry_world._get_carry_requirement() == {"token": 1}, "Malformed carry entries must be ignored")
 	carry_world.level_data["goal"]["require_carry"] = "all_tokens"
 	check(carry_world._get_carry_requirement().is_empty(), "Non-dictionary carry requirements must be ignored")
+	var carry_rules = load("res://map/scripts/carry_requirements.gd")
+	check(carry_rules.validate({"goal": {"require_carry": {"apple": 2, "token": 1}}}).is_empty(), "Valid carry requirements must pass validation")
+	check(not carry_rules.validate({"goal": {"require_carry": "all_tokens"}}).is_empty(), "String carry requirements must be rejected")
+	check(not carry_rules.validate({"goal": {"require_carry": {"apple": "lots"}}}).is_empty(), "Non-integer counts must be rejected")
+	check(not carry_rules.validate({"goal": {"require_carry": {"apple": 1.5}}}).is_empty(), "Fractional counts must be rejected")
+	check(not carry_rules.validate({"goal": {"require_carry": {"[b]x": 1}}}).is_empty(), "Markup object names must be rejected")
+	var bad_carry_level: Dictionary = doc.data.duplicate(true)
+	bad_carry_level["goal"]["require_carry"] = {"apple": "lots"}
+	check(not restored.load_level(bad_carry_level).ok, "Level editor must reject malformed carry requirements")
 	carry_world.queue_free()
 	await process_frame
 

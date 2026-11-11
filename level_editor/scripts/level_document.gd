@@ -60,9 +60,9 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 	if int(robot.get("x", 0)) < 1 or int(robot.get("x", 0)) > cols or int(robot.get("y", 0)) < 1 or int(robot.get("y", 0)) > rows:
 		return {"ok": false, "error": "Robot position is outside the grid."}
 	goal["objects"] = goal.get("objects", {}) if goal.get("objects", {}) is Dictionary else {}
-	var carry = goal.get("require_carry", {})
-	if not (carry is Dictionary):
-		return {"ok": false, "error": "Goal carry requirement is invalid."}
+	var carry_error := preload("res://map/scripts/carry_requirements.gd").validate(candidate)
+	if not carry_error.is_empty():
+		return {"ok": false, "error": carry_error}
 	candidate["goal"] = goal
 	if not candidate.has("objects"):
 		candidate["objects"] = {}

@@ -361,15 +361,7 @@ func _placed_object_totals() -> Dictionary:
 ## The carry requirement as {object_name: minimum count}.
 func _normalized_carry_requirement() -> Dictionary:
 	var goal: Dictionary = document.data.get("goal", {})
-	var carry = goal.get("require_carry", {})
-	if not (carry is Dictionary):
-		return {}
-	var required := {}
-	for object_name in carry:
-		var count := int(carry[object_name])
-		if count > 0:
-			required[str(object_name)] = count
-	return required
+	return preload("res://map/scripts/carry_requirements.gd").normalize(goal.get("require_carry", {}))
 
 
 func _open_carry_requirements_dialog() -> void:
@@ -385,9 +377,17 @@ func _open_carry_requirements_dialog() -> void:
 	vbox.add_child(instruction)
 
 	var requirement := _normalized_carry_requirement()
+	var carry_rules = preload("res://map/scripts/carry_requirements.gd")
 	var types := {}
 	for object_name in _placed_object_totals():
-		types[object_name] = true
+		if carry_rules.is_valid_object_name(str(object_name)):
+			types[str(object_name)] = true
+	var robots: Array = document.data.get("robots", [])
+	var robot: Dictionary = robots[0] if not robots.is_empty() and robots[0] is Dictionary else {}
+	for object_name in robot.get("objects", {}):
+		var name := str(object_name)
+		if carry_rules.is_valid_object_name(name):
+			types[name] = true
 	for object_name in requirement:
 		types[object_name] = true
 
@@ -402,7 +402,7 @@ func _open_carry_requirements_dialog() -> void:
 		row.add_child(label)
 		var spin := SpinBox.new()
 		spin.min_value = 0
-		spin.max_value = 99
+		spin.max_value = 9999
 		spin.step = 1
 		spin.value = int(requirement.get(object_name, 0))
 		row.add_child(spin)
@@ -421,6 +421,9 @@ func _open_carry_requirements_dialog() -> void:
 	vbox.add_child(fill_button)
 
 	dialog.confirmed.connect(_apply_carry_requirements.bind(spinboxes))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
 	add_child(dialog)
 	dialog.popup_centered()
 
@@ -473,6 +476,9 @@ func _open_goal_objects_dialog() -> void:
 	vbox.add_child(input)
 	
 	dialog.confirmed.connect(_apply_goal_objects.bind(input))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
 	add_child(dialog)
 	dialog.popup_centered()
 

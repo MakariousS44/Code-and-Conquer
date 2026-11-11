@@ -836,16 +836,7 @@ func check_win_condition(gx: int, gy: int) -> void:
 func _get_carry_requirement() -> Dictionary:
 	if not level_data.has("goal"):
 		return {}
-	var goal: Dictionary = level_data["goal"]
-	var carry = goal.get("require_carry", {})
-	if not (carry is Dictionary):
-		return {}
-	var required := {}
-	for object_name in carry:
-		var count := int(carry[object_name])
-		if count > 0:
-			required[str(object_name)] = count
-	return required
+	return preload("res://map/scripts/carry_requirements.gd").normalize(level_data["goal"].get("require_carry", {}))
 
 
 # === objects ===
