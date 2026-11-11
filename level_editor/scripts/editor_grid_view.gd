@@ -36,6 +36,7 @@ var pan_offset := Vector2.ZERO
 var _panning := false
 var _left_button_down := false
 var _left_button_panned := false
+var _click_start_tile := Vector2i(-1, -1)
 const ROBOT_ICON = preload("res://assets/objects/robot.png")
 const GOAL_ICON = preload("res://assets/objects/goal.png")
 const APPLE_ICON = preload("res://assets/objects/apple.png")
@@ -232,6 +233,7 @@ func pan_right() -> void:
 func begin_map_click() -> void:
 	_left_button_down = true
 	_left_button_panned = false
+	_click_start_tile = _tile_at_local_mouse()
 
 
 func end_map_click() -> void:
@@ -240,6 +242,7 @@ func end_map_click() -> void:
 	_left_button_down = false
 	var was_panned := _left_button_panned
 	_left_button_panned = false
+	_click_start_tile = Vector2i(-1, -1)
 	if not was_panned:
 		_apply_tool_at_mouse_position()
 
@@ -247,6 +250,7 @@ func end_map_click() -> void:
 func _cancel_map_click() -> void:
 	_left_button_down = false
 	_left_button_panned = false
+	_click_start_tile = Vector2i(-1, -1)
 
 
 func apply_layout(available_size: Vector2, unscaled_grid_size: Vector2) -> void:
@@ -326,13 +330,17 @@ func _input(event: InputEvent) -> void:
 	if document == null:
 		return
 
-	if event is InputEventMouseMotion and _panning:
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
-			_panning = false
+	if event is InputEventMouseMotion:
+		if _panning:
+			if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+				_panning = false
+				return
+			pan_by((event as InputEventMouseMotion).relative)
+			get_viewport().set_input_as_handled()
 			return
-		pan_by((event as InputEventMouseMotion).relative)
-		get_viewport().set_input_as_handled()
-		return
+		if _left_button_down and not _left_button_panned and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			if _tile_at_local_mouse() != _click_start_tile:
+				_left_button_panned = true
 
 	if not (event is InputEventMouseButton):
 		return
@@ -370,24 +378,33 @@ func _input(event: InputEvent) -> void:
 	end_map_click()
 
 
-func _apply_tool_at_mouse_position() -> void:
-	if not _should_handle_map_click():
-		return
-
+func _tile_at_local_mouse() -> Vector2i:
+	if document == null:
+		return Vector2i(-1, -1)
 	var mouse_position := get_local_mouse_position()
 	var cols := int(document.data["cols"])
 	var rows := int(document.data["rows"])
 
 	if mouse_position.x < 0 or mouse_position.y < 0:
-		return
+		return Vector2i(-1, -1)
 
 	var gx := int(mouse_position.x / CELL_SIZE) + 1
 	var gy := rows - int(mouse_position.y / CELL_SIZE)
 
 	if gx < 1 or gx > cols or gy < 1 or gy > rows:
+		return Vector2i(-1, -1)
+	return Vector2i(gx, gy)
+
+
+func _apply_tool_at_mouse_position() -> void:
+	if not _should_handle_map_click():
 		return
 
-	apply_tool(gx, gy)
+	var tile := _tile_at_local_mouse()
+	if tile.x < 0:
+		return
+
+	apply_tool(tile.x, tile.y)
 
 
 func apply_tool(gx: int, gy: int) -> void:
