@@ -21,6 +21,9 @@ var _auto_accept_quit_before := true
 @onready var east_wall_button: Button = $RightToolbar/WallsGrid/EastWallButton
 @onready var load_button: Button = $SidebarScroll/VBoxContainer/LoadButton
 @onready var description_input: TextEdit = $SidebarScroll/VBoxContainer/DescriptionInput
+@onready var hint_input: LineEdit = $SidebarScroll/VBoxContainer/HintInput
+@onready var facing_input: OptionButton = $SidebarScroll/VBoxContainer/FacingInput
+@onready var starter_code_button: Button = $SidebarScroll/VBoxContainer/StarterCodeButton
 @onready var save_button: Button = $SidebarScroll/VBoxContainer/SaveButton
 @onready var level_name_input: LineEdit = $SidebarScroll/VBoxContainer/LevelNameInput
 @onready var apple_button: Button = $RightToolbar/ObjectsGrid/AppleButton
@@ -81,6 +84,11 @@ func _ready() -> void:
 	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
 	carry_requirements_button.pressed.connect(_open_carry_requirements_dialog)
 	starting_inventory_button.pressed.connect(_open_starting_inventory_dialog)
+	starter_code_button.pressed.connect(_open_starter_code_dialog)
+	hint_input.text_changed.connect(_on_hint_changed)
+	for direction in ["East", "South", "West", "North"]:
+		facing_input.add_item(direction)
+	facing_input.item_selected.connect(_on_facing_selected)
 	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
 	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
 	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
@@ -164,10 +172,12 @@ func _arrange_sidebar() -> void:
 	var sidebar := $SidebarScroll/VBoxContainer
 	var order := [
 		"TitleLabel", "LevelNameLabel", "LevelNameInput", "DescriptionLabel", "DescriptionInput",
+		"HintLabel", "HintInput",
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"ObjectCountLabel", "ObjectCountInput",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "CarryRequirementsButton",
-		"RobotInventoryLabel", "StartingInventoryButton",
+		"RobotInventoryLabel", "StartingInventoryButton", "FacingLabel", "FacingInput",
+		"StarterCodeLabel", "StarterCodeButton",
 		"LimitsLabel", "MoveLimitLabel", "MoveLimitDefaultCheckbox", "MoveLimitInput", "CmdLimitLabel", "CmdLimitDefaultCheckbox", "CmdLimitInput", "TimeLimitLabel", "TimeLimitDefaultCheckbox", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
@@ -431,6 +441,12 @@ func _apply_level_load(path: String, dialog: FileDialog) -> void:
 		else:
 			time_limit_default_checkbox.button_pressed = true
 			time_limit_input.value = 0
+		hint_input.text = str(document.data.get("hint", ""))
+		var loaded_robots: Array = document.data.get("robots", [])
+		var orientation := 0
+		if not loaded_robots.is_empty() and loaded_robots[0] is Dictionary:
+			orientation = clampi(int(loaded_robots[0].get("_orientation", 0)), 0, 3)
+		facing_input.select(orientation)
 		_sync_auto_carry_requirements()
 		_close_carry_requirements_dialog()
 		grid.set_document(document)
@@ -490,6 +506,8 @@ func _on_new_button_pressed() -> void:
 	level_name_input.clear()
 	_update_save_button_availability()
 	description_input.clear()
+	hint_input.clear()
+	facing_input.select(0)
 	move_limit_default_checkbox.button_pressed = false
 	cmd_limit_default_checkbox.button_pressed = false
 	time_limit_default_checkbox.button_pressed = false
@@ -891,6 +909,79 @@ func _apply_starting_inventory(spins: Dictionary) -> void:
 	robots[0] = robot
 	document.data["robots"] = robots
 	status_label.text = "Starting inventory updated"
+
+
+func _on_hint_changed(text: String) -> void:
+	if text.strip_edges().is_empty():
+		document.data.erase("hint")
+	else:
+		document.data["hint"] = text
+
+
+func _on_facing_selected(index: int) -> void:
+	var robots: Array = document.data.get("robots", [])
+	if robots.is_empty() or not (robots[0] is Dictionary):
+		return
+	var robot: Dictionary = robots[0]
+	robot["_orientation"] = index
+	robots[0] = robot
+	document.data["robots"] = robots
+
+
+func _open_starter_code_dialog() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Starter Code"
+	dialog.ok_button_text = "Apply"
+	dialog.exclusive = false
+
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+
+	var instruction := Label.new()
+	instruction.text = "Code the workstation editor starts with for each language. Leave a language empty to use the default template."
+	vbox.add_child(instruction)
+
+	var editors_value = document.data.get("editor", {})
+	var editor_data: Dictionary = editors_value if editors_value is Dictionary else {}
+	var editors := {}
+	for language in ["cpp", "python"]:
+		var label := Label.new()
+		label.text = "C++ starter code:" if language == "cpp" else "Python starter code:"
+		vbox.add_child(label)
+
+		var text_edit := TextEdit.new()
+		text_edit.custom_minimum_size = Vector2(560, 180)
+		text_edit.wrap_mode = TextEdit.LINE_WRAPPING_NONE
+		vbox.add_child(text_edit)
+
+		var starter = editor_data.get(language, "")
+		if starter is Array:
+			text_edit.text = "\n".join(PackedStringArray(starter))
+		else:
+			text_edit.text = str(starter)
+		editors[language] = text_edit
+
+	dialog.confirmed.connect(_apply_starter_code.bind(editors))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _apply_starter_code(editors: Dictionary) -> void:
+	var starter := {}
+	for language in editors:
+		var text: String = (editors[language] as TextEdit).text
+		while text.ends_with("\n"):
+			text = text.substr(0, text.length() - 1)
+		if not text.is_empty():
+			starter[language] = Array(text.split("\n"))
+	if starter.is_empty():
+		document.data.erase("editor")
+	else:
+		document.data["editor"] = starter
+	status_label.text = "Starter code updated"
 
 func _on_move_limit_default_toggled(checked: bool) -> void:
 	move_limit_input.visible = not checked

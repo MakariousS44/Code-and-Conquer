@@ -105,6 +105,14 @@ custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 placeholder_text = "Tell players what they need to solve."
 
+[node name="HintLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "HINT"
+
+[node name="HintInput" type="LineEdit" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+placeholder_text = "Optional hint shown to players"
+
 [node name="GridSetupLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "GRID SETUP"
@@ -378,6 +386,22 @@ text = "ROBOT INVENTORY"
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
 text = "Set Starting Inventory"
+
+[node name="FacingLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "STARTING FACING"
+
+[node name="FacingInput" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+
+[node name="StarterCodeLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "STARTER CODE"
+
+[node name="StarterCodeButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+text = "Set Starter Code (C++ / Python)"
 
 [node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2

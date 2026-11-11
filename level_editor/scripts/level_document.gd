@@ -131,6 +131,10 @@ func validate_level() -> Dictionary:
 					errors.append("Inventory count for '%s' must be a positive integer." % name)
 				else:
 					inventory[name] = int(robot_objects[object_name])
+		if robot.has("_orientation"):
+			var orientation = robot["_orientation"]
+			if not _is_number(orientation) or int(orientation) != float(orientation) or int(orientation) < 0 or int(orientation) > 3:
+				errors.append("Robot starting direction must be an integer from 0 (east) to 3 (north).")
 
 	# --- goal ---
 	var goal_raw = data.get("goal", {})
@@ -240,6 +244,17 @@ func validate_level() -> Dictionary:
 	var description = data.get("description", [])
 	if not (description is Array):
 		errors.append("Level description is invalid.")
+	if data.has("hint") and not (data["hint"] is String):
+		errors.append("Level hint must be text.")
+	if data.has("editor"):
+		var editor_value = data["editor"]
+		if editor_value is Dictionary:
+			for language in editor_value:
+				var starter = editor_value[language]
+				if not (starter is String) and not (starter is Array):
+					errors.append("Starter code for '%s' must be text or a list of lines." % language)
+		elif not (editor_value is String) and not (editor_value is Array):
+			errors.append("Starter code must be an object with 'cpp' and 'python' entries.")
 
 	# --- solvability warnings that do not need reachability ---
 	for object_name in required_carry:
