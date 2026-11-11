@@ -370,6 +370,15 @@ layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
 text = "Set Carry Requirements"
 
+[node name="RobotInventoryLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "ROBOT INVENTORY"
+
+[node name="StartingInventoryButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+text = "Set Starting Inventory"
+
 [node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
 text = "EXECUTION LIMITS"

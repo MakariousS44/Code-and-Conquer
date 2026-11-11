@@ -99,21 +99,38 @@ func validate_level() -> Dictionary:
 	if not (void_raw is Dictionary):
 		errors.append("Void tiles data is invalid.")
 
-	# --- robot start ---
+	# --- robot start and starting inventory ---
 	var robot := {}
+	var inventory := {}
+	var robot_position_ok := false
 	var robots = data.get("robots", [])
 	if not (robots is Array) or robots.is_empty() or not (robots[0] is Dictionary):
 		errors.append("Level needs one robot.")
-	elif _is_number(robots[0].get("x")) and _is_number(robots[0].get("y")):
-		robot = robots[0]
-		var rx := int(robot["x"])
-		var ry := int(robot["y"])
-		if size_ok and not _inside(rx, ry, cols, rows):
-			errors.append("Robot start (%d, %d) is outside the grid." % [rx, ry])
-		elif _is_void(void_tiles, rx, ry):
-			errors.append("The robot must start on solid floor.")
 	else:
-		errors.append("Robot start position is invalid.")
+		robot = robots[0]
+		if _is_number(robot.get("x")) and _is_number(robot.get("y")):
+			var rx := int(robot["x"])
+			var ry := int(robot["y"])
+			if size_ok and not _inside(rx, ry, cols, rows):
+				errors.append("Robot start (%d, %d) is outside the grid." % [rx, ry])
+			elif _is_void(void_tiles, rx, ry):
+				errors.append("The robot must start on solid floor.")
+			else:
+				robot_position_ok = true
+		else:
+			errors.append("Robot start position is invalid.")
+		var robot_objects = robot.get("objects", {})
+		if not (robot_objects is Dictionary):
+			errors.append("Robot inventory must be an object of object names and counts.")
+		else:
+			for object_name in robot_objects:
+				var name := str(object_name)
+				if not VALID_OBJECT_NAMES.has(name):
+					errors.append("Unknown inventory object '%s'." % name)
+				elif not _is_positive_int(robot_objects[object_name]):
+					errors.append("Inventory count for '%s' must be a positive integer." % name)
+				else:
+					inventory[name] = int(robot_objects[object_name])
 
 	# --- goal ---
 	var goal_raw = data.get("goal", {})
@@ -178,8 +195,7 @@ func validate_level() -> Dictionary:
 	var goal_objects: Dictionary = goal_objects_raw if goal_objects_raw is Dictionary else {}
 	if goal.has("objects") and not (goal_objects_raw is Dictionary):
 		errors.append("Goal objects are invalid.")
-	var goal_object_totals := {}
-	_validate_object_layer(errors, goal_objects, "Goal", cols, rows, size_ok, void_tiles, goal_object_totals)
+	_validate_object_layer(errors, goal_objects, "Goal", cols, rows, size_ok, void_tiles, {})
 
 	# --- carry requirements ---
 	var required_carry := {}
@@ -228,9 +244,9 @@ func validate_level() -> Dictionary:
 	# --- solvability warnings that do not need reachability ---
 	for object_name in required_carry:
 		var needed := int(required_carry[object_name])
-		var available := int(placed_totals.get(object_name, 0))
+		var available := int(placed_totals.get(object_name, 0)) + int(inventory.get(object_name, 0))
 		if needed > available:
-			warnings.append("Carry requirement needs %d %s but only %d are placed on the map." % [needed, object_name, available])
+			warnings.append("Carry requirement needs %d %s but only %d are available (map + starting inventory)." % [needed, object_name, available])
 	for key in goal_objects:
 		var required: Dictionary = goal_objects[key]
 		for object_name in required:
@@ -238,12 +254,12 @@ func validate_level() -> Dictionary:
 			if not _is_positive_int(required[object_name]):
 				continue
 			var count := int(required[object_name])
-			var available := int(placed_totals.get(name, 0))
+			var available := int(placed_totals.get(name, 0)) + int(inventory.get(name, 0))
 			if count > available:
-				warnings.append("Goal at %s requires %d %s but only %d exist on the map." % [key, count, name, available])
+				warnings.append("Goal at %s requires %d %s but only %d exist (map + starting inventory)." % [key, count, name, available])
 
 	# --- reachability warnings ---
-	if size_ok and not robot.is_empty() and _inside(int(robot["x"]), int(robot["y"]), cols, rows):
+	if size_ok and robot_position_ok:
 		var start := Vector2i(int(robot["x"]), int(robot["y"]))
 		var reachable := _reachable_tiles(start, walls, void_tiles)
 
@@ -270,11 +286,29 @@ func validate_level() -> Dictionary:
 			if not reachable.has(Vector2i(gx, gy)):
 				warnings.append("Goal object tile %s is unreachable." % key)
 
+		# Objects the robot must pick up: carry demand and goal-tile deliveries
+		# not already covered by the starting inventory.
+		var goal_deliveries := {}
+		for key in goal_objects:
+			if not (goal_objects[key] is Dictionary):
+				continue
+			var placed_here = objects.get(key, {})
+			if not (placed_here is Dictionary):
+				placed_here = {}
+			for object_name in goal_objects[key]:
+				if not _is_positive_int(goal_objects[key][object_name]):
+					continue
+				var name := str(object_name)
+				var still_needed := int(goal_objects[key][object_name]) - int(placed_here.get(name, 0))
+				if still_needed > 0:
+					goal_deliveries[name] = int(goal_deliveries.get(name, 0)) + still_needed
 		var needed_names := {}
 		for name in required_carry:
-			needed_names[name] = true
-		for name in goal_object_totals:
-			needed_names[name] = true
+			if int(required_carry[name]) > int(inventory.get(name, 0)):
+				needed_names[name] = true
+		for name in goal_deliveries:
+			if int(goal_deliveries[name]) > int(inventory.get(name, 0)):
+				needed_names[name] = true
 		if not needed_names.is_empty():
 			for key in objects:
 				var parts := str(key).split(",")

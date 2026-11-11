@@ -39,6 +39,7 @@ var _auto_accept_quit_before := true
 @onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
 @onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
 @onready var carry_requirements_button: Button = $SidebarScroll/VBoxContainer/CarryRequirementsButton
+@onready var starting_inventory_button: Button = $SidebarScroll/VBoxContainer/StartingInventoryButton
 @onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
 @onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
 @onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
@@ -79,6 +80,7 @@ func _ready() -> void:
 	object_count_input.value_changed.connect(_on_object_count_changed)
 	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
 	carry_requirements_button.pressed.connect(_open_carry_requirements_dialog)
+	starting_inventory_button.pressed.connect(_open_starting_inventory_dialog)
 	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
 	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
 	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
@@ -165,6 +167,7 @@ func _arrange_sidebar() -> void:
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"ObjectCountLabel", "ObjectCountInput",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "CarryRequirementsButton",
+		"RobotInventoryLabel", "StartingInventoryButton",
 		"LimitsLabel", "MoveLimitLabel", "MoveLimitDefaultCheckbox", "MoveLimitInput", "CmdLimitLabel", "CmdLimitDefaultCheckbox", "CmdLimitInput", "TimeLimitLabel", "TimeLimitDefaultCheckbox", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
@@ -710,7 +713,7 @@ func _on_carry_requirements_dialog_closed(dialog: ConfirmationDialog) -> void:
 		_carry_requirements_dialog = null
 		_carry_requirement_rows.clear()
 
-const GOAL_OBJECT_TYPES := ["apple", "banana", "carrot", "star", "token"]
+const OBJECT_TYPES := ["apple", "banana", "carrot", "star", "token"]
 
 func _open_goal_objects_dialog() -> void:
 	var dialog := AcceptDialog.new()
@@ -759,9 +762,9 @@ func _open_goal_objects_dialog() -> void:
 		type_label.text = "Object:"
 		row.add_child(type_label)
 		var type_option := OptionButton.new()
-		for object_name in GOAL_OBJECT_TYPES:
+		for object_name in OBJECT_TYPES:
 			type_option.add_item(object_name.capitalize())
-		type_option.selected = max(0, GOAL_OBJECT_TYPES.find(object_type))
+		type_option.selected = max(0, OBJECT_TYPES.find(object_type))
 		row.add_child(type_option)
 		var count_label := Label.new()
 		count_label.text = "Count:"
@@ -785,7 +788,7 @@ func _open_goal_objects_dialog() -> void:
 		)
 
 	add_button.pressed.connect(func() -> void:
-		add_row.call(1, 1, GOAL_OBJECT_TYPES[0], 1)
+		add_row.call(1, 1, OBJECT_TYPES[0], 1)
 	)
 
 	# Pre-fill with existing goal objects
@@ -799,7 +802,7 @@ func _open_goal_objects_dialog() -> void:
 			for obj_name in required:
 				add_row.call(int(parts[0]), int(parts[1]), str(obj_name), int(required[obj_name]))
 	else:
-		add_row.call(1, 1, GOAL_OBJECT_TYPES[0], 1)
+		add_row.call(1, 1, OBJECT_TYPES[0], 1)
 
 	dialog.confirmed.connect(_apply_goal_objects.bind(goal_rows))
 	dialog.confirmed.connect(dialog.queue_free)
@@ -813,7 +816,7 @@ func _apply_goal_objects(goal_rows: Array) -> void:
 	for row in goal_rows:
 		var x := int(row["x"].value)
 		var y := int(row["y"].value)
-		var object_type: String = GOAL_OBJECT_TYPES[row["type"].selected]
+		var object_type: String = OBJECT_TYPES[row["type"].selected]
 		var count := int(row["count"].value)
 		if count <= 0:
 			continue
@@ -825,6 +828,69 @@ func _apply_goal_objects(goal_rows: Array) -> void:
 	document.data["goal"]["objects"] = goal_objects
 	grid.queue_redraw()
 	status_label.text = "Goal objects configured"
+
+
+func _open_starting_inventory_dialog() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Starting Inventory"
+	dialog.ok_button_text = "Apply"
+	dialog.exclusive = false
+
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+
+	var instruction := Label.new()
+	instruction.text = "Objects the robot is carrying when the level starts:"
+	vbox.add_child(instruction)
+
+	var rows := VBoxContainer.new()
+	vbox.add_child(rows)
+
+	var robots: Array = document.data.get("robots", [])
+	var robot: Dictionary = robots[0] if not robots.is_empty() and robots[0] is Dictionary else {}
+	var inventory = robot.get("objects", {})
+	if not (inventory is Dictionary):
+		inventory = {}
+
+	var spins := {}
+	for object_name in OBJECT_TYPES:
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = object_name.capitalize()
+		label.custom_minimum_size = Vector2(140, 0)
+		row.add_child(label)
+
+		var spin := SpinBox.new()
+		spin.min_value = 0
+		spin.max_value = 9999
+		spin.step = 1
+		spin.value = int(inventory.get(object_name, 0))
+		row.add_child(spin)
+		rows.add_child(row)
+		spins[object_name] = spin
+
+	dialog.confirmed.connect(_apply_starting_inventory.bind(spins))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _apply_starting_inventory(spins: Dictionary) -> void:
+	var robots: Array = document.data.get("robots", [])
+	if robots.is_empty() or not (robots[0] is Dictionary):
+		return
+	var robot: Dictionary = robots[0]
+	var inventory := {}
+	for object_name in spins:
+		var count := int((spins[object_name] as SpinBox).value)
+		if count > 0:
+			inventory[object_name] = count
+	robot["objects"] = inventory
+	robots[0] = robot
+	document.data["robots"] = robots
+	status_label.text = "Starting inventory updated"
 
 func _on_move_limit_default_toggled(checked: bool) -> void:
 	move_limit_input.visible = not checked
