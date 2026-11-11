@@ -54,7 +54,19 @@ func load_level(raw_data: Dictionary) -> Dictionary:
 		if not (legacy_position is Dictionary):
 			return {"ok": false, "error": "Goal position is invalid."}
 		positions = [[int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]]
-		goal["possible_final_positions"] = positions
+	elif goal.get("position") is Dictionary:
+		# The runtime treats goal.position as an extra finish tile, so a
+		# distinct legacy tile is merged in rather than dropped.
+		var legacy_position: Dictionary = goal["position"]
+		var legacy_tile := [int(legacy_position.get("x", 0)), int(legacy_position.get("y", 0))]
+		var already_listed := false
+		for position in positions:
+			if position is Array and position.size() >= 2 and int(position[0]) == legacy_tile[0] and int(position[1]) == legacy_tile[1]:
+				already_listed = true
+				break
+		if not already_listed:
+			positions.append(legacy_tile)
+	goal["possible_final_positions"] = positions
 	for position in positions:
 		if not (position is Array) or position.size() < 2 or int(position[0]) < 1 or int(position[0]) > cols or int(position[1]) < 1 or int(position[1]) > rows:
 			return {"ok": false, "error": "Goal position is outside the grid."}
