@@ -681,7 +681,7 @@ func _open_goal_objects_dialog() -> void:
 		x_label.text = "X:"
 		row.add_child(x_label)
 		var x_input := SpinBox.new()
-		x_input.min_value = 0
+		x_input.min_value = 1
 		x_input.max_value = 9999
 		x_input.value = x
 		x_input.tooltip_text = "X coordinate"
@@ -690,7 +690,7 @@ func _open_goal_objects_dialog() -> void:
 		y_label.text = "Y:"
 		row.add_child(y_label)
 		var y_input := SpinBox.new()
-		y_input.min_value = 0
+		y_input.min_value = 1
 		y_input.max_value = 9999
 		y_input.value = y
 		y_input.tooltip_text = "Y coordinate"
@@ -725,7 +725,7 @@ func _open_goal_objects_dialog() -> void:
 		)
 
 	add_button.pressed.connect(func() -> void:
-		add_row.call(0, 0, GOAL_OBJECT_TYPES[0], 1)
+		add_row.call(1, 1, GOAL_OBJECT_TYPES[0], 1)
 	)
 
 	# Pre-fill with existing goal objects
@@ -739,7 +739,7 @@ func _open_goal_objects_dialog() -> void:
 			for obj_name in required:
 				add_row.call(int(parts[0]), int(parts[1]), str(obj_name), int(required[obj_name]))
 	else:
-		add_row.call(0, 0, GOAL_OBJECT_TYPES[0], 1)
+		add_row.call(1, 1, GOAL_OBJECT_TYPES[0], 1)
 
 	dialog.confirmed.connect(_apply_goal_objects.bind(goal_rows))
 	dialog.confirmed.connect(dialog.queue_free)
