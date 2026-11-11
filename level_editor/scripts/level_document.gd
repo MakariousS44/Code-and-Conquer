@@ -358,7 +358,9 @@ func validate_level() -> Dictionary:
 				var gy := int(parts[1])
 				if not _inside(gx, gy, cols, rows) or reachable.has(Vector2i(gx, gy)):
 					continue
-				var tile_objects: Dictionary = objects[key]
+				var tile_objects = objects[key]
+				if not (tile_objects is Dictionary):
+					continue
 				for object_name in tile_objects:
 					if needed_names.has(str(object_name)):
 						warnings.append("Objects at %s can never be picked up (tile is unreachable)." % key)
