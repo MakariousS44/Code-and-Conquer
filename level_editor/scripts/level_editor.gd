@@ -677,23 +677,35 @@ func _open_goal_objects_dialog() -> void:
 
 	var add_row := func(x: int, y: int, object_type: String, count: int) -> void:
 		var row := HBoxContainer.new()
+		var x_label := Label.new()
+		x_label.text = "X:"
+		row.add_child(x_label)
 		var x_input := SpinBox.new()
 		x_input.min_value = 0
 		x_input.max_value = 9999
 		x_input.value = x
-		x_input.tooltip_text = "X"
+		x_input.tooltip_text = "X coordinate"
 		row.add_child(x_input)
+		var y_label := Label.new()
+		y_label.text = "Y:"
+		row.add_child(y_label)
 		var y_input := SpinBox.new()
 		y_input.min_value = 0
 		y_input.max_value = 9999
 		y_input.value = y
-		y_input.tooltip_text = "Y"
+		y_input.tooltip_text = "Y coordinate"
 		row.add_child(y_input)
+		var type_label := Label.new()
+		type_label.text = "Object:"
+		row.add_child(type_label)
 		var type_option := OptionButton.new()
 		for object_name in GOAL_OBJECT_TYPES:
 			type_option.add_item(object_name.capitalize())
 		type_option.selected = max(0, GOAL_OBJECT_TYPES.find(object_type))
 		row.add_child(type_option)
+		var count_label := Label.new()
+		count_label.text = "Count:"
+		row.add_child(count_label)
 		var count_input := SpinBox.new()
 		count_input.min_value = 1
 		count_input.max_value = 9999
