@@ -27,6 +27,13 @@ the Void Tile tool; the grid boundary is always solid.
 Try **Custom Worlds → Void Crossing** for a bridge example, or load its JSON from
 `data/custom_levels/VoidCrossing.json` in the level editor.
 
+## Objects
+
+The **OBJECTS** toolbar places five object types: **apple**, **banana**,
+**carrot**, **star**, and **token**. Each click places the selected count of
+that type on the tile; a tile holds one object type only, so use **Erase**
+before switching types on the same tile.
+
 ## Goal Configuration
 
 The level editor supports advanced goal configuration to recreate campaign-level objectives:
@@ -42,6 +49,12 @@ For example:
 `6,4 token 5`
 
 `1,5 apple 2`
+
+`3,3 banana 1`
+
+`4,4 carrot 2`
+
+`5,5 star 3`
 
 
 This requires 5 tokens at tile (6,4) and 2 apples at tile (1,5). The level is only complete when all required objects are placed at their goal tiles.

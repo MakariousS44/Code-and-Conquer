@@ -20,6 +20,9 @@ var is_panning := false
 @onready var save_button: Button = $SidebarScroll/VBoxContainer/SaveButton
 @onready var level_name_input: LineEdit = $SidebarScroll/VBoxContainer/LevelNameInput
 @onready var apple_button: Button = $RightToolbar/ObjectsGrid/AppleButton
+@onready var banana_button: Button = $RightToolbar/ObjectsGrid/BananaButton
+@onready var carrot_button: Button = $RightToolbar/ObjectsGrid/CarrotButton
+@onready var star_button: Button = $RightToolbar/ObjectsGrid/StarButton
 @onready var token_button: Button = $RightToolbar/ObjectsGrid/TokenButton
 @onready var erase_button: Button = $RightToolbar/ObjectsGrid/EraseButton
 @onready var void_button: Button = $RightToolbar/ObjectsGrid/VoidButton
@@ -55,6 +58,9 @@ func _ready() -> void:
 	load_button.pressed.connect(_on_load_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
 	apple_button.pressed.connect(_on_apple_button_pressed)
+	banana_button.pressed.connect(_on_banana_button_pressed)
+	carrot_button.pressed.connect(_on_carrot_button_pressed)
+	star_button.pressed.connect(_on_star_button_pressed)
 	token_button.pressed.connect(_on_token_button_pressed)
 	erase_button.pressed.connect(_on_erase_button_pressed)
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
@@ -62,7 +68,7 @@ func _ready() -> void:
 	resize_button.pressed.connect(_on_resize_button_pressed)
 	back_button.pressed.connect(_on_back_button_pressed)
 	level_name_input.text_changed.connect(_on_level_name_changed)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
 	object_count_input.value_changed.connect(_on_object_count_changed)
@@ -131,7 +137,7 @@ func _select_tool(tool: int, selected_button: Button, tool_name: String) -> void
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 	grid.set_tool(tool)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 		tool_button.button_pressed = tool_button == selected_button
 	status_label.text = "Active tool: %s" % tool_name
 
@@ -144,7 +150,7 @@ func _input(event: InputEvent) -> void:
 			mouse_default_cursor_shape = Control.CURSOR_DRAG
 			grid_clip.mouse_default_cursor_shape = Control.CURSOR_DRAG
 			Input.set_default_cursor_shape(Input.CURSOR_DRAG)
-			for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+			for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 				tool_button.button_pressed = false
 			status_label.text = "Pan mode: drag with left-click. Select a tool to place tiles again."
 			get_viewport().set_input_as_handled()
@@ -296,6 +302,21 @@ func _make_level_filename(level_name: String) -> String:
 func _on_apple_button_pressed() -> void:
 	grid.set_object_type("apple")
 	_select_tool(EditorGridView.Tool.OBJECT, apple_button, "Apple")
+
+
+func _on_banana_button_pressed() -> void:
+	grid.set_object_type("banana")
+	_select_tool(EditorGridView.Tool.OBJECT, banana_button, "Banana")
+
+
+func _on_carrot_button_pressed() -> void:
+	grid.set_object_type("carrot")
+	_select_tool(EditorGridView.Tool.OBJECT, carrot_button, "Carrot")
+
+
+func _on_star_button_pressed() -> void:
+	grid.set_object_type("star")
+	_select_tool(EditorGridView.Tool.OBJECT, star_button, "Star")
 
 
 func _on_token_button_pressed() -> void:

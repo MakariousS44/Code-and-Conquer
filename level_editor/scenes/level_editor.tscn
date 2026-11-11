@@ -7,6 +7,9 @@
 [ext_resource type="Texture2D" path="res://assets/objects/wall.png" id="5_wall"]
 [ext_resource type="Texture2D" path="res://assets/objects/apple.png" id="6_object"]
 [ext_resource type="Texture2D" path="res://assets/objects/token.png" id="6_token"]
+[ext_resource type="Texture2D" path="res://assets/objects/banana.png" id="6_banana"]
+[ext_resource type="Texture2D" path="res://assets/objects/carrot.png" id="6_carrot"]
+[ext_resource type="Texture2D" path="res://assets/objects/star.png" id="6_star"]
 [ext_resource type="Texture2D" path="res://assets/objects/void.png" id="7_void"]
 [ext_resource type="Texture2D" path="res://assets/objects/close.png" id="8_erase"]
 
@@ -242,6 +245,36 @@ icon_alignment = 1
 vertical_icon_alignment = 0
 vertical_alignment = 2
 text = "APPLE"
+
+[node name="BananaButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("6_banana")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "BANANA"
+
+[node name="CarrotButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("6_carrot")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "CARROT"
+
+[node name="StarButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("6_star")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "STAR"
 
 [node name="TokenButton" type="Button" parent="RightToolbar/ObjectsGrid"]
 custom_minimum_size = Vector2(0, 72)

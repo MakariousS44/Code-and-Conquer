@@ -36,7 +36,18 @@ var _panning := false
 const ROBOT_ICON = preload("res://assets/objects/robot.png")
 const GOAL_ICON = preload("res://assets/objects/goal.png")
 const APPLE_ICON = preload("res://assets/objects/apple.png")
+const BANANA_ICON = preload("res://assets/objects/banana.png")
+const CARROT_ICON = preload("res://assets/objects/carrot.png")
+const STAR_ICON = preload("res://assets/objects/star.png")
 const TOKEN_ICON = preload("res://assets/objects/token.png")
+
+const OBJECT_ICONS := {
+	"apple": APPLE_ICON,
+	"banana": BANANA_ICON,
+	"carrot": CARROT_ICON,
+	"star": STAR_ICON,
+	"token": TOKEN_ICON
+}
 
 
 func _draw_icon(texture: Texture2D, center: Vector2, icon_size := 32.0) -> void:
@@ -109,21 +120,15 @@ func _draw() -> void:
 		var object_y := int(parts[1])
 		var tile_objects: Dictionary = document.data["objects"][object_key]
 
-		# Apples
-		if tile_objects.has("apple"):
-			var apple_center := _cell_center(object_x, object_y, rows)
-			_draw_icon(APPLE_ICON, apple_center)
-			var apple_count := int(tile_objects["apple"])
-			if apple_count > 1:
-				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
-
-		# Tokens
-		if tile_objects.has("token"):
-			var token_center := _cell_center(object_x, object_y, rows)
-			_draw_icon(TOKEN_ICON, token_center)
-			var token_count := int(tile_objects["token"])
-			if token_count > 1:
-				draw_string(ThemeDB.fallback_font, token_center + Vector2(9, 14), str(token_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+		for object_name in tile_objects:
+			var icon: Texture2D = OBJECT_ICONS.get(object_name)
+			if icon == null:
+				continue
+			var object_center := _cell_center(object_x, object_y, rows)
+			_draw_icon(icon, object_center)
+			var object_count := int(tile_objects[object_name])
+			if object_count > 1:
+				draw_string(ThemeDB.fallback_font, object_center + Vector2(9, 14), str(object_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 
 	# Draw goal object markers.
 	if document.data.has("goal") and document.data["goal"].has("objects"):
