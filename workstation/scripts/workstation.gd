@@ -332,7 +332,12 @@ func _setup_level_windows() -> void:
 func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
 	var background_compiler = preload(Paths.CPP_DRIVER).new()
 	if not background_compiler.prepare_build_files(source, build_dir):
-		return {"ok": false, "output": background_compiler.get_prepare_error(), "exe_path": ""}
+		return {
+			"ok": false,
+			"output": background_compiler.get_prepare_error(),
+			"reason": background_compiler.get_prepare_reason(),
+			"exe_path": ""
+		}
 	return background_compiler.compile_program()
 
 func _finish_cpp_check(source: String, line_offset: int) -> void:
@@ -348,12 +353,16 @@ func _finish_cpp_check(source: String, line_offset: int) -> void:
 
 	if not build.ok:
 		var raw_output := str(build.get("output", ""))
-		if raw_output == "A C++ compiler was not found." or raw_output.begins_with("C++ execution is not supported"):
-			log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
-			_set_status("C++ Compiler unavailable", "error")
-		else:
-			log_error(compiler.remap_diagnostics(raw_output, line_offset))
-			_set_status("Compile failed", "error")
+		match str(build.get("reason", "")):
+			"no_compiler", "unsupported_platform":
+				log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
+				_set_status("C++ Compiler unavailable", "error")
+			"prepare_error", "internal_error":
+				log_error(raw_output)
+				_set_status("Build setup failed", "error")
+			_:
+				log_error(compiler.remap_diagnostics(raw_output, line_offset))
+				_set_status("Compile failed", "error")
 		return
 
 	checked_code = source

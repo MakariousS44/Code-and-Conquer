@@ -7,6 +7,7 @@ var _commands = preload(Paths.ROBOT_COMMANDS).new()
 var _runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 var _active_build_dir: String = ""
 var _prepare_error: String = ""
+var _prepare_reason: String = ""
 static var _compiler: String = ""
 static var _compiler_version_output: Array = []
 
@@ -18,10 +19,12 @@ func _get_exe_path() -> String:
 
 func prepare_build_files(source: String, sandbox_path: String = "", ipc_endpoint: String = "") -> bool:
 	_prepare_error = ""
+	_prepare_reason = ""
 	_active_build_dir = ""
 	var tag := _runtime_assets.platform_tag()
 	if tag.is_empty():
 		_prepare_error = "C++ execution is not supported on this OS or architecture."
+		_prepare_reason = "unsupported_platform"
 		return false
 
 	var runtime_source := ""
@@ -32,6 +35,7 @@ func prepare_build_files(source: String, sandbox_path: String = "", ipc_endpoint
 			runtime_source = _commands.get_cpp_unix_source()
 		_:
 			_prepare_error = "C++ execution is not supported on this OS."
+			_prepare_reason = "unsupported_platform"
 			return false
 
 	var build_dir := sandbox_path if not sandbox_path.is_empty() else ProjectSettings.globalize_path(BUILD_DIR)
@@ -45,12 +49,17 @@ func prepare_build_files(source: String, sandbox_path: String = "", ipc_endpoint
 	for name in files:
 		if not _write_file(build_dir.path_join(name), files[name]):
 			_prepare_error = "Failed to write C++ build files."
+			_prepare_reason = "prepare_error"
 			return false
 	return true
 
 
 func get_prepare_error() -> String:
 	return _prepare_error
+
+
+func get_prepare_reason() -> String:
+	return _prepare_reason
 
 
 func is_available() -> bool:
@@ -63,12 +72,14 @@ func compile_program() -> Dictionary:
 		return {
 			"ok": false,
 			"output": _prepare_error,
+			"reason": _prepare_reason if not _prepare_reason.is_empty() else "prepare_error",
 			"exe_path": ""
 		}
 	if _active_build_dir.is_empty():
 		return {
 			"ok": false,
 			"output": "No build directory was prepared.",
+			"reason": "internal_error",
 			"exe_path": ""
 		}
 
@@ -77,6 +88,7 @@ func compile_program() -> Dictionary:
 		return {
 			"ok": false,
 			"output": "A C++ compiler was not found.",
+			"reason": "no_compiler",
 			"exe_path": ""
 		}
 
@@ -98,11 +110,13 @@ func compile_program() -> Dictionary:
 
 	# Student edits reuse the compiled robot runtime.
 	var runtime_object := _active_build_dir.path_join("robot_runtime.o")
-	if cache.get_value("runtime", "key", "") != runtime_key or not FileAccess.file_exists(runtime_object):
+	var runtime_reused: bool = cache.get_value("runtime", "key", "") == runtime_key \
+		and FileAccess.file_exists(runtime_object)
+	if not runtime_reused:
 		var runtime_args := args.duplicate()
 		runtime_args.append_array(["-c", robot_cpp, "-o", runtime_object])
 		if OS.execute(compiler, runtime_args, output, true) != 0:
-			return {"ok": false, "output": "\n".join(output), "exe_path": ""}
+			return {"ok": false, "output": "\n".join(output), "reason": "compile_error", "exe_path": ""}
 		cache.set_value("runtime", "key", runtime_key)
 		cache.save(cache_path)
 
@@ -123,13 +137,15 @@ func compile_program() -> Dictionary:
 	var diagnostics := "\n".join(output)
 	if exit_code == 0:
 		cache.set_value("build", "key", build_key)
-	elif cache.has_section("runtime"):
-		# A failed link can mean a stale runtime object; rebuild it next time.
+	elif runtime_reused:
+		# A failed link while reusing a cached runtime object can mean the object
+		# is corrupt; rebuild it next time. A freshly compiled runtime is not at fault.
 		cache.erase_section("runtime")
 	cache.save(cache_path)
 	return {
 		"ok": exit_code == 0,
 		"output": diagnostics,
+		"reason": "" if exit_code == 0 else "compile_error",
 		"cached": false,
 		"exe_path": exe if exit_code == 0 else ""
 	}
