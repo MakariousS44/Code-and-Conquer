@@ -47,11 +47,11 @@ func read_line(tree: SceneTree) -> String:
 		_peer.poll()
 		var status := _peer.get_status()
 
-		# Only read from an open connection.
-		if status == StreamPeerTCP.STATUS_CONNECTED:
-			var available := _peer.get_available_bytes()
-			if available > 0:
-				_buf += _peer.get_utf8_string(available)
+		# A peer can disconnect after sending data. Read any bytes that remain
+		# queued before handling the disconnect below.
+		var available := _peer.get_available_bytes()
+		if available > 0:
+			_buf += _peer.get_utf8_string(available)
 
 		# Always process complete buffered messages first.
 		var idx := _buf.find("\n")
