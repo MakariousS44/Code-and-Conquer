@@ -114,7 +114,10 @@ func compile_program() -> Dictionary:
 	if exit_code == 0:
 		cache.set_value("build", "key", build_key)
 		cache.set_value("build", "output", diagnostics)
-		cache.save(cache_path)
+	elif cache.has_section("runtime"):
+		# A failed link can mean a stale runtime object; rebuild it next time.
+		cache.erase_section("runtime")
+	cache.save(cache_path)
 	return {
 		"ok": exit_code == 0,
 		"output": diagnostics,
