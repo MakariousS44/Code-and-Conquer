@@ -8,6 +8,7 @@ var _runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 var _active_build_dir: String = ""
 var _prepare_error: String = ""
 var _compiler: String = ""
+var _compiler_version_output: Array = []
 
 
 func _get_exe_path() -> String:
@@ -76,10 +77,7 @@ func compile_program() -> Dictionary:
 	var args := ["-std=c++17", "-Wall", "-Wextra"]
 	if OS.get_name() == "Windows":
 		args.append("-static")
-	var version: Array = []
-	if OS.execute(compiler, ["--version"], version, true) != 0:
-		return {"ok": false, "output": "C++ compiler is unavailable.", "exe_path": ""}
-	var runtime_key := (compiler + str(version) + str(args) + FileAccess.get_file_as_string(robot_cpp)
+	var runtime_key := (compiler + str(_compiler_version_output) + str(args) + FileAccess.get_file_as_string(robot_cpp)
 		+ FileAccess.get_file_as_string(_active_build_dir.path_join("robot.hpp"))).sha256_text()
 	var build_key := (runtime_key + FileAccess.get_file_as_string(student_cpp)).sha256_text()
 	var cache_path := _active_build_dir.path_join("compile_cache.cfg")
@@ -173,6 +171,7 @@ func _find_compiler() -> String:
 		var output: Array = []
 		if OS.execute(candidate, ["--version"], output, true) == 0:
 			_compiler = candidate
+			_compiler_version_output = output
 			return _compiler
 	return ""
 
