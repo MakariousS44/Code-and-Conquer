@@ -217,6 +217,9 @@ func _write_file(path: String, text: String) -> bool:
 	if f == null:
 		push_error("Failed to open file for writing: " + path)
 		return false
-	f.store_string(text)
+	if not f.store_string(text):
+		f.close()
+		push_error("Failed to write file: " + path)
+		return false
 	f.close()
 	return true

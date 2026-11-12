@@ -35,8 +35,13 @@ func prepare_sandbox_files(
 			"message": "Could not write the secure Python program."
 		}
 
-	file.store_string(script)
+	var wrote := file.store_string(script)
 	file.close()
+	if not wrote:
+		return {
+			"ok": false,
+			"message": "Could not write the secure Python program."
+		}
 
 	return {
 		"ok": true,
