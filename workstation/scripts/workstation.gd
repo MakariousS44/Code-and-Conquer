@@ -354,9 +354,12 @@ func _finish_cpp_check(source: String, line_offset: int) -> void:
 	if not build.ok:
 		var raw_output := str(build.get("output", ""))
 		match str(build.get("reason", "")):
-			"no_compiler", "unsupported_platform":
+			"no_compiler":
 				log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
 				_set_status("C++ Compiler unavailable", "error")
+			"unsupported_platform":
+				log_error(raw_output)
+				_set_status("C++ not supported on this platform", "error")
 			"prepare_error", "internal_error":
 				log_error(raw_output)
 				_set_status("Build setup failed", "error")
