@@ -84,7 +84,7 @@ func compile_program() -> Dictionary:
 	var cache := ConfigFile.new()
 	cache.load(cache_path)
 	if cache.get_value("build", "key", "") == build_key and FileAccess.file_exists(exe):
-		return {"ok": true, "output": cache.get_value("build", "output", ""), "exe_path": exe, "cached": true}
+		return {"ok": true, "output": "", "exe_path": exe, "cached": true}
 
 	# Student edits reuse the compiled robot runtime.
 	var runtime_object := _active_build_dir.path_join("robot_runtime.o")
@@ -113,7 +113,6 @@ func compile_program() -> Dictionary:
 	var diagnostics := "\n".join(output)
 	if exit_code == 0:
 		cache.set_value("build", "key", build_key)
-		cache.set_value("build", "output", diagnostics)
 	elif cache.has_section("runtime"):
 		# A failed link can mean a stale runtime object; rebuild it next time.
 		cache.erase_section("runtime")
