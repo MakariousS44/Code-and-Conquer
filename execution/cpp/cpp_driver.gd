@@ -62,8 +62,16 @@ func get_prepare_reason() -> String:
 	return _prepare_reason
 
 
+func is_platform_supported() -> bool:
+	return not _runtime_assets.platform_tag().is_empty()
+
+
+func detect_compiler() -> bool:
+	return _find_compiler() != ""
+
+
 func is_available() -> bool:
-	return not _runtime_assets.platform_tag().is_empty() and _find_compiler() != ""
+	return is_platform_supported() and detect_compiler()
 
 
 func compile_program() -> Dictionary:
@@ -198,8 +206,8 @@ func _find_compiler() -> String:
 	for candidate in ["g++", "clang++", "c++"]:
 		var output: Array = []
 		if OS.execute(candidate, ["--version"], output, true) == 0:
-			_compiler = candidate
 			_compiler_version_output = output
+			_compiler = candidate
 			return _compiler
 	return ""
 

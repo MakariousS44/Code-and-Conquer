@@ -2319,8 +2319,13 @@ func _on_check_button_pressed() -> void:
 		_set_status("Check failed", "error")
 		return
 
-	# Compiler detection and compilation run on the background thread.
+	# Probe the compiler on the main thread so the background compile only reads the cached result.
 	if _compile_thread != null:
+		return
+
+	if compiler.is_platform_supported() and not compiler.detect_compiler():
+		log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
+		_set_status("C++ Compiler unavailable", "error")
 		return
 
 	var generated: Dictionary = generator.generate(source)
