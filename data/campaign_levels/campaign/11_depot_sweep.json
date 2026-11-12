@@ -32,11 +32,7 @@
     "6,5": {"token": 2}
   },
   "goal": {
-    "position": {
-      "x": 1,
-      "y": 5,
-      "image": "green_home_tile"
-    },
+    "possible_final_positions": [[1, 5]],
     "objects": {
       "1,5": {
         "token": 10

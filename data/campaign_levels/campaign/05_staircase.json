@@ -127,12 +127,7 @@
 		9,
 		9
 	  ]
-	],
-	"position": {
-	  "image": "green_home_tile",
-	  "x": 9,
-	  "y": 9
-	}
+	]
   },
     "limits": {
 	  "move_limit": 0,

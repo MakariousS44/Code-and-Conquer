@@ -119,11 +119,6 @@
         9
       ]
     ],
-    "position": {
-      "image": "green_home_tile",
-      "x": 7,
-      "y": 9
-    },
     "require_carry": {
       "token": 1
     }

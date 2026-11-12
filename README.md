@@ -43,7 +43,9 @@ Head to the [**Releases**](https://github.com/MakariousS44/Code-and-Conquer/rele
 
 Unzip and run the executable.
 
-> **Note:** GCC (g++) and Python 3 are required to compile and run student code. See [Prerequisites](#prerequisites) below.
+> **Note:** GCC (g++) is required to compile C++ student code at runtime. Python is bundled for supported platforms, so a system Python install is not required. See [Prerequisites](#prerequisites) below.
+>
+> Supported execution targets: Windows x86_64, Linux x86_64, and macOS arm64.
 
 ---
 
@@ -68,10 +70,18 @@ Godot is downloaded as an executable inside a zip file. To start Godot, unzip an
 - Windows: Install via [MinGW](https://www.mingw-w64.org/) or [MSYS2](https://www.msys2.org/)
 - Linux/macOS: Usually pre-installed. Run `g++ --version` to verify.
 
-**Python 3** — Required to run Python student code at runtime.
+**Python runtime** — Bundled per platform; students do not need a system Python install.
 
-- [Download Python](https://www.python.org/downloads/)
-- Run `python3 --version` to verify.
+- The Windows payload is included in the repository.
+- For Linux/macOS development or export packaging, fetch the pinned runtime with `python sandbox_worker/fetch_python_runtime.py --all` (or `--platform linux-x86_64` / `--platform macos-arm64`).
+
+**Sandbox worker** — Built per platform/architecture.
+
+- Windows: `powershell -File sandbox_worker/build.ps1` (requires an x86_64 g++ target)
+- Linux: `bash sandbox_worker/build.sh` on x86_64 Linux with a toolchain that supports `g++ -static`
+- macOS: `bash sandbox_worker/build.sh` on Apple Silicon
+
+On Linux/macOS, student execution uses best-effort isolation when `bwrap`, `firejail`, or `sandbox-exec` is available; otherwise it falls back to a private run directory with resource limits and reduced isolation.
 
 ---
 

@@ -9,6 +9,7 @@ var campaign_panel: VBoxContainer
 var campaign_next_button: Button
 var campaign_hint_button: Button
 var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").new()
+var runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 # === UI references ===
 # all the workspace pieces live here: editor, output, controls, and level viewport
 @onready var editor: CodeEdit = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection/EditorPanel/EditorMargin/Editor
@@ -326,15 +327,7 @@ func _setup_level_windows() -> void:
 
 func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
 	var background_compiler = preload(Paths.CPP_DRIVER).new()
-
-	background_compiler.prepare_build_files(
-		source,
-		0,
-		"",
-		build_dir,
-		"\\\\.\\pipe\\CodeAndConquer-check"
-	)
-
+	background_compiler.prepare_build_files(source, build_dir)
 	return background_compiler.compile_program()
 
 func _finish_cpp_check(source: String, line_offset: int) -> void:
@@ -355,7 +348,7 @@ func _finish_cpp_check(source: String, line_offset: int) -> void:
 
 	checked_code = source
 	has_checked_code = true
-	checked_cpp_executable = ProjectSettings.globalize_path("user://checked_build").path_join("student_program.exe")
+	checked_cpp_executable = str(build.get("exe_path", ""))
 	checked_cpp_line_offset = line_offset
 	run_button.disabled = false
 	_set_status("C++ compiled successfully — ready to run.", "")
@@ -1357,8 +1350,14 @@ func _run_pipeline() -> void:
 
 
 	if current_language == Language.CPP and not compiler.is_available():
-		log_error("A C++ compiler(g++) was not found. Please install C++ first, then restart the game.")
+		log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
 		_set_status("C++ Compiler unavailable", "error")
+		_re_enable_buttons()
+		return
+
+	if current_language == Language.PYTHON and not py_pipeline.is_available():
+		log_error("The bundled Python runtime is unavailable for this platform.")
+		_set_status("Python runtime unavailable", "error")
 		_re_enable_buttons()
 		return
 
@@ -1375,7 +1374,8 @@ func _run_pipeline() -> void:
 	if current_language == Language.PYTHON:
 		sandbox_run = sandbox_worker.prepare_python_run(
 			sandbox_run_id,
-			sandbox_cleanup_token
+			sandbox_cleanup_token,
+			runtime_assets.python_payload_path()
 		)
 	else:
 		sandbox_run = sandbox_worker.prepare_run(
@@ -1394,7 +1394,11 @@ func _run_pipeline() -> void:
 	_sandbox_run_id = sandbox_run_id
 	_sandbox_cleanup_token = sandbox_cleanup_token
 
-	var sandbox_pipe_name := "\\\\.\\pipe\\CodeAndConquer-" + sandbox_run_id
+	var sandbox_ipc_endpoint := ""
+	if OS.get_name() == "Windows":
+		sandbox_ipc_endpoint = "\\\\.\\pipe\\CodeAndConquer-" + sandbox_run_id
+	else:
+		sandbox_ipc_endpoint = str(sandbox_run.get("path", "")).path_join("student.sock")
 
 	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
 	
@@ -1417,7 +1421,7 @@ func _run_pipeline() -> void:
 		current_line_offset = checked_cpp_line_offset
 
 		var run_folder := str(sandbox_run.get("path", ""))
-		var executable_destination := run_folder.path_join("student_program.exe")
+		var executable_destination := run_folder.path_join(checked_cpp_executable.get_file())
 
 		var copy_error := DirAccess.copy_absolute(
 			checked_cpp_executable,
@@ -1445,7 +1449,7 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 
-		connection_file.store_string(sandbox_pipe_name)
+		connection_file.store_string(sandbox_ipc_endpoint)
 		connection_file.close()
 		
 		_set_status("Launching checked C++ program...", "")
@@ -1471,7 +1475,7 @@ func _run_pipeline() -> void:
 		var python_build: Dictionary = py_pipeline.prepare_sandbox_files(
 			source,
 			str(sandbox_run.get("path", "")),
-			sandbox_pipe_name
+			sandbox_ipc_endpoint
 		)
 
 		if not python_build.ok:
@@ -2248,7 +2252,7 @@ func _on_check_button_pressed() -> void:
 
 	# C++: then compile only after validation passes.
 	if not compiler.is_available():
-		log_error("C++ compiler (g++) was not found.")
+		log_error("A C++ compiler was not found.")
 		_set_status("C++ compiler unavailable", "error")
 		return
 

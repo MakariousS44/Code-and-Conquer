@@ -8,6 +8,10 @@ const PLAYER_CUSTOM_LEVELS_DIR := "user://custom_levels/"
 var document := LevelDocument.new()
 var pan_mode := false
 var is_panning := false
+var _carry_requirements_dialog: ConfirmationDialog = null
+var _carry_requirement_rows := {}
+var _saved_signature := ""
+var _auto_accept_quit_before := true
 
 @onready var grid: EditorGridView = $GridClip/EditorGrid as EditorGridView
 @onready var grid_clip: Control = $GridClip
@@ -17,12 +21,18 @@ var is_panning := false
 @onready var east_wall_button: Button = $RightToolbar/WallsGrid/EastWallButton
 @onready var load_button: Button = $SidebarScroll/VBoxContainer/LoadButton
 @onready var description_input: TextEdit = $SidebarScroll/VBoxContainer/DescriptionInput
+@onready var hint_input: LineEdit = $SidebarScroll/VBoxContainer/HintInput
+@onready var facing_input: OptionButton = $SidebarScroll/VBoxContainer/FacingInput
+@onready var starter_code_button: Button = $SidebarScroll/VBoxContainer/StarterCodeButton
 @onready var save_button: Button = $SidebarScroll/VBoxContainer/SaveButton
 @onready var level_name_input: LineEdit = $SidebarScroll/VBoxContainer/LevelNameInput
 @onready var apple_button: Button = $RightToolbar/ObjectsGrid/AppleButton
+@onready var banana_button: Button = $RightToolbar/ObjectsGrid/BananaButton
+@onready var carrot_button: Button = $RightToolbar/ObjectsGrid/CarrotButton
+@onready var star_button: Button = $RightToolbar/ObjectsGrid/StarButton
 @onready var token_button: Button = $RightToolbar/ObjectsGrid/TokenButton
-@onready var erase_button: Button = $RightToolbar/ObjectsGrid/EraseButton
-@onready var void_button: Button = $RightToolbar/ObjectsGrid/VoidButton
+@onready var erase_button: Button = $RightToolbar/EraseButton
+@onready var void_button: Button = $RightToolbar/VoidButton
 @onready var new_button: Button = $SidebarScroll/VBoxContainer/NewButton
 @onready var columns_input: SpinBox = $SidebarScroll/VBoxContainer/ColumnsInput
 @onready var rows_input: SpinBox = $SidebarScroll/VBoxContainer/RowsInput
@@ -32,6 +42,7 @@ var is_panning := false
 @onready var object_count_input: SpinBox = $SidebarScroll/VBoxContainer/ObjectCountInput
 @onready var goal_objects_button: Button = $SidebarScroll/VBoxContainer/GoalObjectsButton
 @onready var carry_requirements_button: Button = $SidebarScroll/VBoxContainer/CarryRequirementsButton
+@onready var starting_inventory_button: Button = $SidebarScroll/VBoxContainer/StartingInventoryButton
 @onready var move_limit_input: SpinBox = $SidebarScroll/VBoxContainer/MoveLimitInput
 @onready var cmd_limit_input: SpinBox = $SidebarScroll/VBoxContainer/CmdLimitInput
 @onready var time_limit_input: SpinBox = $SidebarScroll/VBoxContainer/TimeLimitInput
@@ -44,9 +55,9 @@ func _ready() -> void:
 
 	grid.set_document(document)
 	grid.view_changed.connect(_layout_grid)
+	grid.objects_changed.connect(_on_grid_objects_changed)
 	resized.connect(_layout_grid)
 	call_deferred("_layout_grid")
-	save_button.disabled = true
 
 	robot_button.pressed.connect(_on_robot_button_pressed)
 	goal_button.pressed.connect(_on_goal_button_pressed)
@@ -55,32 +66,119 @@ func _ready() -> void:
 	load_button.pressed.connect(_on_load_button_pressed)
 	save_button.pressed.connect(_on_save_button_pressed)
 	apple_button.pressed.connect(_on_apple_button_pressed)
+	banana_button.pressed.connect(_on_banana_button_pressed)
+	carrot_button.pressed.connect(_on_carrot_button_pressed)
+	star_button.pressed.connect(_on_star_button_pressed)
 	token_button.pressed.connect(_on_token_button_pressed)
 	erase_button.pressed.connect(_on_erase_button_pressed)
 	void_button.pressed.connect(func(): _select_tool(EditorGridView.Tool.VOID, void_button, "Void (Erase restores floor; start and goal stay solid)"))
-	new_button.pressed.connect(_on_new_button_pressed)
+	new_button.pressed.connect(_request_new_level)
 	resize_button.pressed.connect(_on_resize_button_pressed)
-	back_button.pressed.connect(_on_back_button_pressed)
+	back_button.pressed.connect(_request_exit)
 	level_name_input.text_changed.connect(_on_level_name_changed)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+	_update_save_button_availability()
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 		tool_button.toggle_mode = true
 	robot_button.button_pressed = true
 	object_count_input.value_changed.connect(_on_object_count_changed)
 	goal_objects_button.pressed.connect(_on_goal_objects_button_pressed)
 	carry_requirements_button.pressed.connect(_open_carry_requirements_dialog)
+	starting_inventory_button.pressed.connect(_open_starting_inventory_dialog)
+	starter_code_button.pressed.connect(_open_starter_code_dialog)
+	hint_input.text_changed.connect(_on_hint_changed)
+	for direction in ["East", "South", "West", "North"]:
+		facing_input.add_item(direction)
+	facing_input.item_selected.connect(_on_facing_selected)
 	move_limit_default_checkbox.toggled.connect(_on_move_limit_default_toggled)
 	cmd_limit_default_checkbox.toggled.connect(_on_cmd_limit_default_toggled)
 	time_limit_default_checkbox.toggled.connect(_on_time_limit_default_toggled)
+
+	_auto_accept_quit_before = get_tree().auto_accept_quit
+	get_tree().set_auto_accept_quit(false)
+	_saved_signature = _current_signature()
+
+
+func _exit_tree() -> void:
+	get_tree().set_auto_accept_quit(_auto_accept_quit_before)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and is_node_ready():
+		if _has_unsaved_changes():
+			_show_unsaved_changes_dialog("You have unsaved changes. Close without saving?", get_tree().quit)
+		else:
+			get_tree().quit()
+
+
+## JSON of the level exactly as Save would write it, including sidebar fields.
+func _current_signature() -> String:
+	_sync_auto_carry_requirements()
+	var state: Dictionary = document.data.duplicate(true)
+	state["name"] = level_name_input.text.strip_edges()
+	state["description"] = [description_input.text]
+	var limits := {}
+	if not move_limit_default_checkbox.button_pressed:
+		limits["move_limit"] = int(move_limit_input.value)
+	if not cmd_limit_default_checkbox.button_pressed:
+		limits["cmd_limit"] = int(cmd_limit_input.value)
+	if not time_limit_default_checkbox.button_pressed:
+		limits["time_limit_seconds"] = float(time_limit_input.value)
+	if not limits.is_empty():
+		state["limits"] = limits
+	elif state.has("limits"):
+		state.erase("limits")
+	return JSON.stringify(state)
+
+
+func _has_unsaved_changes() -> bool:
+	return _current_signature() != _saved_signature
+
+
+func _request_exit() -> void:
+	if _has_unsaved_changes():
+		_show_unsaved_changes_dialog("You have unsaved changes. Leave without saving?", _on_back_button_pressed)
+	else:
+		_on_back_button_pressed()
+
+
+func _request_new_level() -> void:
+	if _has_unsaved_changes():
+		_show_unsaved_changes_dialog("You have unsaved changes. Start a new level and discard them?", _on_new_button_pressed)
+	else:
+		_on_new_button_pressed()
+
+
+func _show_unsaved_changes_dialog(message: String, on_confirm: Callable, on_cancel: Callable = Callable()) -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Unsaved Changes"
+	dialog.dialog_text = message
+	dialog.ok_button_text = "Discard Changes"
+	dialog.cancel_button_text = "Keep Editing"
+	dialog.confirmed.connect(func() -> void:
+		dialog.queue_free()
+		on_confirm.call()
+	)
+	var cancel := func() -> void:
+		dialog.queue_free()
+		if on_cancel.is_valid():
+			on_cancel.call()
+	dialog.canceled.connect(cancel)
+	dialog.close_requested.connect(cancel)
+	add_child(dialog)
+	dialog.popup_centered()
 
 
 func _arrange_sidebar() -> void:
 	var sidebar := $SidebarScroll/VBoxContainer
 	var order := [
 		"TitleLabel", "LevelNameLabel", "LevelNameInput", "DescriptionLabel", "DescriptionInput",
+		"HintLabel", "HintInput",
 		"GridSetupLabel", "ColumnsLabel", "ColumnsInput", "RowsLabel", "RowsInput", "ResizeButton",
 		"ObjectCountLabel", "ObjectCountInput",
 		"GoalConfigLabel", "GoalObjectsButton", "GoalCarryLabel", "CarryRequirementsButton",
-		"LimitsLabel", "MoveLimitDefaultCheckbox", "MoveLimitLabel", "MoveLimitInput", "CmdLimitDefaultCheckbox", "CmdLimitLabel", "CmdLimitInput", "TimeLimitDefaultCheckbox", "TimeLimitLabel", "TimeLimitInput",
+		"RobotInventoryLabel", "StartingInventoryButton", "FacingLabel", "FacingInput",
+		"StarterCodeLabel", "StarterCodeButton",
+		"LimitsLabel", "MoveLimitLabel", "MoveLimitDefaultCheckbox", "MoveLimitInput", "CmdLimitLabel", "CmdLimitDefaultCheckbox", "CmdLimitInput", "TimeLimitLabel", "TimeLimitDefaultCheckbox", "TimeLimitInput",
 		"ActionsLabel", "NewButton", "LoadButton", "SaveButton", "StatusLabel", "Spacer", "BackButton"
 	]
 	for index in range(order.size()):
@@ -126,12 +224,13 @@ func _on_east_wall_button_pressed() -> void:
 func _select_tool(tool: int, selected_button: Button, tool_name: String) -> void:
 	pan_mode = false
 	is_panning = false
+	grid.suppress_tool_application = false
 	mouse_default_cursor_shape = Control.CURSOR_ARROW
 	grid_clip.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 	grid.set_tool(tool)
-	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+	for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 		tool_button.button_pressed = tool_button == selected_button
 	status_label.text = "Active tool: %s" % tool_name
 
@@ -141,18 +240,28 @@ func _input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			pan_mode = true
 			is_panning = false
+			grid.suppress_tool_application = true
 			mouse_default_cursor_shape = Control.CURSOR_DRAG
 			grid_clip.mouse_default_cursor_shape = Control.CURSOR_DRAG
 			Input.set_default_cursor_shape(Input.CURSOR_DRAG)
-			for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, token_button, erase_button, void_button]:
+			for tool_button in [robot_button, goal_button, wall_button, east_wall_button, apple_button, banana_button, carrot_button, star_button, token_button, erase_button, void_button]:
 				tool_button.button_pressed = false
 			status_label.text = "Pan mode: drag with left-click. Select a tool to place tiles again."
 			get_viewport().set_input_as_handled()
 			return
 
-		if pan_mode and event.button_index == MOUSE_BUTTON_LEFT and event.position.x > SIDEBAR_WIDTH and event.position.x < size.x - TOOLBAR_WIDTH:
-			is_panning = event.pressed
-			get_viewport().set_input_as_handled()
+		if pan_mode and event.button_index == MOUSE_BUTTON_LEFT:
+			var inside_map: bool = event.position.x > SIDEBAR_WIDTH and event.position.x < size.x - TOOLBAR_WIDTH
+			if event.pressed:
+				is_panning = inside_map
+				if inside_map:
+					grid.begin_map_click()
+					get_viewport().set_input_as_handled()
+			elif is_panning:
+				grid.end_map_click()
+				is_panning = false
+				if inside_map:
+					get_viewport().set_input_as_handled()
 			return
 
 	if pan_mode and is_panning and event is InputEventMouseMotion:
@@ -163,6 +272,7 @@ func _on_save_button_pressed() -> void:
 	var level_name := level_name_input.text.strip_edges()
 	if level_name.is_empty():
 		return
+	_sync_auto_carry_requirements()
 	document.data["name"] = level_name
 	document.data["description"] = [description_input.text]
 	# Save limits
@@ -178,6 +288,46 @@ func _on_save_button_pressed() -> void:
 	elif document.data.has("limits"):
 		document.data.erase("limits")
 
+	var issues := document.validate_level()
+	if not issues["errors"].is_empty() or not issues["warnings"].is_empty():
+		_show_save_validation_dialog(issues, level_name)
+		return
+
+	_write_level_file(level_name)
+
+
+func _show_save_validation_dialog(issues: Dictionary, level_name: String) -> void:
+	var lines := PackedStringArray()
+	var errors: PackedStringArray = issues["errors"]
+	var warnings: PackedStringArray = issues["warnings"]
+	if not errors.is_empty():
+		lines.append("Errors (the level may not load):")
+		for error in errors:
+			lines.append("  - " + error)
+	if not warnings.is_empty():
+		if not lines.is_empty():
+			lines.append("")
+		lines.append("Warnings:")
+		for warning in warnings:
+			lines.append("  - " + warning)
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Check Level Before Saving"
+	dialog.dialog_text = "\n".join(lines)
+	dialog.ok_button_text = "Save Anyway"
+	dialog.cancel_button_text = "Keep Editing"
+	dialog.confirmed.connect(func() -> void:
+		dialog.queue_free()
+		_write_level_file(level_name)
+	)
+	var cancel := func() -> void:
+		dialog.queue_free()
+	dialog.canceled.connect(cancel)
+	dialog.close_requested.connect(cancel)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _write_level_file(level_name: String) -> void:
 	# Project levels stay in the repository while developing in Godot. Exported games
 	# cannot write to res://, so player-created levels use the writable user:// folder.
 	var folder_path := PROJECT_CUSTOM_LEVELS_DIR if OS.has_feature("editor") else PLAYER_CUSTOM_LEVELS_DIR
@@ -221,10 +371,15 @@ func _on_save_button_pressed() -> void:
 	save_button.text = "Saved!"
 	status_label.text = "Saved: %s" % level_name
 	print("Level saved to: ", ProjectSettings.globalize_path(save_path))
+	_saved_signature = _current_signature()
 
 
-func _on_level_name_changed(new_name: String) -> void:
-	save_button.disabled = new_name.strip_edges().is_empty()
+func _on_level_name_changed(_new_name: String) -> void:
+	_update_save_button_availability()
+
+
+func _update_save_button_availability() -> void:
+	save_button.disabled = level_name_input.text.strip_edges().is_empty()
 	if not save_button.disabled:
 		save_button.text = "Save Level"
 
@@ -241,6 +396,13 @@ func _on_load_button_pressed() -> void:
 
 
 func _load_level_from_path(path: String, dialog: FileDialog) -> void:
+	if _has_unsaved_changes():
+		_show_unsaved_changes_dialog("You have unsaved changes. Load this level and discard them?", func() -> void: _apply_level_load(path, dialog), dialog.queue_free)
+		return
+	_apply_level_load(path, dialog)
+
+
+func _apply_level_load(path: String, dialog: FileDialog) -> void:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		dialog.queue_free()
@@ -253,6 +415,7 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 			dialog.queue_free()
 			return
 		level_name_input.text = str(document.data.get("name", path.get_file().get_basename()))
+		_update_save_button_availability()
 		description_input.text = "\n".join(PackedStringArray(document.data.get("description", [])))
 		columns_input.value = int(document.data.get("cols", 10))
 		rows_input.value = int(document.data.get("rows", 10))
@@ -278,9 +441,18 @@ func _load_level_from_path(path: String, dialog: FileDialog) -> void:
 		else:
 			time_limit_default_checkbox.button_pressed = true
 			time_limit_input.value = 0
+		hint_input.text = str(document.data.get("hint", ""))
+		var loaded_robots: Array = document.data.get("robots", [])
+		var orientation := 0
+		if not loaded_robots.is_empty() and loaded_robots[0] is Dictionary:
+			orientation = clampi(int(loaded_robots[0].get("_orientation", 0)), 0, 3)
+		facing_input.select(orientation)
+		_sync_auto_carry_requirements()
+		_close_carry_requirements_dialog()
 		grid.set_document(document)
 		grid.reset_pan()
 		_layout_grid()
+		_saved_signature = _current_signature()
 	else:
 		status_label.text = "Could not load level: invalid JSON."
 	dialog.queue_free()
@@ -298,6 +470,21 @@ func _on_apple_button_pressed() -> void:
 	_select_tool(EditorGridView.Tool.OBJECT, apple_button, "Apple")
 
 
+func _on_banana_button_pressed() -> void:
+	grid.set_object_type("banana")
+	_select_tool(EditorGridView.Tool.OBJECT, banana_button, "Banana")
+
+
+func _on_carrot_button_pressed() -> void:
+	grid.set_object_type("carrot")
+	_select_tool(EditorGridView.Tool.OBJECT, carrot_button, "Carrot")
+
+
+func _on_star_button_pressed() -> void:
+	grid.set_object_type("star")
+	_select_tool(EditorGridView.Tool.OBJECT, star_button, "Star")
+
+
 func _on_token_button_pressed() -> void:
 	grid.set_object_type("token")
 	_select_tool(EditorGridView.Tool.OBJECT, token_button, "Token")
@@ -312,11 +499,15 @@ func _on_new_button_pressed() -> void:
 	var rows := int(rows_input.value)
 
 	document.create_blank(cols, rows)
+	_close_carry_requirements_dialog()
 	grid.set_document(document)
 	grid.reset_pan()
 	_layout_grid()
 	level_name_input.clear()
+	_update_save_button_availability()
 	description_input.clear()
+	hint_input.clear()
+	facing_input.select(0)
 	move_limit_default_checkbox.button_pressed = false
 	cmd_limit_default_checkbox.button_pressed = false
 	time_limit_default_checkbox.button_pressed = false
@@ -324,12 +515,15 @@ func _on_new_button_pressed() -> void:
 	cmd_limit_input.value = 0
 	time_limit_input.value = 0
 	save_button.text = "Save Level"
-	
+	_saved_signature = _current_signature()
+
 func _on_resize_button_pressed() -> void:
 	var cols := int(columns_input.value)
 	var rows := int(rows_input.value)
 
 	document.resize(cols, rows)
+	_sync_auto_carry_requirements()
+	_refresh_open_carry_requirements()
 	grid.set_document(document)
 	grid.reset_pan()
 	_layout_grid()
@@ -365,9 +559,14 @@ func _normalized_carry_requirement() -> Dictionary:
 
 
 func _open_carry_requirements_dialog() -> void:
+	if _carry_requirements_dialog != null and is_instance_valid(_carry_requirements_dialog) and not _carry_requirements_dialog.is_queued_for_deletion():
+		_carry_requirements_dialog.move_to_foreground()
+		return
+	_sync_auto_carry_requirements()
 	var dialog := ConfirmationDialog.new()
 	dialog.title = "Carry Requirements"
 	dialog.ok_button_text = "Apply"
+	dialog.exclusive = false
 
 	var vbox := VBoxContainer.new()
 	dialog.add_child(vbox)
@@ -378,6 +577,8 @@ func _open_carry_requirements_dialog() -> void:
 
 	var requirement := _normalized_carry_requirement()
 	var carry_rules = preload("res://map/scripts/carry_requirements.gd")
+	var goal: Dictionary = document.data.get("goal", {})
+	var auto_requirement := carry_rules.normalize_auto(goal.get("require_carry_auto", {}))
 	var types := {}
 	for object_name in _placed_object_totals():
 		if carry_rules.is_valid_object_name(str(object_name)):
@@ -390,122 +591,397 @@ func _open_carry_requirements_dialog() -> void:
 			types[name] = true
 	for object_name in requirement:
 		types[object_name] = true
+	for object_name in auto_requirement:
+		types[object_name] = true
 
 	var rows := VBoxContainer.new()
 	vbox.add_child(rows)
-	var spinboxes := {}
+	var carry_rows := {}
 	for object_name in types.keys():
+		var object_name_str := str(object_name)
 		var row := HBoxContainer.new()
 		var label := Label.new()
-		label.text = str(object_name).capitalize()
+		label.text = object_name_str.capitalize()
 		label.custom_minimum_size = Vector2(140, 0)
 		row.add_child(label)
+
+		var auto_check := CheckBox.new()
+		auto_check.text = "Map max"
+		auto_check.tooltip_text = "Use the number of %s objects on the map and keep it updated" % object_name_str
+		row.add_child(auto_check)
+
 		var spin := SpinBox.new()
 		spin.min_value = 0
 		spin.max_value = 9999
 		spin.step = 1
-		spin.value = int(requirement.get(object_name, 0))
+		spin.value = int(requirement.get(object_name_str, 0))
 		row.add_child(spin)
 		rows.add_child(row)
-		spinboxes[object_name] = spin
+		carry_rows[object_name_str] = {"auto": auto_check, "spin": spin}
+		auto_check.toggled.connect(_on_carry_auto_toggled.bind({"name": object_name_str, "spin": spin}))
+		if auto_requirement.has(object_name_str):
+			auto_check.button_pressed = true
 
 	if types.is_empty():
 		var empty_label := Label.new()
 		empty_label.text = "Place objects on the map first."
 		rows.add_child(empty_label)
 
-	var fill_button := Button.new()
-	fill_button.text = "Fill placed totals"
-	fill_button.tooltip_text = "Set every requirement to the number of that object on the map"
-	fill_button.pressed.connect(_fill_carry_placed_totals.bind(spinboxes))
-	vbox.add_child(fill_button)
-
-	dialog.confirmed.connect(_apply_carry_requirements.bind(spinboxes))
+	dialog.confirmed.connect(_apply_carry_requirements.bind(carry_rows))
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.close_requested.connect(dialog.queue_free)
+	_carry_requirements_dialog = dialog
+	_carry_requirement_rows = carry_rows
+	dialog.tree_exited.connect(_on_carry_requirements_dialog_closed.bind(dialog))
 	add_child(dialog)
 	dialog.popup_centered()
 
 
-func _fill_carry_placed_totals(spinboxes: Dictionary) -> void:
+func _on_grid_objects_changed() -> void:
+	_sync_auto_carry_requirements()
+	_refresh_open_carry_requirements()
+
+
+func _sync_auto_carry_requirements() -> void:
+	var goal_value = document.data.get("goal", {})
+	if not (goal_value is Dictionary):
+		return
+	var goal: Dictionary = goal_value
+	var carry_rules = preload("res://map/scripts/carry_requirements.gd")
+	var auto := carry_rules.normalize_auto(goal.get("require_carry_auto", {}))
+	if auto.is_empty():
+		return
 	var totals := _placed_object_totals()
-	for object_name in spinboxes:
-		(spinboxes[object_name] as SpinBox).value = int(totals.get(object_name, 0))
+	var required_value = goal.get("require_carry", {})
+	var required: Dictionary = required_value if required_value is Dictionary else {}
+	for object_name in auto:
+		var total := int(totals.get(object_name, 0))
+		if total > 0:
+			required[object_name] = total
+		else:
+			required.erase(object_name)
+	goal["require_carry"] = required
+	document.data["goal"] = goal
 
 
-func _apply_carry_requirements(spinboxes: Dictionary) -> void:
+func _refresh_open_carry_requirements() -> void:
+	if _carry_requirement_rows.is_empty():
+		return
+	_refresh_carry_auto_totals(_carry_requirement_rows)
+
+
+func _close_carry_requirements_dialog() -> void:
+	if _carry_requirements_dialog != null and is_instance_valid(_carry_requirements_dialog):
+		_carry_requirements_dialog.queue_free()
+	_carry_requirements_dialog = null
+	_carry_requirement_rows.clear()
+
+
+func _on_carry_auto_toggled(pressed: bool, controls: Dictionary) -> void:
+	var spin := controls["spin"] as SpinBox
+	spin.editable = not pressed
+	spin.mouse_filter = Control.MOUSE_FILTER_IGNORE if pressed else Control.MOUSE_FILTER_STOP
+	if pressed:
+		_set_map_max_spin(str(controls["name"]), spin, _placed_object_totals())
+	else:
+		spin.tooltip_text = ""
+
+
+func _refresh_carry_auto_totals(carry_rows: Dictionary) -> void:
+	var totals := _placed_object_totals()
+	for object_name in carry_rows:
+		var controls: Dictionary = carry_rows[object_name]
+		var auto_check := controls["auto"] as CheckBox
+		if auto_check != null and auto_check.button_pressed:
+			_set_map_max_spin(str(object_name), controls["spin"] as SpinBox, totals)
+
+
+func _set_map_max_spin(object_name: String, spin: SpinBox, totals: Dictionary) -> void:
+	var total := int(totals.get(object_name, 0))
+	spin.max_value = maxf(9999.0, float(total))
+	spin.value = total
+	spin.tooltip_text = "Map total: %d" % total
+
+
+func _apply_carry_requirements(carry_rows: Dictionary) -> void:
+	_refresh_carry_auto_totals(carry_rows)
 	var required := {}
-	for object_name in spinboxes:
-		var count := int((spinboxes[object_name] as SpinBox).value)
+	var auto_required := {}
+	for object_name in carry_rows:
+		var controls: Dictionary = carry_rows[object_name]
+		var count := int((controls["spin"] as SpinBox).value)
 		if count > 0:
 			required[str(object_name)] = count
+		if (controls["auto"] as CheckBox).button_pressed:
+			auto_required[str(object_name)] = true
 	if required.is_empty():
 		document.data["goal"].erase("require_carry")
 	else:
 		document.data["goal"]["require_carry"] = required
+	if auto_required.is_empty():
+		document.data["goal"].erase("require_carry_auto")
+	else:
+		document.data["goal"]["require_carry_auto"] = auto_required
 	status_label.text = "Carry requirements updated"
+
+
+func _on_carry_requirements_dialog_closed(dialog: ConfirmationDialog) -> void:
+	if _carry_requirements_dialog == dialog:
+		_carry_requirements_dialog = null
+		_carry_requirement_rows.clear()
+
+const OBJECT_TYPES := ["apple", "banana", "carrot", "star", "token"]
 
 func _open_goal_objects_dialog() -> void:
 	var dialog := AcceptDialog.new()
 	dialog.title = "Set Goal Objects"
 	dialog.unresizable = true
-	
+
 	var vbox := VBoxContainer.new()
 	dialog.add_child(vbox)
-	
+
 	var instruction := Label.new()
-	instruction.text = "Add goal object requirements (e.g., '6,4 token 5' for 5 tokens at tile 6,4):"
+	instruction.text = "Add requirements for objects that must be placed at specific tiles when the goal is reached:"
 	vbox.add_child(instruction)
-	
-	var input := TextEdit.new()
-	input.custom_minimum_size = Vector2(400, 150)
-	input.placeholder_text = "Format: x,y object_type count\nExample:\n6,4 token 5\n1,5 apple 2"
-	
+
+	var rows := VBoxContainer.new()
+	vbox.add_child(rows)
+
+	var buttons := HBoxContainer.new()
+	vbox.add_child(buttons)
+	var add_button := Button.new()
+	add_button.text = "Add Requirement"
+	buttons.add_child(add_button)
+
+	var goal_rows := []
+
+	var add_row := func(x: int, y: int, object_type: String, count: int) -> void:
+		var row := HBoxContainer.new()
+		var x_label := Label.new()
+		x_label.text = "X:"
+		row.add_child(x_label)
+		var x_input := SpinBox.new()
+		x_input.min_value = 1
+		x_input.max_value = 9999
+		x_input.value = x
+		x_input.tooltip_text = "X coordinate"
+		row.add_child(x_input)
+		var y_label := Label.new()
+		y_label.text = "Y:"
+		row.add_child(y_label)
+		var y_input := SpinBox.new()
+		y_input.min_value = 1
+		y_input.max_value = 9999
+		y_input.value = y
+		y_input.tooltip_text = "Y coordinate"
+		row.add_child(y_input)
+		var type_label := Label.new()
+		type_label.text = "Object:"
+		row.add_child(type_label)
+		var type_option := OptionButton.new()
+		for object_name in OBJECT_TYPES:
+			type_option.add_item(object_name.capitalize())
+		type_option.selected = max(0, OBJECT_TYPES.find(object_type))
+		row.add_child(type_option)
+		var count_label := Label.new()
+		count_label.text = "Count:"
+		row.add_child(count_label)
+		var count_input := SpinBox.new()
+		count_input.min_value = 1
+		count_input.max_value = 9999
+		count_input.value = max(1, count)
+		count_input.tooltip_text = "Required count"
+		row.add_child(count_input)
+		var delete_button := Button.new()
+		delete_button.text = "Delete"
+		delete_button.tooltip_text = "Remove this requirement"
+		row.add_child(delete_button)
+		rows.add_child(row)
+		var row_controls := {"x": x_input, "y": y_input, "type": type_option, "count": count_input}
+		goal_rows.append(row_controls)
+		delete_button.pressed.connect(func() -> void:
+			goal_rows.erase(row_controls)
+			row.queue_free()
+		)
+
+	add_button.pressed.connect(func() -> void:
+		add_row.call(1, 1, OBJECT_TYPES[0], 1)
+	)
+
 	# Pre-fill with existing goal objects
 	if document.data.has("goal") and document.data["goal"].has("objects"):
 		var goal_objs: Dictionary = document.data["goal"]["objects"]
-		var lines := []
 		for key in goal_objs:
+			var parts := str(key).split(",")
+			if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+				continue
 			var required: Dictionary = goal_objs[key]
 			for obj_name in required:
-				var count := int(required[obj_name])
-				lines.append("%s %s %d" % [key, obj_name, count])
-		input.text = "\n".join(lines)
-	
-	vbox.add_child(input)
-	
-	dialog.confirmed.connect(_apply_goal_objects.bind(input))
+				add_row.call(int(parts[0]), int(parts[1]), str(obj_name), int(required[obj_name]))
+	else:
+		add_row.call(1, 1, OBJECT_TYPES[0], 1)
+
+	dialog.confirmed.connect(_apply_goal_objects.bind(goal_rows))
 	dialog.confirmed.connect(dialog.queue_free)
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.close_requested.connect(dialog.queue_free)
 	add_child(dialog)
 	dialog.popup_centered()
 
-func _apply_goal_objects(input: TextEdit) -> void:
-	var lines := input.text.split("\n")
+func _apply_goal_objects(goal_rows: Array) -> void:
 	var goal_objects := {}
-	
-	for line in lines:
-		line = line.strip_edges()
-		if line.is_empty():
+	for row in goal_rows:
+		var x := int(row["x"].value)
+		var y := int(row["y"].value)
+		var object_type: String = OBJECT_TYPES[row["type"].selected]
+		var count := int(row["count"].value)
+		if count <= 0:
 			continue
-		var parts := line.split(" ")
-		if parts.size() >= 3:
-			var coords := parts[0].split(",")
-			if coords.size() == 2:
-				var x := int(coords[0])
-				var y := int(coords[1])
-				var obj_type := parts[1].to_lower()
-				var count := int(parts[2])
-				var key := "%d,%d" % [x, y]
-				if not goal_objects.has(key):
-					goal_objects[key] = {}
-				goal_objects[key][obj_type] = count
-	
+		var key := "%d,%d" % [x, y]
+		if not goal_objects.has(key):
+			goal_objects[key] = {}
+		goal_objects[key][object_type] = count
+
 	document.data["goal"]["objects"] = goal_objects
 	grid.queue_redraw()
 	status_label.text = "Goal objects configured"
+
+
+func _open_starting_inventory_dialog() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Starting Inventory"
+	dialog.ok_button_text = "Apply"
+	dialog.exclusive = false
+
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+
+	var instruction := Label.new()
+	instruction.text = "Objects the robot is carrying when the level starts:"
+	vbox.add_child(instruction)
+
+	var rows := VBoxContainer.new()
+	vbox.add_child(rows)
+
+	var robots: Array = document.data.get("robots", [])
+	var robot: Dictionary = robots[0] if not robots.is_empty() and robots[0] is Dictionary else {}
+	var inventory = robot.get("objects", {})
+	if not (inventory is Dictionary):
+		inventory = {}
+
+	var spins := {}
+	for object_name in OBJECT_TYPES:
+		var row := HBoxContainer.new()
+		var label := Label.new()
+		label.text = object_name.capitalize()
+		label.custom_minimum_size = Vector2(140, 0)
+		row.add_child(label)
+
+		var spin := SpinBox.new()
+		spin.min_value = 0
+		spin.max_value = 9999
+		spin.step = 1
+		spin.value = int(inventory.get(object_name, 0))
+		row.add_child(spin)
+		rows.add_child(row)
+		spins[object_name] = spin
+
+	dialog.confirmed.connect(_apply_starting_inventory.bind(spins))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _apply_starting_inventory(spins: Dictionary) -> void:
+	var robots: Array = document.data.get("robots", [])
+	if robots.is_empty() or not (robots[0] is Dictionary):
+		return
+	var robot: Dictionary = robots[0]
+	var inventory := {}
+	for object_name in spins:
+		var count := int((spins[object_name] as SpinBox).value)
+		if count > 0:
+			inventory[object_name] = count
+	robot["objects"] = inventory
+	robots[0] = robot
+	document.data["robots"] = robots
+	status_label.text = "Starting inventory updated"
+
+
+func _on_hint_changed(text: String) -> void:
+	if text.strip_edges().is_empty():
+		document.data.erase("hint")
+	else:
+		document.data["hint"] = text
+
+
+func _on_facing_selected(index: int) -> void:
+	var robots: Array = document.data.get("robots", [])
+	if robots.is_empty() or not (robots[0] is Dictionary):
+		return
+	var robot: Dictionary = robots[0]
+	robot["_orientation"] = index
+	robots[0] = robot
+	document.data["robots"] = robots
+
+
+func _open_starter_code_dialog() -> void:
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Starter Code"
+	dialog.ok_button_text = "Apply"
+	dialog.exclusive = false
+
+	var vbox := VBoxContainer.new()
+	dialog.add_child(vbox)
+
+	var instruction := Label.new()
+	instruction.text = "Code the workstation editor starts with for each language. Leave a language empty to use the default template."
+	vbox.add_child(instruction)
+
+	var editors_value = document.data.get("editor", {})
+	var editor_data: Dictionary = editors_value if editors_value is Dictionary else {}
+	var editors := {}
+	for language in ["cpp", "python"]:
+		var label := Label.new()
+		label.text = "C++ starter code:" if language == "cpp" else "Python starter code:"
+		vbox.add_child(label)
+
+		var text_edit := TextEdit.new()
+		text_edit.custom_minimum_size = Vector2(560, 180)
+		text_edit.wrap_mode = TextEdit.LINE_WRAPPING_NONE
+		vbox.add_child(text_edit)
+
+		var starter = editor_data.get(language, "")
+		if starter is Array:
+			text_edit.text = "\n".join(PackedStringArray(starter))
+		else:
+			text_edit.text = str(starter)
+		editors[language] = text_edit
+
+	dialog.confirmed.connect(_apply_starter_code.bind(editors))
+	dialog.confirmed.connect(dialog.queue_free)
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.close_requested.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
+
+
+func _apply_starter_code(editors: Dictionary) -> void:
+	var starter := {}
+	for language in editors:
+		var text: String = (editors[language] as TextEdit).text
+		while text.ends_with("\n"):
+			text = text.substr(0, text.length() - 1)
+		if not text.is_empty():
+			starter[language] = Array(text.split("\n"))
+	if starter.is_empty():
+		document.data.erase("editor")
+	else:
+		document.data["editor"] = starter
+	status_label.text = "Starter code updated"
 
 func _on_move_limit_default_toggled(checked: bool) -> void:
 	move_limit_input.visible = not checked
@@ -532,4 +1008,4 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	get_viewport().set_input_as_handled()
-	_on_back_button_pressed()
+	_request_exit()

@@ -4,3 +4,7 @@
 .cursor/
 .vscode/
 data/custom_levels/
+sandbox_worker/bin/linux-x86_64/
+sandbox_worker/bin/macos-arm64/
+sandbox_worker/runtime/linux-x86_64/
+sandbox_worker/runtime/macos-arm64/

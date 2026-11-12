@@ -6,7 +6,7 @@
   "walls": {},
   "objects": {},
   "void_tiles": {"3,1": true, "3,2": true, "3,3": true, "4,1": true, "4,2": true, "4,3": true},
-  "goal": {"position": {"x": 6, "y": 2}},
+  "goal": {"possible_final_positions": [[6, 2]]},
   "description": ["Cross the bridge along the top row to reach (6, 2). Dark gaps have no floor: moving into one ends the run. Clear-path sensors only detect walls and grid boundaries, so they cannot warn you about these gaps."],
   "editor": {
     "cpp": ["#include \"robot.hpp\"", "", "int main() {", "    // Cross along the top row.", "    return 0;", "}"],

@@ -22,8 +22,10 @@ enum Tool {
 
 
 signal view_changed
+signal objects_changed
 
 var active_tool := Tool.ROBOT
+var suppress_tool_application := false
 
 var document: LevelDocument
 var show_coordinates := false
@@ -33,10 +35,24 @@ var zoom_level := 1.0
 var zoom_initialized := false
 var pan_offset := Vector2.ZERO
 var _panning := false
+var _left_button_down := false
+var _left_button_panned := false
+var _click_start_tile := Vector2i(-1, -1)
 const ROBOT_ICON = preload("res://assets/objects/robot.png")
 const GOAL_ICON = preload("res://assets/objects/goal.png")
 const APPLE_ICON = preload("res://assets/objects/apple.png")
+const BANANA_ICON = preload("res://assets/objects/banana.png")
+const CARROT_ICON = preload("res://assets/objects/carrot.png")
+const STAR_ICON = preload("res://assets/objects/star.png")
 const TOKEN_ICON = preload("res://assets/objects/token.png")
+
+const OBJECT_ICONS := {
+	"apple": APPLE_ICON,
+	"banana": BANANA_ICON,
+	"carrot": CARROT_ICON,
+	"star": STAR_ICON,
+	"token": TOKEN_ICON
+}
 
 
 func _draw_icon(texture: Texture2D, center: Vector2, icon_size := 32.0) -> void:
@@ -109,21 +125,15 @@ func _draw() -> void:
 		var object_y := int(parts[1])
 		var tile_objects: Dictionary = document.data["objects"][object_key]
 
-		# Apples
-		if tile_objects.has("apple"):
-			var apple_center := _cell_center(object_x, object_y, rows)
-			_draw_icon(APPLE_ICON, apple_center)
-			var apple_count := int(tile_objects["apple"])
-			if apple_count > 1:
-				draw_string(ThemeDB.fallback_font, apple_center + Vector2(9, 14), str(apple_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
-
-		# Tokens
-		if tile_objects.has("token"):
-			var token_center := _cell_center(object_x, object_y, rows)
-			_draw_icon(TOKEN_ICON, token_center)
-			var token_count := int(tile_objects["token"])
-			if token_count > 1:
-				draw_string(ThemeDB.fallback_font, token_center + Vector2(9, 14), str(token_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
+		for object_name in tile_objects:
+			var icon: Texture2D = OBJECT_ICONS.get(object_name)
+			if icon == null:
+				continue
+			var object_center := _cell_center(object_x, object_y, rows)
+			_draw_icon(icon, object_center)
+			var object_count := int(tile_objects[object_name])
+			if object_count > 1:
+				draw_string(ThemeDB.fallback_font, object_center + Vector2(9, 14), str(object_count), HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color.WHITE)
 
 	# Draw goal object markers.
 	if document.data.has("goal") and document.data["goal"].has("objects"):
@@ -199,6 +209,8 @@ func reset_pan() -> void:
 func pan_by(delta: Vector2) -> void:
 	if delta == Vector2.ZERO:
 		return
+	if _left_button_down:
+		_left_button_panned = true
 	pan_offset += delta
 	view_changed.emit()
 
@@ -217,6 +229,29 @@ func pan_left() -> void:
 
 func pan_right() -> void:
 	pan_by(Vector2(-PAN_STEP, 0))
+
+
+func begin_map_click() -> void:
+	_left_button_down = true
+	_left_button_panned = false
+	_click_start_tile = _tile_at_local_mouse()
+
+
+func end_map_click() -> void:
+	if not _left_button_down:
+		return
+	_left_button_down = false
+	var was_panned := _left_button_panned
+	_left_button_panned = false
+	_click_start_tile = Vector2i(-1, -1)
+	if not was_panned and not suppress_tool_application:
+		_apply_tool_at_mouse_position()
+
+
+func _cancel_map_click() -> void:
+	_left_button_down = false
+	_left_button_panned = false
+	_click_start_tile = Vector2i(-1, -1)
 
 
 func apply_layout(available_size: Vector2, unscaled_grid_size: Vector2) -> void:
@@ -296,13 +331,17 @@ func _input(event: InputEvent) -> void:
 	if document == null:
 		return
 
-	if event is InputEventMouseMotion and _panning:
-		if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
-			_panning = false
+	if event is InputEventMouseMotion:
+		if _panning:
+			if not Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
+				_panning = false
+				return
+			pan_by((event as InputEventMouseMotion).relative)
+			get_viewport().set_input_as_handled()
 			return
-		pan_by((event as InputEventMouseMotion).relative)
-		get_viewport().set_input_as_handled()
-		return
+		if _left_button_down and not _left_button_panned and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			if _tile_at_local_mouse() != _click_start_tile:
+				_left_button_panned = true
 
 	if not (event is InputEventMouseButton):
 		return
@@ -327,30 +366,51 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 
-	if event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+	if event.button_index != MOUSE_BUTTON_LEFT:
 		return
 
-	if not _should_handle_map_click():
+	if event.pressed:
+		if _should_handle_map_click():
+			begin_map_click()
+		else:
+			_cancel_map_click()
 		return
 
+	end_map_click()
+
+
+func _tile_at_local_mouse() -> Vector2i:
+	if document == null:
+		return Vector2i(-1, -1)
 	var mouse_position := get_local_mouse_position()
 	var cols := int(document.data["cols"])
 	var rows := int(document.data["rows"])
 
 	if mouse_position.x < 0 or mouse_position.y < 0:
-		return
+		return Vector2i(-1, -1)
 
 	var gx := int(mouse_position.x / CELL_SIZE) + 1
 	var gy := rows - int(mouse_position.y / CELL_SIZE)
 
 	if gx < 1 or gx > cols or gy < 1 or gy > rows:
+		return Vector2i(-1, -1)
+	return Vector2i(gx, gy)
+
+
+func _apply_tool_at_mouse_position() -> void:
+	if not _should_handle_map_click():
 		return
 
-	apply_tool(gx, gy)
+	var tile := _tile_at_local_mouse()
+	if tile.x < 0:
+		return
+
+	apply_tool(tile.x, tile.y)
 
 
 func apply_tool(gx: int, gy: int) -> void:
 	var key := "%d,%d" % [gx, gy]
+	var did_objects_change := false
 	if not document.data.has("void_tiles"):
 		document.data["void_tiles"] = {}
 	if active_tool in [Tool.ROBOT, Tool.GOAL]:
@@ -369,7 +429,9 @@ func apply_tool(gx: int, gy: int) -> void:
 		if document.data["goal"].get("objects", {}).has(key):
 			return  # Do not void tiles that have goal object requirements.
 		document.data["void_tiles"][key] = true
-		document.data["objects"].erase(key)
+		if document.data["objects"].has(key):
+			document.data["objects"].erase(key)
+			did_objects_change = true
 	elif active_tool == Tool.ROBOT:
 		var robots: Array = document.data["robots"]
 		var robot: Dictionary = robots[0]
@@ -414,12 +476,15 @@ func apply_tool(gx: int, gy: int) -> void:
 		tile_objects[object_type] = int(tile_objects.get(object_type, 0)) + object_count
 		objects[object_key] = tile_objects
 		document.data["objects"] = objects
+		did_objects_change = true
 
 	elif active_tool == Tool.ERASE:
 		document.data["void_tiles"].erase(key)
 		var cell_key := "%d,%d" % [gx, gy]
 
 		var objects: Dictionary = document.data["objects"]
+		if objects.has(cell_key):
+			did_objects_change = true
 		objects.erase(cell_key)
 		document.data["objects"] = objects
 
@@ -435,3 +500,5 @@ func apply_tool(gx: int, gy: int) -> void:
 		document.data["walls"] = walls
 
 	queue_redraw()
+	if did_objects_change:
+		objects_changed.emit()

@@ -7,6 +7,9 @@
 [ext_resource type="Texture2D" path="res://assets/objects/wall.png" id="5_wall"]
 [ext_resource type="Texture2D" path="res://assets/objects/apple.png" id="6_object"]
 [ext_resource type="Texture2D" path="res://assets/objects/token.png" id="6_token"]
+[ext_resource type="Texture2D" path="res://assets/objects/banana.png" id="6_banana"]
+[ext_resource type="Texture2D" path="res://assets/objects/carrot.png" id="6_carrot"]
+[ext_resource type="Texture2D" path="res://assets/objects/star.png" id="6_star"]
 [ext_resource type="Texture2D" path="res://assets/objects/void.png" id="7_void"]
 [ext_resource type="Texture2D" path="res://assets/objects/close.png" id="8_erase"]
 
@@ -101,6 +104,14 @@ text = "LEVEL INSTRUCTIONS"
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 placeholder_text = "Tell players what they need to solve."
+
+[node name="HintLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "HINT"
+
+[node name="HintInput" type="LineEdit" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+placeholder_text = "Optional hint shown to players"
 
 [node name="GridSetupLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
@@ -243,6 +254,36 @@ vertical_icon_alignment = 0
 vertical_alignment = 2
 text = "APPLE"
 
+[node name="BananaButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("6_banana")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "BANANA"
+
+[node name="CarrotButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("6_carrot")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "CARROT"
+
+[node name="StarButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+icon = ExtResource("6_star")
+expand_icon = true
+icon_alignment = 1
+vertical_icon_alignment = 0
+vertical_alignment = 2
+text = "STAR"
+
 [node name="TokenButton" type="Button" parent="RightToolbar/ObjectsGrid"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
@@ -253,7 +294,7 @@ vertical_icon_alignment = 0
 vertical_alignment = 2
 text = "TOKEN"
 
-[node name="VoidButton" type="Button" parent="RightToolbar/ObjectsGrid"]
+[node name="VoidButton" type="Button" parent="RightToolbar"]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 icon = ExtResource("7_void")
@@ -299,7 +340,7 @@ custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 text = "← BACK TO MAIN MENU"
 
-[node name="EraseButton" type="Button" parent="RightToolbar/ObjectsGrid" unique_id=826979752]
+[node name="EraseButton" type="Button" parent="RightToolbar" unique_id=826979752]
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2
 icon = ExtResource("8_erase")
@@ -336,6 +377,31 @@ text = "CARRY REQUIREMENT"
 layout_mode = 2
 custom_minimum_size = Vector2(0, 34)
 text = "Set Carry Requirements"
+
+[node name="RobotInventoryLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "ROBOT INVENTORY"
+
+[node name="StartingInventoryButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+text = "Set Starting Inventory"
+
+[node name="FacingLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "STARTING FACING"
+
+[node name="FacingInput" type="OptionButton" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+
+[node name="StarterCodeLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+text = "STARTER CODE"
+
+[node name="StarterCodeButton" type="Button" parent="SidebarScroll/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 34)
+text = "Set Starter Code (C++ / Python)"
 
 [node name="LimitsLabel" type="Label" parent="SidebarScroll/VBoxContainer"]
 layout_mode = 2
