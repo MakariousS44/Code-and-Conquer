@@ -38,6 +38,7 @@ func wait_for_connection(tree: SceneTree) -> bool:
 # Read one newline-terminated message from the subprocess.
 # Returns "[CANCELLED]" or "[DISCONNECT]" on stop/crash.
 
+
 func read_line(tree: SceneTree) -> String:
 	while not _cancelled:
 		if _peer == null:
@@ -46,15 +47,13 @@ func read_line(tree: SceneTree) -> String:
 		_peer.poll()
 		var status := _peer.get_status()
 
-		# Never read bytes from a closed TCP connection.
-		if status != StreamPeerTCP.STATUS_CONNECTED:
-			return "[DISCONNECT]"
+		# Only read from an open connection.
+		if status == StreamPeerTCP.STATUS_CONNECTED:
+			var available := _peer.get_available_bytes()
+			if available > 0:
+				_buf += _peer.get_utf8_string(available)
 
-		var available := _peer.get_available_bytes()
-
-		if available > 0:
-			_buf += _peer.get_utf8_string(available)
-
+		# Always process complete buffered messages first.
 		var idx := _buf.find("\n")
 		if idx != -1:
 			if idx > MAX_MESSAGE_CHARS:
@@ -71,8 +70,14 @@ func read_line(tree: SceneTree) -> String:
 
 			return line
 
+		# Prevent unlimited buffer growth.
 		if _buf.length() > MAX_MESSAGE_CHARS:
 			return "[PROTOCOL_ERROR]"
+
+		# Disconnect only after buffered lines have been processed.
+		if status == StreamPeerTCP.STATUS_ERROR \
+		or status == StreamPeerTCP.STATUS_NONE:
+			return "[DISCONNECT]"
 
 		await tree.process_frame
 

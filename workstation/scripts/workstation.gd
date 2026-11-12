@@ -84,6 +84,7 @@ var compiler = preload(Paths.CPP_DRIVER).new()
 var py_pipeline = preload(Paths.PYTHON_PIPELINE).new()
 var _commands = preload(Paths.ROBOT_COMMANDS).new()
 
+
 # === language state ===
 enum Language { CPP, PYTHON }
 var current_language: Language = Language.CPP
@@ -93,6 +94,8 @@ var current_language: Language = Language.CPP
 var level_definition = preload(Paths.MAP_LOADER).new()
 var level_scene_resource = preload(Paths.MAP_VIEW_SCENE)
 var current_level_definition: Dictionary = {}
+var _level_code_cache: Dictionary = {}
+var _loaded_level_path: String = ""
 
 # cached runtime refs so this screen can hand commands to the live player
 var game_instance: Node = null
@@ -261,6 +264,7 @@ func _ready() -> void:
 
 	await get_tree().process_frame
 	_load_level_scene(true)
+	_loaded_level_path = SelectedLevel.path
 
 func _setup_level_windows() -> void:
 	level_type_window = Window.new()
@@ -526,6 +530,7 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		game_instance.level_incomplete.connect(_trigger_incomplete_lose)
 
 	current_level_definition = raw.definition
+	global_level_name = level_path
 
 	# load limits from JSON if present, otherwise use defaults
 	var limits_data = current_level_definition.get("limits", {})
@@ -633,6 +638,7 @@ func _setup_language_selector() -> void:
 
 
 func _on_language_changed(index: int) -> void:
+	_save_current_level_code()
 	_stop_execution()
 	current_language = Language.CPP if index == 0 else Language.PYTHON
 	_cmd_history.clear()
@@ -660,6 +666,7 @@ func _on_language_changed(index: int) -> void:
 		_set_status("Ready", "")
 	
 	_load_level_scene(false, true)
+	_restore_level_code(_loaded_level_path)
 
 
 # === syntax highlighting ===
@@ -2412,13 +2419,24 @@ func _on_custom_level_selected(index: int) -> void:
 	_switch_level()
 	custom_levels_window.hide()
 
+
 func _switch_level() -> void:
 	if _is_execution_busy():
 		_set_status("Stop the current program before switching levels.", "error")
 		return
 
-	print("Selected level path: ", SelectedLevel.path)
-	campaign_next_button.visible = false
+	var new_path: String = SelectedLevel.path.strip_edges()
+	var result: Dictionary = level_definition.load(new_path)
+
+	if not result.get("ok", false):
+		_set_status("The selected level could not be loaded.", "error")
+		return
+
+	# Save the code from the previous level.
+	_save_current_level_code()
+
+	print("Selected level path: ", new_path)
+
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
@@ -2428,12 +2446,34 @@ func _switch_level() -> void:
 
 	output_box.clear()
 	_clear_editor_highlights()
-<<<<<<< HEAD
-	_load_level_scene(false, true)
-	_set_status("Ready", "")
-=======
+
+	# Load the new level and reset the camera.
 	_load_level_scene(true, false)
+
+	# Restore any previously written code for this level.
+	_loaded_level_path = new_path
+	_restore_level_code(new_path)
+
+	# Hide all previous result screens.
+	win_overlay.hide()
+	lose_overlay.hide()
+	done_overlay.hide()
+	campaign_next_button.hide()
+
+	# Restore the workstation controls.
+	_set_controls_disabled(false)
+	run_button.text = "▶ Run"
+	run_button.disabled = true
+	prev_button.disabled = true
+
+	# Previously checked code must not carry into a new level.
+	has_checked_code = false
+	checked_code = ""
+	checked_cpp_executable = ""
+
 	_set_status("Ready", "")
+	editor.grab_focus()
+
 
 func _is_execution_busy() -> bool:
 	var busy: bool = (
@@ -2451,4 +2491,20 @@ func _is_execution_busy() -> bool:
 	)
 
 	return busy
->>>>>>> e98e636 (Fixed Level Change bugs and Custom Level Bugs.)
+
+
+func _save_current_level_code() -> void:
+	if _loaded_level_path.is_empty():
+		return
+
+	var language := str(language_selector.selected)
+	var key := _loaded_level_path + "|" + language
+	_level_code_cache[key] = editor.text
+
+
+func _restore_level_code(level_path: String) -> void:
+	var language := str(language_selector.selected)
+	var key := level_path + "|" + language
+
+	if _level_code_cache.has(key):
+		editor.text = str(_level_code_cache[key])
