@@ -11,6 +11,8 @@
 	"python": ["from robot import *", "", "# Find the gaps and reach the goal."]
   },
     "limits": {
+      "move_limit": 0,
+      "cmd_limit": 0,
       "time_limit_seconds": 90
     }
 }

@@ -46,6 +46,7 @@
   },
     "limits": {
       "move_limit": 400,
+      "cmd_limit": 0,
       "time_limit_seconds": 300
     }
 }

@@ -12,6 +12,8 @@
     "python": ["from robot import *", "", "# Collect every token, then drop them all on the goal."]
   },
     "limits": {
+      "move_limit": 0,
+      "cmd_limit": 0,
       "time_limit_seconds": 180
     }
 }

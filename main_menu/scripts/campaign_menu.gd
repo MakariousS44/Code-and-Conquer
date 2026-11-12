@@ -41,13 +41,6 @@ func _ready() -> void:
 	_list.add_theme_constant_override("separation", 12)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	level_scroll.add_child(_list)
-	var worlds := Button.new()
-	worlds.text = "Custom Worlds & Test Templates"
-	worlds.custom_minimum_size.y = 44
-	worlds.pressed.connect(func():
-		hide()
-		custom_worlds_requested.emit())
-	column.add_child(worlds)
 	var back := Button.new()
 	back.text = "Back"
 	back.pressed.connect(hide)

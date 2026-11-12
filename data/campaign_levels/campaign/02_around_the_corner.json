@@ -11,6 +11,8 @@
 	"python": ["from robot import *", "", "# Follow the corridor, turn, then reach the goal."]
   },
     "limits": {
+      "move_limit": 10,
+      "cmd_limit": 10,
       "time_limit_seconds": 60
     }
 }
