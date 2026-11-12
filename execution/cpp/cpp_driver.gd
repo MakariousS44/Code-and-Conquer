@@ -9,6 +9,7 @@ var _active_build_dir: String = ""
 var _prepare_error: String = ""
 var _prepare_reason: String = ""
 static var _compiler: String = ""
+static var _compiler_probed := false
 static var _compiler_version_output: Array = []
 
 
@@ -209,6 +210,9 @@ func remap_diagnostics(raw_text: String, line_offset: int) -> String:
 func _find_compiler() -> String:
 	if not _compiler.is_empty():
 		return _compiler
+	if _compiler_probed:
+		return ""
+	_compiler_probed = true
 	for candidate in ["g++", "clang++", "c++"]:
 		var output: Array = []
 		if OS.execute(candidate, ["--version"], output, true) == 0:
