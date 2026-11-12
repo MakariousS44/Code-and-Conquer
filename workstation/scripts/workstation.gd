@@ -2253,8 +2253,11 @@ func _on_level_button_pressed() -> void:
 		return
 
 	_populate_custom_levels()
-	level_menu.popup()
-func _on_custom_level_selected(index: int) -> void:
+
+	var button_rect := level_button.get_global_rect()
+	var popup_position := button_rect.position + Vector2(0, button_rect.size.y)
+
+	level_menu.popup(Rect2(popup_position, Vector2.ZERO))
 	if index < 0 or index >= custom_levels.size():
 		return
 
