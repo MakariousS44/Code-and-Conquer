@@ -47,14 +47,16 @@ func read_line(tree: SceneTree) -> String:
 		_peer.poll()
 		var status := _peer.get_status()
 
-		# A peer can disconnect after sending data. Read any bytes that remain
-		# queued before handling the disconnect below.
-		var available := _peer.get_available_bytes()
-		if available > 0:
-			_buf += _peer.get_utf8_string(available)
+		# Only read from an active TCP connection.
+		if status == StreamPeerTCP.STATUS_CONNECTED:
+			var available := _peer.get_available_bytes()
 
-		# Always process complete buffered messages first.
+			if available > 0:
+				_buf += _peer.get_utf8_string(available)
+
+		# Process complete buffered messages first.
 		var idx := _buf.find("\n")
+
 		if idx != -1:
 			if idx > MAX_MESSAGE_CHARS:
 				return "[PROTOCOL_ERROR]"
@@ -66,6 +68,7 @@ func read_line(tree: SceneTree) -> String:
 				if line == "[AUTH] " + _expected_token:
 					_authenticated = true
 					continue
+
 				return "[AUTH_FAILED]"
 
 			return line
@@ -74,7 +77,7 @@ func read_line(tree: SceneTree) -> String:
 		if _buf.length() > MAX_MESSAGE_CHARS:
 			return "[PROTOCOL_ERROR]"
 
-		# Disconnect only after buffered lines have been processed.
+		# Handle disconnected or failed connections.
 		if status == StreamPeerTCP.STATUS_ERROR \
 		or status == StreamPeerTCP.STATUS_NONE:
 			return "[DISCONNECT]"

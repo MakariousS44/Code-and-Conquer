@@ -936,6 +936,15 @@ func _on_reset_button_pressed() -> void:
 	var loaded: bool = _load_level_scene(false, true)
 
 	if not loaded:
+		# Execution has stopped, so restore the controls.
+		_set_controls_disabled(false)
+
+		run_button.text = "▶ Run"
+		run_button.disabled = not has_checked_code
+		step_button.disabled = false
+		reset_button.disabled = false
+		prev_button.disabled = true
+
 		_set_status("Reset failed. Level could not be reloaded.", "error")
 		log_error("Reset failed: could not reload the level.")
 		return
@@ -1172,6 +1181,9 @@ func _on_win_next() -> void:
 	# The normal switch function saves the outgoing code.
 	SelectedLevel.path = next_path
 	_switch_level()
+	if _loaded_level_path == next_path:
+		run_button.text = "▶ Run"
+		run_button.disabled = false
 
 	# Restore normal victory text for future levels.
 	$WinOverlay/WinCard/WinContent/WinTitle.text = "Level Complete!"
