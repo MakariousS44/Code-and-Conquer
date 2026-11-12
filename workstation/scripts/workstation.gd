@@ -472,19 +472,19 @@ func _format_time_detail(remaining_seconds: float) -> String:
 	]
 
 
-func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
+func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> bool:
 	# Validate the selected level before removing the current scene.
 	var level_path: String = SelectedLevel.path.strip_edges()
 
 	if level_path.is_empty():
 		push_error("No level path available.")
 		log_error("NO LEVEL PATH FOUND")
-		return
+		return false
 
 	if not FileAccess.file_exists(level_path):
 		push_error("Level file does not exist: " + level_path)
 		log_error("FILE NOT FOUND")
-		return
+		return false
 
 	var raw: Dictionary = level_definition.load(level_path)
 
@@ -492,34 +492,39 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		var error_message: String = str(raw.get("error", "Unknown error"))
 		push_error("Level load failed: " + error_message)
 		log_error("LOAD FAILED: " + error_message)
-		return
+		return false
 
 	var saved_camera_state: Dictionary = {}
 	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
 		saved_camera_state = game_instance.get_camera_state()
 
-	# A freshly loaded level is a fresh run: clear any win/lose/done state
-	# left over from the previous level so the next victory is handled.
-	_run_outcome = "incomplete"
-	_run_had_error = false
+	# Prepare and validate the new scene before removing the old one.
+	var new_game_instance: Node = level_scene_resource.instantiate()
 
-	# clear out any existing level scene from the viewport
+	if new_game_instance == null:
+		push_error("Could not instantiate level scene.")
+		return false
+
+	if not new_game_instance.has_node("WorldRoot/Player"):
+		push_error("Level scene is missing WorldRoot/Player")
+		new_game_instance.free()
+		return false
+
+	# The replacement scene is valid.
 	for child in game_subviewport.get_children():
 		child.queue_free()
-	flat_grid_node = null
 
-	# create and attach the playable level scene
-	game_instance = level_scene_resource.instantiate()
+	flat_grid_node = null
+	game_instance = new_game_instance
 	game_subviewport.add_child(game_instance)
+
+	_run_outcome = "incomplete"
+	_run_had_error = false
 
 	if preserve_camera and not saved_camera_state.is_empty() \
 			and game_instance.has_method("set_pending_camera_restore"):
 		game_instance.set_pending_camera_restore(saved_camera_state)
 
-	# grab the player node so runtime systems can control it later
-	if not game_instance.has_node("WorldRoot/Player"):
-		push_error("Level scene is missing node path: WorldRoot/Player")
-		return
 
 	player_node = game_instance.get_node("WorldRoot/Player")
 	if player_node.has_signal("lose_triggered") and not player_node.lose_triggered.is_connected(_on_player_lose):
@@ -530,7 +535,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		game_instance.level_incomplete.connect(_trigger_incomplete_lose)
 
 	current_level_definition = raw.definition
-	global_level_name = level_path
 
 	# load limits from JSON if present, otherwise use defaults
 	var limits_data = current_level_definition.get("limits", {})
@@ -565,6 +569,8 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		game_instance.camera.enabled = true
 		game_instance.camera.make_current()
 
+	global_level_name = level_path
+	return true
 
 func _load_editor_template_for_current_language() -> void:
 	if current_level_definition.is_empty():
@@ -925,10 +931,30 @@ func _clear_editor_highlights() -> void:
 
 func _on_reset_button_pressed() -> void:
 	_stop_execution()
+
+	# Reload the level before clearing the previous state.
+	var loaded: bool = _load_level_scene(false, true)
+
+	if not loaded:
+		# Execution has stopped, so restore the controls.
+		_set_controls_disabled(false)
+
+		run_button.text = "▶ Run"
+		run_button.disabled = not has_checked_code
+		step_button.disabled = false
+		reset_button.disabled = false
+		prev_button.disabled = true
+
+		_set_status("Reset failed. Level could not be reloaded.", "error")
+		log_error("Reset failed: could not reload the level.")
+		return
+
+	# Reset succeeded. Clear execution history.
 	_clear_editor_highlights()
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+
 	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
@@ -941,7 +967,6 @@ func _on_reset_button_pressed() -> void:
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene(false, true)
 
 func _on_speed_change(value: float) -> void:
 	exec_speed = value
@@ -1141,20 +1166,28 @@ func _on_win_retry() -> void:
 
 func _on_win_next() -> void:
 	var next_index := Campaign.index_for_path(SelectedLevel.path) + 1
-	if next_index <= 0 or not Campaign.is_unlocked(next_index, Campaign.completed_ids(campaign_progress_path)):
+
+	if next_index <= 0 or next_index >= Campaign.LEVELS.size():
 		return
-	_stop_execution()
-	SelectedLevel.path = Campaign.LEVELS[next_index].path
-	win_overlay.visible = false
-	_is_handling_lose = false
-	_set_controls_disabled(false)
-	_on_reset_button_pressed()
-	_load_editor_template_for_current_language()
+
+	if not Campaign.is_unlocked(
+		next_index,
+		Campaign.completed_ids(campaign_progress_path)
+	):
+		return
+
+	var next_path: String = Campaign.LEVELS[next_index].path
+
+	# The normal switch function saves the outgoing code.
+	SelectedLevel.path = next_path
+	_switch_level()
+	if _loaded_level_path == next_path:
+		run_button.text = "▶ Run"
+		run_button.disabled = false
+
+	# Restore normal victory text for future levels.
 	$WinOverlay/WinCard/WinContent/WinTitle.text = "Level Complete!"
-	game_instance.call_deferred("_fit_camera_to_level")
 	$WinOverlay/WinCard/WinContent/WinMessage.text = "Your robot reached the goal!"
-	campaign_next_button.hide()
-	editor.grab_focus()
 
 
 func _on_go_to_menu() -> void:
@@ -2422,6 +2455,7 @@ func _on_custom_level_selected(index: int) -> void:
 
 func _switch_level() -> void:
 	if _is_execution_busy():
+		SelectedLevel.path = _loaded_level_path
 		_set_status("Stop the current program before switching levels.", "error")
 		return
 
@@ -2429,14 +2463,27 @@ func _switch_level() -> void:
 	var result: Dictionary = level_definition.load(new_path)
 
 	if not result.get("ok", false):
+		SelectedLevel.path = _loaded_level_path
 		_set_status("The selected level could not be loaded.", "error")
 		return
 
-	# Save the code from the previous level.
+	# Save the previous level's code before switching.
 	_save_current_level_code()
 
 	print("Selected level path: ", new_path)
 
+	var loaded: bool = _load_level_scene(true, false)
+
+	if not loaded:
+		SelectedLevel.path = _loaded_level_path
+		_set_status("Level switch failed.", "error")
+		return
+
+	# Commit the new level only after successful loading.
+	_loaded_level_path = new_path
+	_restore_level_code(new_path)
+
+	# Reset execution history for the new level.
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
@@ -2447,20 +2494,13 @@ func _switch_level() -> void:
 	output_box.clear()
 	_clear_editor_highlights()
 
-	# Load the new level and reset the camera.
-	_load_level_scene(true, false)
-
-	# Restore any previously written code for this level.
-	_loaded_level_path = new_path
-	_restore_level_code(new_path)
-
-	# Hide all previous result screens.
+	# Hide previous result screens.
 	win_overlay.hide()
 	lose_overlay.hide()
 	done_overlay.hide()
 	campaign_next_button.hide()
 
-	# Restore the workstation controls.
+	# Restore workstation controls.
 	_set_controls_disabled(false)
 	run_button.text = "▶ Run"
 	run_button.disabled = true
@@ -2497,14 +2537,12 @@ func _save_current_level_code() -> void:
 	if _loaded_level_path.is_empty():
 		return
 
-	var language := str(language_selector.selected)
-	var key := _loaded_level_path + "|" + language
+	var key := _loaded_level_path + "|" + str(int(current_language))
 	_level_code_cache[key] = editor.text
 
 
 func _restore_level_code(level_path: String) -> void:
-	var language := str(language_selector.selected)
-	var key := level_path + "|" + language
+	var key := level_path + "|" + str(int(current_language))
 
 	if _level_code_cache.has(key):
 		editor.text = str(_level_code_cache[key])
