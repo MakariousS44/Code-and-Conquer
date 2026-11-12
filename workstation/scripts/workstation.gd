@@ -20,6 +20,7 @@ var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").
 @onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
+@onready var level_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LevelButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var grid_2d_button: Button = $SettingsOverlay/SettingsCard/SettingsContent/ViewRow/Grid2DButton
@@ -164,6 +165,14 @@ const ALLOWED_IPC_QUERIES := [
 const MAX_STUDENT_OUTPUT_LINES := 200
 const MAX_STUDENT_SOURCE_CHARS := 100000
 var _student_output_lines := 0
+const LEVEL_DIRECTORIES := [
+	"res://data/campaign_levels/",
+	"res://data/custom_levels/",
+	"user://custom_levels/"
+]
+
+var custom_levels: Array[Dictionary] = []
+var level_menu: PopupMenu
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -201,6 +210,10 @@ func _ready() -> void:
 	run_button.disabled = true
 	step_button.pressed.connect(_on_step_button_pressed)
 	prev_button.pressed.connect(_on_prev_button_pressed)
+	level_button.pressed.connect(_on_level_button_pressed)
+	level_menu = PopupMenu.new()
+	level_menu.id_pressed.connect(_on_custom_level_selected)
+	add_child(level_menu)
 	prev_button.disabled = true
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
@@ -2199,3 +2212,63 @@ func _on_check_button_pressed() -> void:
 		return
 
 	await _finish_cpp_check(source, generated.line_offset)
+func _populate_custom_levels() -> void:
+	custom_levels.clear()
+	level_menu.clear()
+
+	for folder in LEVEL_DIRECTORIES:
+		var directory := DirAccess.open(folder)
+		if directory == null:
+			continue
+
+		var files := directory.get_files()
+		files.sort()
+
+		for file_name in files:
+			if not file_name.to_lower().ends_with(".json"):
+				continue
+
+			var path: String = folder.path_join(file_name)
+			var display_name := file_name.get_basename()
+			var file := FileAccess.open(path, FileAccess.READ)
+
+			if file != null:
+				var json := JSON.new()
+				if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+					display_name = str(json.data.get("name", display_name))
+
+			custom_levels.append({
+				"name": display_name,
+				"path": path
+			})
+
+	for index in range(custom_levels.size()):
+		level_menu.add_item(
+			str(custom_levels[index]["name"]),
+			index
+	)
+func _on_level_button_pressed() -> void:
+	if _ipc_active or _ipc_loop_running or _subprocess_pid != -1:
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	_populate_custom_levels()
+	level_menu.popup()
+func _on_custom_level_selected(index: int) -> void:
+	if index < 0 or index >= custom_levels.size():
+		return
+
+	SelectedLevel.path = custom_levels[index].path
+	level_menu.hide()
+
+	_cmd_history.clear()
+	_step_index = 0
+	_in_replay = false
+	_is_handling_lose = false
+	_run_outcome = "incomplete"
+	_run_had_error = false
+
+	output_box.clear()
+	_clear_editor_highlights()
+	_load_level_scene(false, true)
+	_set_status("Ready", "")
