@@ -1420,11 +1420,17 @@ func _run_pipeline() -> void:
 			return
 
 
-	if current_language == Language.CPP and not compiler.is_available():
-		log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
-		_set_status("C++ Compiler unavailable", "error")
-		_re_enable_buttons()
-		return
+	if current_language == Language.CPP:
+		if not compiler.is_platform_supported():
+			log_error("C++ execution is not supported on this OS or architecture.")
+			_set_status("C++ not supported on this platform", "error")
+			_re_enable_buttons()
+			return
+		if not compiler.detect_compiler():
+			log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
+			_set_status("C++ Compiler unavailable", "error")
+			_re_enable_buttons()
+			return
 
 	if current_language == Language.PYTHON and not py_pipeline.is_available():
 		log_error("The bundled Python runtime is unavailable for this platform.")
