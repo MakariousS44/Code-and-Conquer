@@ -931,10 +931,21 @@ func _clear_editor_highlights() -> void:
 
 func _on_reset_button_pressed() -> void:
 	_stop_execution()
+
+	# Reload the level before clearing the previous state.
+	var loaded: bool = _load_level_scene(false, true)
+
+	if not loaded:
+		_set_status("Reset failed. Level could not be reloaded.", "error")
+		log_error("Reset failed: could not reload the level.")
+		return
+
+	# Reset succeeded. Clear execution history.
 	_clear_editor_highlights()
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+
 	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
@@ -947,7 +958,6 @@ func _on_reset_button_pressed() -> void:
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene(false, true)
 
 func _on_speed_change(value: float) -> void:
 	exec_speed = value
