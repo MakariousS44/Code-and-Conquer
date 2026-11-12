@@ -1,29 +1,31 @@
 ## python_compiler.gd
-## Generates and launches student Python code as a non-blocking subprocess.
-## All protocol communication goes through the TCP socket, not stdout.
+## Generates student Python code for the platform IPC transport.
+## The sandbox worker owns interpreter selection and process launch.
 
 extends RefCounted
 
 const Paths = preload("res://execution/shared/paths.gd")
 var _commands = preload(Paths.ROBOT_COMMANDS).new()
+var _runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 
 func prepare_sandbox_files(
 	player_code: String,
 	sandbox_path: String,
-	pipe_name: String
+	ipc_endpoint: String
 ) -> Dictionary:
-	var python_exe := sandbox_path.path_join("python").path_join("python.exe")
+	var bootstrap := ""
+	match OS.get_name():
+		"Windows":
+			bootstrap = _commands.get_python_pipe_bootstrap(ipc_endpoint)
+		"Linux", "macOS":
+			bootstrap = _commands.get_python_unix_bootstrap(ipc_endpoint)
+		_:
+			return {
+				"ok": false,
+				"message": "Python execution is not supported on this OS."
+			}
 
-	if not FileAccess.file_exists(python_exe):
-		return {
-			"ok": false,
-			"message": "Private Python runtime was not found in the secure folder."
-		}
-
-	var script := _commands.get_python_pipe_bootstrap(pipe_name) \
-		+ "\n" \
-		+ _commands.get_python_runner(player_code)
-
+	var script := bootstrap + "\n" + _commands.get_python_runner(player_code)
 	var script_path := sandbox_path.path_join("student_program.py")
 	var file := FileAccess.open(script_path, FileAccess.WRITE)
 
@@ -38,50 +40,17 @@ func prepare_sandbox_files(
 
 	return {
 		"ok": true,
-		"python_exe": python_exe,
 		"script_path": script_path
 	}
 
 
-## Write the generated script and launch it. Returns OS PID or -1 on failure.
-func start(player_code: String, port: int, token: String) -> int:
-	var python_info := _find_python()
-	if python_info.is_empty():
-		return -1
-
-	var python_exe: String = str(python_info.get("exe", ""))
-	var python_args: Array = python_info.get("args", [])
-
-	var script := _commands.get_python_bootstrap(port, token) \
-				+ "\n" + _commands.get_python_runner(player_code)
-
-	var file_name := "code_and_conquer_%d_%d.py" % [OS.get_process_id(), Time.get_ticks_usec()]
-	var tmp_path := OS.get_temp_dir().path_join(file_name)
-	
-	var f := FileAccess.open(tmp_path, FileAccess.WRITE)
-	if f == null:
-		return -1
-	f.store_string(script)
-	f.close()
-
-	var run_args: Array = python_args.duplicate()
-	run_args.append(tmp_path)
-	return OS.create_process(python_exe, run_args)
-
 func is_available() -> bool:
-	return not _find_python().is_empty()
-
-func _find_python() -> Dictionary:
-	var candidates: Array[Dictionary] = [
-		{ "exe": "python3", "args": [] },
-		{ "exe": "python",  "args": [] },
-		{ "exe": "py",      "args": ["-3"] },
-		{ "exe": "py",      "args": [] },
-	]
-	for candidate in candidates:
-		var out: Array = []
-		var args: Array = candidate.get("args", []).duplicate()
-		args.append("--version")
-		if OS.execute(str(candidate.get("exe", "")), args, out, true) == 0:
-			return candidate
-	return {}
+	var tag := _runtime_assets.platform_tag()
+	if tag.is_empty():
+		return false
+	var runtime_path := _runtime_assets.python_payload_path()
+	if runtime_path.is_empty():
+		return false
+	if OS.get_name() == "Windows":
+		return FileAccess.file_exists(runtime_path.path_join("python.exe"))
+	return DirAccess.dir_exists_absolute(runtime_path.path_join("bin"))
