@@ -114,7 +114,9 @@ func compile_program() -> Dictionary:
 	var cache_path := _active_build_dir.path_join("compile_cache.cfg")
 	var cache := ConfigFile.new()
 	cache.load(cache_path)
-	if cache.get_value("build", "key", "") == build_key and FileAccess.file_exists(exe):
+	var exe_hash := FileAccess.get_sha256(exe)
+	if cache.get_value("build", "key", "") == build_key and exe_hash != "" \
+			and cache.get_value("build", "exe_hash", "") == exe_hash:
 		return {"ok": true, "output": "", "exe_path": exe, "cached": true}
 
 	# Student edits reuse the compiled robot runtime.
@@ -156,6 +158,7 @@ func compile_program() -> Dictionary:
 	var diagnostics := "\n".join(output)
 	if exit_code == 0:
 		cache.set_value("build", "key", build_key)
+		cache.set_value("build", "exe_hash", FileAccess.get_sha256(exe))
 	cache.save(cache_path)
 	return {
 		"ok": exit_code == 0,
