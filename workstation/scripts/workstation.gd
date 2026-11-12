@@ -21,7 +21,6 @@ var runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 @onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
-@onready var level_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LevelButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var grid_2d_button: Button = $SettingsOverlay/SettingsCard/SettingsContent/ViewRow/Grid2DButton
