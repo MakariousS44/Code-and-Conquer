@@ -118,14 +118,24 @@ func compile_program() -> Dictionary:
 
 	# Student edits reuse the compiled robot runtime.
 	var runtime_object := _active_build_dir.path_join("robot_runtime.o")
-	var runtime_reused: bool = cache.get_value("runtime", "key", "") == runtime_key \
-		and FileAccess.file_exists(runtime_object)
+	var runtime_reused := false
+	if cache.get_value("runtime", "key", "") == runtime_key and FileAccess.file_exists(runtime_object):
+		runtime_reused = cache.get_value("runtime", "object_hash", "") == FileAccess.get_sha256(runtime_object)
 	if not runtime_reused:
 		var runtime_args := args.duplicate()
 		runtime_args.append_array(["-c", robot_cpp, "-o", runtime_object])
 		if OS.execute(compiler, runtime_args, output, true) != 0:
 			return {"ok": false, "output": "\n".join(output), "reason": "compile_error", "exe_path": ""}
+		var runtime_object_hash := FileAccess.get_sha256(runtime_object)
+		if runtime_object_hash.is_empty():
+			return {
+				"ok": false,
+				"output": "Compiled robot runtime could not be hashed.",
+				"reason": "internal_error",
+				"exe_path": ""
+			}
 		cache.set_value("runtime", "key", runtime_key)
+		cache.set_value("runtime", "object_hash", runtime_object_hash)
 		cache.save(cache_path)
 
 	# Failed builds must not reuse an older successful executable.
@@ -145,10 +155,6 @@ func compile_program() -> Dictionary:
 	var diagnostics := "\n".join(output)
 	if exit_code == 0:
 		cache.set_value("build", "key", build_key)
-	elif runtime_reused:
-		# A failed link while reusing a cached runtime object can mean the object
-		# is corrupt; rebuild it next time. A freshly compiled runtime is not at fault.
-		cache.erase_section("runtime")
 	cache.save(cache_path)
 	return {
 		"ok": exit_code == 0,
