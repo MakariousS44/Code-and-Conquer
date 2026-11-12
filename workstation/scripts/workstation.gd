@@ -172,7 +172,10 @@ const LEVEL_DIRECTORIES := [
 ]
 
 var custom_levels: Array[Dictionary] = []
-var level_menu: PopupMenu
+var campaign_menu: Window
+var level_type_window: Window
+var custom_levels_window: Window
+var custom_levels_list: VBoxContainer
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -211,9 +214,13 @@ func _ready() -> void:
 	step_button.pressed.connect(_on_step_button_pressed)
 	prev_button.pressed.connect(_on_prev_button_pressed)
 	level_button.pressed.connect(_on_level_button_pressed)
-	level_menu = PopupMenu.new()
-	level_menu.id_pressed.connect(_on_custom_level_selected)
-	add_child(level_menu)
+
+	_setup_level_windows()
+	campaign_menu = preload("res://main_menu/scripts/campaign_menu.gd").new()
+	campaign_menu.visible = false
+	campaign_menu.level_selected.connect(_on_campaign_level_selected)
+	add_child(campaign_menu)
+
 	prev_button.disabled = true
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
@@ -253,6 +260,69 @@ func _ready() -> void:
 
 	await get_tree().process_frame
 	_load_level_scene(true)
+
+func _setup_level_windows() -> void:
+	level_type_window = Window.new()
+	level_type_window.visible = false
+	level_type_window.title = "Choose Level Type"
+	level_type_window.size = Vector2i(400, 240)
+	level_type_window.unresizable = true
+	level_type_window.close_requested.connect(level_type_window.hide)
+	add_child(level_type_window)
+
+	var choices := VBoxContainer.new()
+	choices.add_theme_constant_override("separation", 16)
+	choices.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	choices.offset_left = 28
+	choices.offset_right = -28
+	choices.offset_top = 28
+	choices.offset_bottom = -28
+	level_type_window.add_child(choices)
+
+	var heading := Label.new()
+	heading.text = "What type of level do you want to play?"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.add_theme_font_size_override("font_size", 18)
+	choices.add_child(heading)
+
+	var campaign_button := Button.new()
+	campaign_button.text = "Campaign Levels"
+	campaign_button.custom_minimum_size.y = 52
+	campaign_button.pressed.connect(func():
+		level_type_window.hide()
+		campaign_menu.show_campaign()
+	)
+	choices.add_child(campaign_button)
+
+	var custom_button := Button.new()
+	custom_button.text = "Custom Levels"
+	custom_button.custom_minimum_size.y = 52
+	custom_button.pressed.connect(func():
+		level_type_window.hide()
+		_show_custom_levels_window()
+	)
+	choices.add_child(custom_button)
+
+	custom_levels_window = Window.new()
+	custom_levels_window.visible = false
+	custom_levels_window.title = "Custom Levels"
+	custom_levels_window.size = Vector2i(520, 500)
+	custom_levels_window.close_requested.connect(custom_levels_window.hide)
+	add_child(custom_levels_window)
+
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 24
+	scroll.offset_right = -24
+	scroll.offset_top = 24
+	scroll.offset_bottom = -24
+	custom_levels_window.add_child(scroll)
+
+	custom_levels_list = VBoxContainer.new()
+	custom_levels_list.add_theme_constant_override("separation", 12)
+	custom_levels_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(custom_levels_list)
 
 func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
 	var background_compiler = preload(Paths.CPP_DRIVER).new()
@@ -926,6 +996,7 @@ func _set_controls_disabled(disabled: bool) -> void:
 	rotate_right_btn.disabled = disabled
 	settings_button.disabled = disabled
 	library_button.disabled = disabled
+	level_button.disabled = disabled
 	if disabled:
 		settings_overlay.hide()
 		library_overlay.hide()
@@ -2214,7 +2285,6 @@ func _on_check_button_pressed() -> void:
 	await _finish_cpp_check(source, generated.line_offset)
 func _populate_custom_levels() -> void:
 	custom_levels.clear()
-	level_menu.clear()
 
 	for folder in LEVEL_DIRECTORIES:
 		var directory := DirAccess.open(folder)
@@ -2242,29 +2312,47 @@ func _populate_custom_levels() -> void:
 				"path": path
 			})
 
-	for index in range(custom_levels.size()):
-		level_menu.add_item(
-			str(custom_levels[index]["name"]),
-			index
-	)
+func _show_custom_levels_window() -> void:
+	_populate_custom_levels()
+
+	for child in custom_levels_list.get_children():
+		child.queue_free()
+
+	if custom_levels.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "No custom levels found."
+		custom_levels_list.add_child(empty_label)
+	else:
+		for index in range(custom_levels.size()):
+			var button := Button.new()
+			button.text = str(custom_levels[index]["name"])
+			button.custom_minimum_size.y = 48
+			button.pressed.connect(_on_custom_level_selected.bind(index))
+			custom_levels_list.add_child(button)
+
+	custom_levels_window.popup_centered()
+
+func _on_campaign_level_selected(path: String) -> void:
+	SelectedLevel.path = path
+	_switch_level()
+
 func _on_level_button_pressed() -> void:
 	if _ipc_active or _ipc_loop_running or _subprocess_pid != -1:
 		_set_status("Stop the current program before switching levels.", "error")
 		return
 
-	_populate_custom_levels()
+	level_type_window.popup_centered()
 
-	var button_rect := level_button.get_global_rect()
-	var popup_position := button_rect.position + Vector2(0, button_rect.size.y)
 
-	level_menu.popup(Rect2(popup_position, Vector2.ZERO))
 func _on_custom_level_selected(index: int) -> void:
 	if index < 0 or index >= custom_levels.size():
 		return
 
 	SelectedLevel.path = custom_levels[index].path
-	level_menu.hide()
+	custom_levels_window.hide()
+	_switch_level()
 
+func _switch_level() -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false

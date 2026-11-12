@@ -11,6 +11,8 @@
 	"python": ["from robot import *", "", "# Add your moves here.", "move()"]
   },
     "limits": {
+      "move_limit": 4,
+      "cmd_limit": 5,
       "time_limit_seconds": 60
     }
 }
