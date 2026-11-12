@@ -356,7 +356,7 @@ func _finish_cpp_check(source: String, line_offset: int) -> void:
 	checked_cpp_line_offset = line_offset
 	run_button.disabled = false
 	_set_status("C++ compiled successfully — ready to run.", "")
-	log_line("C++ compilation passed.")
+	log_line("C++ code unchanged — previous build reused." if build.get("cached", false) else "C++ compilation passed.")
 
 func _setup_campaign_ui() -> void:
 	campaign_panel = VBoxContainer.new()
@@ -2304,12 +2304,7 @@ func _on_check_button_pressed() -> void:
 		_set_status("Check failed", "error")
 		return
 
-	# C++: then compile only after validation passes.
-	if not compiler.is_available():
-		log_error("A C++ compiler was not found.")
-		_set_status("C++ compiler unavailable", "error")
-		return
-
+	# Compiler detection and compilation run on the background thread.
 	if _compile_thread != null:
 		return
 

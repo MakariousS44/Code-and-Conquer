@@ -73,20 +73,51 @@ func compile_program() -> Dictionary:
 	var robot_cpp := _active_build_dir.path_join("robot_runtime.cpp")
 	var exe := _get_exe_path()
 
-	if FileAccess.file_exists(exe):
-		DirAccess.remove_absolute(exe)
-
 	var args := ["-std=c++17", "-Wall", "-Wextra"]
 	if OS.get_name() == "Windows":
 		args.append("-static")
-	args.append_array([student_cpp, robot_cpp, "-o", exe])
+	var version: Array = []
+	if OS.execute(compiler, ["--version"], version, true) != 0:
+		return {"ok": false, "output": "C++ compiler is unavailable.", "exe_path": ""}
+	var runtime_key := (compiler + str(version) + str(args) + FileAccess.get_file_as_string(robot_cpp)
+		+ FileAccess.get_file_as_string(_active_build_dir.path_join("robot.hpp"))).sha256_text()
+	var build_key := (runtime_key + FileAccess.get_file_as_string(student_cpp)).sha256_text()
+	var cache_path := _active_build_dir.path_join("compile_cache.cfg")
+	var cache := ConfigFile.new()
+	cache.load(cache_path)
+	if cache.get_value("build", "key", "") == build_key and FileAccess.file_exists(exe):
+		return {"ok": true, "output": cache.get_value("build", "output", ""), "exe_path": exe, "cached": true}
+
+	# Student edits reuse the compiled robot runtime.
+	var runtime_object := _active_build_dir.path_join("robot_runtime.o")
+	if cache.get_value("runtime", "key", "") != runtime_key or not FileAccess.file_exists(runtime_object):
+		var runtime_args := args.duplicate()
+		runtime_args.append_array(["-c", robot_cpp, "-o", runtime_object])
+		if OS.execute(compiler, runtime_args, output, true) != 0:
+			return {"ok": false, "output": "\n".join(output), "exe_path": ""}
+		cache.set_value("runtime", "key", runtime_key)
+		cache.save(cache_path)
+
+	# Failed builds must not reuse an older successful executable.
+	if cache.has_section("build"):
+		cache.erase_section("build")
+	cache.save(cache_path)
+	if FileAccess.file_exists(exe):
+		DirAccess.remove_absolute(exe)
+	args.append_array([student_cpp, runtime_object, "-o", exe])
 	if OS.get_name() == "Windows":
 		args.append("-lws2_32")
 
 	var exit_code := OS.execute(compiler, args, output, true)
+	var diagnostics := "\n".join(output)
+	if exit_code == 0:
+		cache.set_value("build", "key", build_key)
+		cache.set_value("build", "output", diagnostics)
+		cache.save(cache_path)
 	return {
 		"ok": exit_code == 0,
-		"output": "" if output.is_empty() else str(output[0]),
+		"output": diagnostics,
+		"cached": false,
 		"exe_path": exe if exit_code == 0 else ""
 	}
 
