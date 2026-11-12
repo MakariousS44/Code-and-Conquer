@@ -108,6 +108,9 @@ func compile_program() -> Dictionary:
 	if OS.get_name() == "Windows":
 		args.append("-lws2_32")
 
+	# Discard runtime compile output so its warnings aren't misattributed to student code.
+	output.clear()
+
 	var exit_code := OS.execute(compiler, args, output, true)
 	var diagnostics := "\n".join(output)
 	if exit_code == 0:
