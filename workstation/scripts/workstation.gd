@@ -331,7 +331,8 @@ func _setup_level_windows() -> void:
 
 func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
 	var background_compiler = preload(Paths.CPP_DRIVER).new()
-	background_compiler.prepare_build_files(source, build_dir)
+	if not background_compiler.prepare_build_files(source, build_dir):
+		return {"ok": false, "output": background_compiler.get_prepare_error(), "exe_path": ""}
 	return background_compiler.compile_program()
 
 func _finish_cpp_check(source: String, line_offset: int) -> void:

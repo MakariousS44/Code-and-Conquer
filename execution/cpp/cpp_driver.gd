@@ -37,10 +37,20 @@ func prepare_build_files(source: String, sandbox_path: String = "", ipc_endpoint
 	var build_dir := sandbox_path if not sandbox_path.is_empty() else ProjectSettings.globalize_path(BUILD_DIR)
 	_active_build_dir = build_dir
 	DirAccess.make_dir_recursive_absolute(build_dir)
-	_write_file(build_dir.path_join("student_code.cpp"), source)
-	_write_file(build_dir.path_join("robot.hpp"), _commands.get_cpp_header())
-	_write_file(build_dir.path_join("robot_runtime.cpp"), runtime_source)
+	var files := {
+		"student_code.cpp": source,
+		"robot.hpp": _commands.get_cpp_header(),
+		"robot_runtime.cpp": runtime_source,
+	}
+	for name in files:
+		if not _write_file(build_dir.path_join(name), files[name]):
+			_prepare_error = "Failed to write C++ build files."
+			return false
 	return true
+
+
+func get_prepare_error() -> String:
+	return _prepare_error
 
 
 func is_available() -> bool:
@@ -178,9 +188,11 @@ func _find_compiler() -> String:
 	return ""
 
 
-func _write_file(path: String, text: String) -> void:
+func _write_file(path: String, text: String) -> bool:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		push_error("Failed to open file for writing: " + path)
-		return
+		return false
 	f.store_string(text)
+	f.close()
+	return true
