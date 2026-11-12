@@ -7,8 +7,8 @@ var _commands = preload(Paths.ROBOT_COMMANDS).new()
 var _runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 var _active_build_dir: String = ""
 var _prepare_error: String = ""
-var _compiler: String = ""
-var _compiler_version_output: Array = []
+static var _compiler: String = ""
+static var _compiler_version_output: Array = []
 
 
 func _get_exe_path() -> String:
