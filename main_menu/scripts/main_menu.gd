@@ -9,7 +9,7 @@
 # selected level path)
 
 extends Control
-
+const Paths = preload("res://execution/shared/paths.gd")
 const CUSTOM_LEVELS_DIR := "user://custom_levels/"
 var campaign_menu: Window
 
@@ -127,9 +127,17 @@ func _arrange_main_menu_actions() -> void:
 
 # keeps the play button greyed out until the user has actually picked a level
 func _update_play_button() -> void:
-	if popup_play_button != null:
-		popup_play_button.disabled = SelectedLevel.path.is_empty()
+	if popup_play_button == null:
+		return
 
+	if SelectedLevel.path.is_empty():
+		popup_play_button.disabled = true
+		return
+
+	var validator = load(Paths.MAP_LOADER).new()
+	var result: Dictionary = validator.load(SelectedLevel.path)
+
+	popup_play_button.disabled = not result.get("ok", false)
 
 func _on_button_start_pressed() -> void:
 	$TabMoveSound.play()
@@ -217,6 +225,14 @@ func _on_play_button_pressed() -> void:
 	if SelectedLevel.path.is_empty():
 		return
 
+	var validator = load(Paths.MAP_LOADER).new()
+	var result: Dictionary = validator.load(SelectedLevel.path)
+
+	if not result.get("ok", false):
+		push_warning("Cannot play invalid level: " + SelectedLevel.path)
+		SelectedLevel.path = ""
+		_update_play_button()
+		return
 	$StartSound.play()
 
 	if level_popup != null:

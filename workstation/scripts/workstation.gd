@@ -109,6 +109,7 @@ var _sandbox_run_id: String = ""
 var _sandbox_cleanup_token: String = ""
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
+var _run_pending: bool = false
 
 # === step history for step back ===
 var _cmd_history: Array = []	# [{cmd, src_line, snap}] - snap is state before the cmd ran
@@ -167,7 +168,6 @@ const MAX_STUDENT_OUTPUT_LINES := 200
 const MAX_STUDENT_SOURCE_CHARS := 100000
 var _student_output_lines := 0
 const LEVEL_DIRECTORIES := [
-	"res://data/campaign_levels/",
 	"res://data/custom_levels/",
 	"user://custom_levels/"
 ]
@@ -469,6 +469,27 @@ func _format_time_detail(remaining_seconds: float) -> String:
 
 
 func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
+	# Validate the selected level before removing the current scene.
+	var level_path: String = SelectedLevel.path.strip_edges()
+
+	if level_path.is_empty():
+		push_error("No level path available.")
+		log_error("NO LEVEL PATH FOUND")
+		return
+
+	if not FileAccess.file_exists(level_path):
+		push_error("Level file does not exist: " + level_path)
+		log_error("FILE NOT FOUND")
+		return
+
+	var raw: Dictionary = level_definition.load(level_path)
+
+	if not raw.get("ok", false):
+		var error_message: String = str(raw.get("error", "Unknown error"))
+		push_error("Level load failed: " + error_message)
+		log_error("LOAD FAILED: " + error_message)
+		return
+
 	var saved_camera_state: Dictionary = {}
 	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
 		saved_camera_state = game_instance.get_camera_state()
@@ -503,30 +524,6 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		game_instance.level_complete.connect(_on_level_complete)
 	if game_instance.has_signal("level_incomplete") and not game_instance.level_incomplete.is_connected(_trigger_incomplete_lose):
 		game_instance.level_incomplete.connect(_trigger_incomplete_lose)
-
-	# === LOAD PATH ===
-	var level_path := ""
-
-
-	if SelectedLevel.path.strip_edges() != "":
-		level_path = SelectedLevel.path
-	else:
-		push_error("No level path available.")
-		log_error("NO LEVEL PATH FOUND")
-		return
-
-	if not FileAccess.file_exists(level_path):
-		push_error("Level file does not exist: " + level_path)
-		log_error("FILE NOT FOUND")
-		return
-
-	global_level_name = level_path
-	var raw: Dictionary = level_definition.load(level_path)
-
-	if not raw.ok:
-		push_error("Level load failed: %s" % raw.error)
-		log_error("LOAD FAILED: " + raw.error)
-		return
 
 	current_level_definition = raw.definition
 
@@ -989,7 +986,8 @@ func _set_controls_disabled(disabled: bool) -> void:
 	rotate_right_btn.disabled = disabled
 	settings_button.disabled = disabled
 	library_button.disabled = disabled
-	level_button.disabled = disabled
+	level_button.disabled = _is_execution_busy()
+	
 	if disabled:
 		settings_overlay.hide()
 		library_overlay.hide()
@@ -1102,6 +1100,8 @@ func _on_level_complete() -> void:
 	_run_outcome = "win"
 	_stop_execution()
 	var campaign_index := Campaign.index_for_path(SelectedLevel.path)
+	# Hide Next Level by default, including for custom levels.
+	campaign_next_button.visible = false	
 	if campaign_index >= 0:
 		var save_error := Campaign.mark_complete(SelectedLevel.path, campaign_progress_path)
 		if save_error != OK:
@@ -1188,6 +1188,7 @@ func _stop_execution() -> void:
 	_program_time_remaining = -1.0
 	_program_time_elapsed = 0.0
 	_run_id += 1  # invalidate every async continuation belonging to the old run
+	_run_pending = false
 
 	if _ipc_server != null:
 		_ipc_server.stop()
@@ -1300,6 +1301,18 @@ func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
 	var start_paused: bool = _paused
 	_stop_execution()
+	_run_pending = true
+	
+	# Close level selection windows when execution begins.
+	if level_type_window != null:
+		level_type_window.hide()
+
+	if custom_levels_window != null:
+		custom_levels_window.hide()
+
+	if campaign_menu != null:
+		campaign_menu.hide()
+
 	var run_id := _run_id
 	_student_output_lines = 0
 	var source := checked_code
@@ -1834,6 +1847,7 @@ func _set_status(text: String, state: String) -> void:
 
 
 func _re_enable_buttons() -> void:
+	_run_pending = false
 	_paused = false
 	run_button.text = "▶ Run"
 	run_button.disabled = false
@@ -2287,6 +2301,8 @@ func _on_check_button_pressed() -> void:
 		return
 
 	await _finish_cpp_check(source, generated.line_offset)
+
+
 func _populate_custom_levels() -> void:
 	custom_levels.clear()
 
@@ -2303,23 +2319,29 @@ func _populate_custom_levels() -> void:
 				continue
 
 			var path: String = folder.path_join(file_name)
-			var display_name := file_name.get_basename()
-			var file := FileAccess.open(path, FileAccess.READ)
+			var result: Dictionary = level_definition.load(path)
+			var is_valid: bool = result.get("ok", false)
 
-			if file != null:
-				var json := JSON.new()
-				if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
-					display_name = str(json.data.get("name", display_name))
+			var display_name: String = file_name.get_basename()
+
+			if is_valid:
+				var definition: Dictionary = result["definition"]
+				display_name = str(definition.get("name", display_name))
+			else:
+				print("INVALID CUSTOM LEVEL: ", path)
 
 			custom_levels.append({
 				"name": display_name,
-				"path": path
+				"path": path,
+				"valid": is_valid
 			})
+
 
 func _show_custom_levels_window() -> void:
 	_populate_custom_levels()
 
 	for child in custom_levels_list.get_children():
+		custom_levels_list.remove_child(child)
 		child.queue_free()
 
 	if custom_levels.is_empty():
@@ -2328,20 +2350,42 @@ func _show_custom_levels_window() -> void:
 		custom_levels_list.add_child(empty_label)
 	else:
 		for index in range(custom_levels.size()):
+			var level: Dictionary = custom_levels[index]
 			var button := Button.new()
-			button.text = str(custom_levels[index]["name"])
+
+			button.text = str(level["name"])
 			button.custom_minimum_size.y = 48
-			button.pressed.connect(_on_custom_level_selected.bind(index))
+
+			if not level.get("valid", false):
+				button.disabled = true
+				button.text += " (Invalid)"
+				button.tooltip_text = "Invalid or broken level file."
+			else:
+				button.pressed.connect(
+					_on_custom_level_selected.bind(index)
+				)
+
 			custom_levels_list.add_child(button)
 
 	custom_levels_window.popup_centered()
 
+
 func _on_campaign_level_selected(path: String) -> void:
+	if _is_execution_busy():
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	var result: Dictionary = level_definition.load(path)
+
+	if not result.get("ok", false):
+		_set_status("Invalid level", "The selected campaign level could not be loaded.")
+		return
+
 	SelectedLevel.path = path
 	_switch_level()
 
 func _on_level_button_pressed() -> void:
-	if _ipc_active or _ipc_loop_running or _subprocess_pid != -1:
+	if _is_execution_busy():
 		_set_status("Stop the current program before switching levels.", "error")
 		return
 
@@ -2349,14 +2393,32 @@ func _on_level_button_pressed() -> void:
 
 
 func _on_custom_level_selected(index: int) -> void:
+	if _is_execution_busy():
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
 	if index < 0 or index >= custom_levels.size():
 		return
 
-	SelectedLevel.path = custom_levels[index].path
-	custom_levels_window.hide()
+	var new_path: String = str(custom_levels[index]["path"])
+	var result: Dictionary = level_definition.load(new_path)
+
+	if not result.get("ok", false):
+		push_warning("Invalid custom level: " + new_path)
+		_set_status("Invalid level", "The selected level could not be loaded.")
+		return
+
+	SelectedLevel.path = new_path
 	_switch_level()
+	custom_levels_window.hide()
 
 func _switch_level() -> void:
+	if _is_execution_busy():
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	print("Selected level path: ", SelectedLevel.path)
+	campaign_next_button.visible = false
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
@@ -2366,5 +2428,27 @@ func _switch_level() -> void:
 
 	output_box.clear()
 	_clear_editor_highlights()
+<<<<<<< HEAD
 	_load_level_scene(false, true)
 	_set_status("Ready", "")
+=======
+	_load_level_scene(true, false)
+	_set_status("Ready", "")
+
+func _is_execution_busy() -> bool:
+	var busy: bool = (
+		_run_pending
+		or _ipc_active
+		or _ipc_loop_running
+		or _subprocess_pid != -1
+	)
+
+	print(
+		"Execution busy: ", busy,
+		" | Pending: ", _run_pending,
+		" | IPC: ", _ipc_active,
+		" | PID: ", _subprocess_pid
+	)
+
+	return busy
+>>>>>>> e98e636 (Fixed Level Change bugs and Custom Level Bugs.)
