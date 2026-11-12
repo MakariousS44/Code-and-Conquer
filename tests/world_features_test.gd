@@ -8,6 +8,20 @@ func check(value: bool, message: String) -> void:
 		failures += 1
 		push_error(message)
 
+
+func goal_test_level(positions: Variant, legacy_position: Variant = null) -> Dictionary:
+	var goal := {"possible_final_positions": positions}
+	if legacy_position != null:
+		goal["position"] = legacy_position
+	return {
+		"cols": 5,
+		"rows": 5,
+		"robots": [{"x": 1, "y": 1}],
+		"walls": {},
+		"goal": goal
+	}
+
+
 func _initialize() -> void:
 	visual = "--visual" in OS.get_cmdline_user_args()
 	call_deferred("run_tests")
@@ -56,6 +70,37 @@ func run_tests() -> void:
 	check(restored.data == before, "Failed load must preserve editor document")
 	restored.resize(1, 1)
 	check(restored.data.void_tiles.is_empty(), "Resize must discard out-of-bounds voids")
+
+	var goal_doc := LevelDocument.new()
+	var merged_result := goal_doc.load_level(goal_test_level([[2, 2]], {"x": 3, "y": 3}))
+	check(merged_result.get("ok", false), "Valid legacy goal position must merge")
+	check(goal_doc.data["goal"]["possible_final_positions"] == [[2, 2], [3, 3]], "Distinct legacy goal must be appended")
+	goal_doc = LevelDocument.new()
+	check(goal_doc.load_level(goal_test_level([[2, 2]], {"x": 2, "y": 2})).get("ok", false), "Duplicate legacy goal must load")
+	check(goal_doc.data["goal"]["possible_final_positions"] == [[2, 2]], "Duplicate legacy goal must not be appended")
+	goal_doc = LevelDocument.new()
+	check(goal_doc.load_level(goal_test_level([[2.0, 2.0]], {"x": 3.0, "y": 3.0})).get("ok", false), "Integral float goal coordinates must load")
+	check(goal_doc.data["goal"]["possible_final_positions"] == [[2, 2], [3, 3]], "Goal coordinates must normalize to integers")
+	for entry in [[{}, 2], ["a", 2], ["2", 2], [null, 2], [1.5, 2]]:
+		goal_doc = LevelDocument.new()
+		var result := goal_doc.load_level(goal_test_level([entry], {"x": 3, "y": 3}))
+		check(not result.get("ok", false) and result.get("error") == "Goal position is invalid.", "Malformed goal coordinate must be rejected: %s" % str(entry))
+	goal_doc = LevelDocument.new()
+	var out_of_bounds := goal_doc.load_level(goal_test_level([[6, 2]], {"x": 3, "y": 3}))
+	check(not out_of_bounds.get("ok", false) and out_of_bounds.get("error") == "Goal position is outside the grid.", "Out-of-bounds goal must keep grid error")
+	goal_doc = LevelDocument.new()
+	var no_legacy := goal_doc.load_level(goal_test_level([[{}, 2]]))
+	check(no_legacy.get("error") == "Goal position is invalid.", "Malformed goal must be rejected without legacy merge")
+	for legacy in [{"x": {}, "y": 3}, {"x": "3", "y": 3}]:
+		goal_doc = LevelDocument.new()
+		var legacy_result := goal_doc.load_level(goal_test_level([[2, 2]], legacy))
+		check(legacy_result.get("error") == "Goal position is invalid.", "Malformed legacy goal must be rejected: %s" % str(legacy))
+	goal_doc = LevelDocument.new()
+	var legacy_out := goal_doc.load_level(goal_test_level([[2, 2]], {"x": 6, "y": 3}))
+	check(legacy_out.get("error") == "Goal position is outside the grid.", "Out-of-bounds legacy goal must keep grid error")
+	goal_doc = LevelDocument.new()
+	var legacy_only := goal_doc.load_level(goal_test_level([], {"x": {}, "y": 3}))
+	check(legacy_only.get("error") == "Goal position is invalid.", "Malformed legacy-only goal must be rejected")
 
 	# Carry requirements dialog lists placed and starting-inventory types,
 	# allows counts above 99, and frees itself when closed.
