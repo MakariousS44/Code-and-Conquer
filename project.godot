@@ -12,15 +12,17 @@ config_version=5
 
 config/name="Code and Conquer"
 run/main_scene="uid://bjd1nmwoya47g"
-config/features=PackedStringArray("4.6", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 boot_splash/bg_color=Color(0.97055286, 0.75035083, 0.88283765, 1)
 boot_splash/stretch_mode=0
 config/icon="res://assets/images/icon.png"
+default_bus_layout="res://default_bus_layout.tres"
 
 [autoload]
 
 SelectedLevel="*uid://dc3jimritl1hh"
 EventManager="*uid://cl00riv6kfaao"
+SettingsManager="*res://config/settings_manager.gd"
 
 [display]
 

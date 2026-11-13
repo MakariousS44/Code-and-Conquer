@@ -9,6 +9,16 @@ var _validator = preload(Paths.PYTHON_VALIDATOR).new()
 func validate(source: String) -> Dictionary:
 	return _validator.validate(source)
 
-## Launches student code connecting to the given IPC port. Returns OS PID or -1
-func start(source: String, port: int) -> int:
-	return _compiler.start(source, port)
+func is_available() -> bool:
+	return _compiler.is_available()
+
+func prepare_sandbox_files(
+	source: String,
+	sandbox_path: String,
+	ipc_endpoint: String
+) -> Dictionary:
+	return _compiler.prepare_sandbox_files(
+		source,
+		sandbox_path,
+		ipc_endpoint
+	)

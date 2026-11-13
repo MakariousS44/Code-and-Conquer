@@ -1,6 +1,7 @@
 extends Node2D
 
 signal lose_triggered(reason: String)
+signal move_finished()
 
 # === player state ===
 # Array ordered to exactly match your rotation_step integers
@@ -10,12 +11,20 @@ const DIRS = ["east", "south", "west", "north"]
 var grid_x: int = 1
 var grid_y: int = 1
 var facing: String = "north"
-var carried_object: String = "" 
+var carried_object: Dictionary = {}
 var _has_lost: bool = false
 var current_tween: Tween
 
 func _ready() -> void:
 	pass
+
+
+func _exit_tree() -> void:
+	# Kill any in-flight movement tween so a stale animation cannot keep
+	# modifying this player while the level is being torn down.
+	if current_tween != null and is_instance_valid(current_tween):
+		current_tween.kill()
+	current_tween = null
 	
 
 func update_animation(is_running: bool = false) -> void:
@@ -59,14 +68,18 @@ func initialize_from_level(robot_data: Dictionary, world_pos: Vector2, is_rotati
 	position = world_pos
 
 	if not is_rotating:
+		modulate.a = 1.0
 		# BRAND NEW LEVEL: Reset logical variables
 		_has_lost = false
-		carried_object = ""
+		carried_object = {}
+		var robot_objects = robot_data.get("objects", {})
+		if robot_objects is Dictionary:
+			carried_object = robot_objects.duplicate()
 		grid_x = robot_data.get("x", 1)
 		grid_y = robot_data.get("y", 1)
 		
 		var start_face: int = robot_data.get("_orientation", 1)
-		facing = DIRS[start_face] 
+		facing = DIRS[start_face]
 	
 	# Whether brand new or just rotating, update the visual sprite
 	update_animation(false)
@@ -81,6 +94,9 @@ func _get_world() -> Node:
 # ========= Movement =========
 ## Advances the player one step to where its facing
 func move_forward(duration: float = 0.5) -> void:
+	if _has_lost:
+		move_finished.emit()
+		return
 	var world = _get_world()
 	var next_x = grid_x
 	var next_y = grid_y
@@ -93,16 +109,11 @@ func move_forward(duration: float = 0.5) -> void:
 		"south": next_y -= 1
 
 	# Lose Condition ----------------------------------------
-	# LOSE: if the player attempts to leave the playable floor
-	if world.has_method("is_in_bounds"):
-		if not world.is_in_bounds(next_x, next_y):
-			_trigger_lose("You lose: attempted to move outside the floor.")
-			return
-
 	# LOSE: on attempted move through a wall edge
 	if world.has_method("is_move_blocked"):
 		if world.is_move_blocked(grid_x, grid_y, facing):
 			_trigger_lose("You lose: attempted to move through a wall.")
+			move_finished.emit()
 			return
 	# -------------------------------------------------------
 
@@ -123,9 +134,15 @@ func move_forward(duration: float = 0.5) -> void:
 	
 	# Stop running animation
 	update_animation(false)
+	if world.is_void(grid_x, grid_y):
+		current_tween = create_tween()
+		current_tween.set_parallel(true)
+		current_tween.tween_property(self, "modulate:a", 0.0, maxf(duration, 0.15))
+		current_tween.tween_property(self, "position:y", position.y + 80.0, maxf(duration, 0.15))
+		await current_tween.finished
+		_trigger_lose("You fell into the void. Watch for missing floor tiles!")
 
-	if world.has_method("check_win_condition"):
-		world.check_win_condition(grid_x, grid_y)
+	move_finished.emit()
 
 
 func _trigger_lose(reason: String) -> void:
@@ -155,13 +172,12 @@ func pick_object() -> void:
 	if world == null:
 		return
 
-	if carried_object != "":
-		return
-
 	if world.has_method("remove_object_at"):
 		var obj = world.remove_object_at(grid_x, grid_y)
 		if obj != "":
-			carried_object = obj
+			if not carried_object.has(obj):
+				carried_object[obj] = 0
+			carried_object[obj] += 1
 
 
 func put_object() -> void:
@@ -169,9 +185,12 @@ func put_object() -> void:
 	if world == null:
 		return
 
-	if carried_object == "":
+	if carried_object.is_empty():
 		return
 
 	if world.has_method("place_object_at"):
-		world.place_object_at(grid_x, grid_y, carried_object)
-		carried_object = ""
+		var obj_name = carried_object.keys()[0]
+		world.place_object_at(grid_x, grid_y, obj_name)
+		carried_object[obj_name] -= 1
+		if carried_object[obj_name] <= 0:
+			carried_object.erase(obj_name)

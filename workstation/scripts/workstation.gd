@@ -1,5 +1,15 @@
 extends Control
 
+const Campaign = preload("res://config/campaign_levels.gd")
+var campaign_progress_path: String = Campaign.SAVE_PATH
+var campaign_instructions: Label
+var campaign_limits: Label
+var campaign_hint: Label
+var campaign_panel: VBoxContainer
+var campaign_next_button: Button
+var campaign_hint_button: Button
+var sandbox_worker = preload("res://execution/shared/sandbox_worker_client.gd").new()
+var runtime_assets = preload(Paths.RUNTIME_ASSETS).new()
 # === UI references ===
 # all the workspace pieces live here: editor, output, controls, and level viewport
 @onready var editor: CodeEdit = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/EditorSection/EditorPanel/EditorMargin/Editor
@@ -7,9 +17,11 @@ extends Control
 @onready var output_box: RichTextLabel = $RootMargin/MainColumn/WorkspaceSplit/EditorOutputSplit/OutputSection/OutputPanel/OutputMargin/Output
 @onready var status_label: Label = $RootMargin/MainColumn/TopBarPanel/TopBar/StatusLabel
 @onready var run_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/RunButton
+@onready var check_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/CheckButton
 @onready var prev_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/PrevButton
 @onready var step_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/StepButton
 @onready var reset_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons/ResetButton
+@onready var level_button: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LevelButton
 @onready var rotate_left_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/LeftRotateButton
 @onready var rotate_right_btn: Button = $RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons/RightRotateButton
 @onready var grid_2d_button: Button = $SettingsOverlay/SettingsCard/SettingsContent/ViewRow/Grid2DButton
@@ -72,6 +84,7 @@ var compiler = preload(Paths.CPP_DRIVER).new()
 var py_pipeline = preload(Paths.PYTHON_PIPELINE).new()
 var _commands = preload(Paths.ROBOT_COMMANDS).new()
 
+
 # === language state ===
 enum Language { CPP, PYTHON }
 var current_language: Language = Language.CPP
@@ -81,6 +94,8 @@ var current_language: Language = Language.CPP
 var level_definition = preload(Paths.MAP_LOADER).new()
 var level_scene_resource = preload(Paths.MAP_VIEW_SCENE)
 var current_level_definition: Dictionary = {}
+var _level_code_cache: Dictionary = {}
+var _loaded_level_path: String = ""
 
 # cached runtime refs so this screen can hand commands to the live player
 var game_instance: Node = null
@@ -93,8 +108,11 @@ var _is_2d_mode: bool = false
 # === IPC state ===
 var _ipc_server = null
 var _subprocess_pid: int = -1
+var _sandbox_run_id: String = ""
+var _sandbox_cleanup_token: String = ""
 var _ipc_active: bool = false
 var _ipc_loop_running: bool = false
+var _run_pending: bool = false
 
 # === step history for step back ===
 var _cmd_history: Array = []	# [{cmd, src_line, snap}] - snap is state before the cmd ran
@@ -110,10 +128,58 @@ var _is_handling_lose: bool = false
 
 var global_level_name := ""
 var exec_speed: float = 0.5
-var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit"
+var _run_outcome: String = "incomplete"  # "win" | "lose" | "incomplete" | "move_limit" | "cmd_limit" | "time_limit" | "done"
 var _run_had_error: bool = false  # set when the subprocess emits [ERROR]
-const MOVE_LIMIT := 999
-const CMD_LIMIT := 9999
+# === execution limits ===
+# Default limits
+const DEFAULT_MOVE_LIMIT := 999
+const DEFAULT_CMD_LIMIT := 9999
+const DEFAULT_TIME_LIMIT_SECONDS := 300.0
+
+# Runtime limits (loaded from JSON or defaults)
+var _move_limit: int = DEFAULT_MOVE_LIMIT
+var _cmd_limit: int = DEFAULT_CMD_LIMIT
+var _time_limit_seconds: float = DEFAULT_TIME_LIMIT_SECONDS
+var _run_id := 0  # incremented by _stop_execution; stale coroutines compare against it
+var _program_time_remaining := -1.0  # program-seconds left; <0 = not tracking
+var _program_time_elapsed := 0.0     # program-seconds consumed this run (displayed as "used" when unlimited)
+var _program_animating := false      # true while a command animation runs
+
+var checked_code := ""
+var has_checked_code := false
+var checked_cpp_executable := ""
+var checked_cpp_line_offset := 0
+var _compile_thread: Thread
+
+const ALLOWED_IPC_COMMANDS := ["MOVE", "TURN_LEFT", "PICK_OBJECT", "PUT_OBJECT"]
+const ALLOWED_IPC_QUERIES := [
+	"FRONT_IS_CLEAR",
+	"RIGHT_IS_CLEAR",
+	"LEFT_IS_CLEAR",
+	"WALL_IN_FRONT",
+	"WALL_ON_RIGHT",
+	"WALL_ON_LEFT",
+	"AT_GOAL",
+	"OBJECT_HERE",
+	"CARRIES_OBJECT",
+	"IS_FACING_NORTH",
+	"IS_FACING_EAST",
+	"IS_FACING_SOUTH",
+	"IS_FACING_WEST",
+]
+const MAX_STUDENT_OUTPUT_LINES := 200
+const MAX_STUDENT_SOURCE_CHARS := 100000
+var _student_output_lines := 0
+const LEVEL_DIRECTORIES := [
+	"res://data/custom_levels/",
+	"user://custom_levels/"
+]
+
+var custom_levels: Array[Dictionary] = []
+var campaign_menu: Window
+var level_type_window: Window
+var custom_levels_window: Window
+var custom_levels_list: VBoxContainer
 
 func _ready() -> void:
 	# Kill any subprocess left over from a previous session that was force-closed.
@@ -125,20 +191,40 @@ func _ready() -> void:
 		OS.execute("pkill", ["-f", "student_program"], [], true)
 
 	_set_status("Ready", "")
+
+	var worker_check: Dictionary = sandbox_worker.ping()
+	if worker_check.get("ok", false):
+		print(worker_check.get("message", "Worker connected."))
+	else:
+		push_warning(worker_check.get("message", "Worker connection failed."))
+
 	editor.text = "#include \"robot.hpp\"\n\nint main() {\n    move();\n}\n"
 	editor.grab_focus()
 
 	_setup_editor()
 	_setup_syntax_highlighting()
 	_setup_language_selector()
+	_setup_campaign_ui()
+	_apply_saved_preferences()
 
 	# compass updates whenever the player's logical facing changes
 	EventManager.player_facing_changed.connect(_on_player_facing_changed)
 	
 	run_button.text = "▶ Run"
 	run_button.pressed.connect(_on_run_button_pressed)
+	check_button.pressed.connect(_on_check_button_pressed)
+	editor.text_changed.connect(_on_editor_text_changed)
+	run_button.disabled = true
 	step_button.pressed.connect(_on_step_button_pressed)
 	prev_button.pressed.connect(_on_prev_button_pressed)
+	level_button.pressed.connect(_on_level_button_pressed)
+
+	_setup_level_windows()
+	campaign_menu = preload("res://main_menu/scripts/campaign_menu.gd").new()
+	campaign_menu.visible = false
+	campaign_menu.level_selected.connect(_on_campaign_level_selected)
+	add_child(campaign_menu)
+
 	prev_button.disabled = true
 	reset_button.pressed.connect(_on_reset_button_pressed)
 	lose_retry_button.pressed.connect(_on_lose_retry)
@@ -178,30 +264,285 @@ func _ready() -> void:
 
 	await get_tree().process_frame
 	_load_level_scene(true)
+	_loaded_level_path = SelectedLevel.path
+
+func _setup_level_windows() -> void:
+	level_type_window = Window.new()
+	level_type_window.visible = false
+	level_type_window.title = "Choose Level Type"
+	level_type_window.size = Vector2i(400, 240)
+	level_type_window.unresizable = true
+	level_type_window.close_requested.connect(level_type_window.hide)
+	add_child(level_type_window)
+
+	var choices := VBoxContainer.new()
+	choices.add_theme_constant_override("separation", 16)
+	choices.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	choices.offset_left = 28
+	choices.offset_right = -28
+	choices.offset_top = 28
+	choices.offset_bottom = -28
+	level_type_window.add_child(choices)
+
+	var heading := Label.new()
+	heading.text = "What type of level do you want to play?"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.add_theme_font_size_override("font_size", 18)
+	choices.add_child(heading)
+
+	var campaign_button := Button.new()
+	campaign_button.text = "Campaign Levels"
+	campaign_button.custom_minimum_size.y = 52
+	campaign_button.pressed.connect(func():
+		level_type_window.hide()
+		campaign_menu.show_campaign()
+	)
+	choices.add_child(campaign_button)
+
+	var custom_button := Button.new()
+	custom_button.text = "Custom Levels"
+	custom_button.custom_minimum_size.y = 52
+	custom_button.pressed.connect(func():
+		level_type_window.hide()
+		_show_custom_levels_window()
+	)
+	choices.add_child(custom_button)
+
+	custom_levels_window = Window.new()
+	custom_levels_window.visible = false
+	custom_levels_window.title = "Custom Levels"
+	custom_levels_window.size = Vector2i(520, 500)
+	custom_levels_window.close_requested.connect(custom_levels_window.hide)
+	add_child(custom_levels_window)
+
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 24
+	scroll.offset_right = -24
+	scroll.offset_top = 24
+	scroll.offset_bottom = -24
+	custom_levels_window.add_child(scroll)
+
+	custom_levels_list = VBoxContainer.new()
+	custom_levels_list.add_theme_constant_override("separation", 12)
+	custom_levels_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(custom_levels_list)
+
+func _compile_cpp_in_background(source: String, build_dir: String) -> Dictionary:
+	var background_compiler = preload(Paths.CPP_DRIVER).new()
+	if not background_compiler.prepare_build_files(source, build_dir):
+		return {
+			"ok": false,
+			"output": background_compiler.get_prepare_error(),
+			"reason": background_compiler.get_prepare_reason(),
+			"exe_path": ""
+		}
+	return background_compiler.compile_program()
+
+func _finish_cpp_check(source: String, line_offset: int) -> void:
+	while _compile_thread.is_alive():
+		await get_tree().process_frame
+
+	var build: Dictionary = _compile_thread.wait_to_finish()
+	_compile_thread = null
+
+	check_button.disabled = false
+	editor.editable = true
+	language_selector.disabled = false
+
+	if not build.ok:
+		var raw_output := str(build.get("output", ""))
+		match str(build.get("reason", "")):
+			"no_compiler":
+				log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
+				_set_status("C++ Compiler unavailable", "error")
+			"unsupported_platform":
+				log_error(raw_output)
+				_set_status("C++ not supported on this platform", "error")
+			"prepare_error", "internal_error":
+				log_error(raw_output)
+				_set_status("Build setup failed", "error")
+			_:
+				log_error(compiler.remap_diagnostics(raw_output, line_offset))
+				_set_status("Compile failed", "error")
+		return
+
+	checked_code = source
+	has_checked_code = true
+	checked_cpp_executable = str(build.get("exe_path", ""))
+	checked_cpp_line_offset = line_offset
+	run_button.disabled = false
+	_set_status("C++ compiled successfully — ready to run.", "")
+	log_line("C++ code unchanged — previous build reused." if build.get("cached", false) else "C++ compilation passed.")
+
+func _setup_campaign_ui() -> void:
+	campaign_panel = VBoxContainer.new()
+	campaign_panel.add_theme_constant_override("separation", 6)
+	var column := $RootMargin/MainColumn
+	column.add_child(campaign_panel)
+	column.move_child(campaign_panel, 1)
+	campaign_instructions = Label.new()
+	campaign_instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_instructions.add_theme_font_size_override("font_size", 20)
+	campaign_panel.add_child(campaign_instructions)
+	campaign_limits = Label.new()
+	campaign_limits.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_limits.add_theme_font_size_override("font_size", 16)
+	campaign_limits.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_limits)
+	campaign_hint_button = Button.new()
+	campaign_hint_button.text = "Show Hint"
+	campaign_hint_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
+	campaign_hint_button.pressed.connect(func():
+		campaign_hint.visible = not campaign_hint.visible
+		campaign_hint_button.text = "Hide Hint" if campaign_hint.visible else "Show Hint")
+	campaign_panel.add_child(campaign_hint_button)
+	campaign_hint = Label.new()
+	campaign_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	campaign_hint.add_theme_font_size_override("font_size", 18)
+	campaign_hint.add_theme_color_override("font_color", Color("8ed6ef"))
+	campaign_panel.add_child(campaign_hint)
+	campaign_next_button = Button.new()
+	campaign_next_button.text = "Next Level"
+	campaign_next_button.custom_minimum_size.y = 36
+	campaign_next_button.pressed.connect(_on_win_next)
+	var buttons := $WinOverlay/WinCard/WinContent/WinButtons
+	buttons.add_child(campaign_next_button)
+	buttons.move_child(campaign_next_button, 0)
+	campaign_next_button.hide()
 
 
-func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> void:
+func _apply_saved_preferences() -> void:
+	var font_sizes := [14, 18, 24]
+	var font_index := clampi(int(_saved_setting("editor", "font_size", 1)), 0, font_sizes.size() - 1)
+	_on_font_size_changed(font_sizes[font_index])
+
+	var language_setting := int(_saved_setting("editor", "default_language", 0))
+	language_selector.select(1 if language_setting == 0 else 0)
+	_on_language_changed(language_selector.selected)
+
+
+	var animation_setting := int(_saved_setting("gameplay", "animation_speed", 0))
+	_on_speed_change(0.25 if animation_setting == 1 else 0.5)
+
+	var use_light_theme := int(_saved_setting("editor", "theme", 0)) == 1
+	if use_light_theme:
+		editor.add_theme_color_override("background_color", Color("#f2f4f8"))
+		editor.add_theme_color_override("font_color", Color("#1b2430"))
+
+	var hints_enabled := bool(_saved_setting("learning", "beginner_hints", true))
+	if campaign_hint_button != null:
+		campaign_hint_button.visible = hints_enabled
+
+
+func _saved_setting(section: String, key: String, fallback):
+	var config := ConfigFile.new()
+	if config.load("user://settings.cfg") == OK:
+		return config.get_value(section, key, fallback)
+	return fallback
+
+
+func _refresh_campaign_instructions() -> void:
+	var index := Campaign.index_for_path(SelectedLevel.path)
+	# The same instruction panel is useful for player-created levels too.
+	campaign_panel.visible = true
+	campaign_hint.hide()
+	campaign_hint_button.text = "Show Hint"
+	_show_level_limits(_time_limit_seconds)
+	if index < 0:
+		var custom_name := str(current_level_definition.get("name", "Custom Level"))
+		var custom_description := PackedStringArray(current_level_definition.get("description", []))
+		campaign_instructions.text = "%s\n%s" % [custom_name, " ".join(custom_description)]
+		campaign_hint_button.hide()
+		campaign_hint.text = ""
+		return
+	campaign_hint_button.visible = bool(_saved_setting("learning", "beginner_hints", true))
+	var description := PackedStringArray(current_level_definition.get("description", []))
+	campaign_instructions.text = "Level %d / %d - %s\n%s" % [index + 1, Campaign.LEVELS.size(), Campaign.LEVELS[index].title, " ".join(description)]
+	campaign_hint.text = current_level_definition.get("hint", "")
+
+
+func _format_duration(seconds: float) -> String:
+	var total_seconds := maxi(0, ceili(seconds))
+	return "%d:%02d" % [total_seconds / 60, total_seconds % 60]
+
+
+func _format_count_detail(limit: int, used: int) -> String:
+	if limit <= 0:
+		return "Unlimited (used: %d)" % used
+	return "%d (used: %d, remaining: %d)" % [limit, used, maxi(0, limit - used)]
+
+
+func _format_time_detail(remaining_seconds: float) -> String:
+	if _time_limit_seconds <= 0.0:
+		return "Unlimited (used: %s)" % _format_duration(_program_time_elapsed)
+	# Round remaining up first, then derive used from the rounded values so the
+	# displayed used + remaining always equals the displayed limit.
+	var limit := ceili(_time_limit_seconds)
+	var remaining := ceili(maxf(0.0, remaining_seconds))
+	var used := maxi(0, limit - remaining)
+	return "%s (used: %s, remaining: %s)" % [
+		_format_duration(limit),
+		_format_duration(used),
+		_format_duration(remaining)
+	]
+
+
+func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = false) -> bool:
+	# Validate the selected level before removing the current scene.
+	var level_path: String = SelectedLevel.path.strip_edges()
+
+	if level_path.is_empty():
+		push_error("No level path available.")
+		log_error("NO LEVEL PATH FOUND")
+		return false
+
+	if not FileAccess.file_exists(level_path):
+		push_error("Level file does not exist: " + level_path)
+		log_error("FILE NOT FOUND")
+		return false
+
+	var raw: Dictionary = level_definition.load(level_path)
+
+	if not raw.get("ok", false):
+		var error_message: String = str(raw.get("error", "Unknown error"))
+		push_error("Level load failed: " + error_message)
+		log_error("LOAD FAILED: " + error_message)
+		return false
+
 	var saved_camera_state: Dictionary = {}
 	if preserve_camera and game_instance and game_instance.has_method("get_camera_state"):
 		saved_camera_state = game_instance.get_camera_state()
 
-	# clear out any existing level scene from the viewport
+	# Prepare and validate the new scene before removing the old one.
+	var new_game_instance: Node = level_scene_resource.instantiate()
+
+	if new_game_instance == null:
+		push_error("Could not instantiate level scene.")
+		return false
+
+	if not new_game_instance.has_node("WorldRoot/Player"):
+		push_error("Level scene is missing WorldRoot/Player")
+		new_game_instance.free()
+		return false
+
+	# The replacement scene is valid.
 	for child in game_subviewport.get_children():
 		child.queue_free()
-	flat_grid_node = null
 
-	# create and attach the playable level scene
-	game_instance = level_scene_resource.instantiate()
+	flat_grid_node = null
+	game_instance = new_game_instance
 	game_subviewport.add_child(game_instance)
+
+	_run_outcome = "incomplete"
+	_run_had_error = false
 
 	if preserve_camera and not saved_camera_state.is_empty() \
 			and game_instance.has_method("set_pending_camera_restore"):
 		game_instance.set_pending_camera_restore(saved_camera_state)
 
-	# grab the player node so runtime systems can control it later
-	if not game_instance.has_node("WorldRoot/Player"):
-		push_error("Level scene is missing node path: WorldRoot/Player")
-		return
 
 	player_node = game_instance.get_node("WorldRoot/Player")
 	if player_node.has_signal("lose_triggered") and not player_node.lose_triggered.is_connected(_on_player_lose):
@@ -211,31 +552,19 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 	if game_instance.has_signal("level_incomplete") and not game_instance.level_incomplete.is_connected(_trigger_incomplete_lose):
 		game_instance.level_incomplete.connect(_trigger_incomplete_lose)
 
-	# === LOAD PATH ===
-	var level_path := ""
-
-
-	if SelectedLevel.path.strip_edges() != "":
-		level_path = SelectedLevel.path
-	else:
-		push_error("No level path available.")
-		log_error("NO LEVEL PATH FOUND")
-		return
-
-	if not FileAccess.file_exists(level_path):
-		push_error("Level file does not exist: " + level_path)
-		log_error("FILE NOT FOUND")
-		return
-
-	global_level_name = level_path
-	var raw: Dictionary = level_definition.load(level_path)
-
-	if not raw.ok:
-		push_error("Level load failed: %s" % raw.error)
-		log_error("LOAD FAILED: " + raw.error)
-		return
-
 	current_level_definition = raw.definition
+
+	# load limits from JSON if present, otherwise use defaults
+	var limits_data = current_level_definition.get("limits", {})
+	if limits_data is Dictionary:
+		_move_limit = limits_data.get("move_limit", DEFAULT_MOVE_LIMIT)
+		_cmd_limit = limits_data.get("cmd_limit", DEFAULT_CMD_LIMIT)
+		_time_limit_seconds = limits_data.get("time_limit_seconds", DEFAULT_TIME_LIMIT_SECONDS)
+	else:
+		_move_limit = DEFAULT_MOVE_LIMIT
+		_cmd_limit = DEFAULT_CMD_LIMIT
+		_time_limit_seconds = DEFAULT_TIME_LIMIT_SECONDS
+	_refresh_campaign_instructions()
 
 	# preload starter code into editor only when requested
 	if load_editor_text:
@@ -258,6 +587,8 @@ func _load_level_scene(load_editor_text: bool = true, preserve_camera: bool = fa
 		game_instance.camera.enabled = true
 		game_instance.camera.make_current()
 
+	global_level_name = level_path
+	return true
 
 func _load_editor_template_for_current_language() -> void:
 	if current_level_definition.is_empty():
@@ -331,11 +662,13 @@ func _setup_language_selector() -> void:
 
 
 func _on_language_changed(index: int) -> void:
+	_save_current_level_code()
 	_stop_execution()
 	current_language = Language.CPP if index == 0 else Language.PYTHON
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	output_box.clear()
 	_clear_editor_highlights()
 
@@ -357,38 +690,53 @@ func _on_language_changed(index: int) -> void:
 		_set_status("Ready", "")
 	
 	_load_level_scene(false, true)
+	_restore_level_code(_loaded_level_path)
 
 
 # === syntax highlighting ===
 
+func _syntax_color(color: Color) -> Color:
+	if int(_saved_setting("editor", "theme", 0)) == 1:
+		return color.darkened(0.55)
+	return color
+
 func _setup_syntax_highlighting() -> void:
-	var highlighter := CodeHighlighter.new()
+	var highlighter := preload("res://workstation/scripts/cpp_highlighter.gd").new()
 
 	var keywords := [
-		"int", "double", "float", "bool", "char", "void",
-		"if", "else", "while", "for", "return",
-		"true", "false", "break", "continue"
+		"alignas", "alignof", "and", "and_eq", "asm", "auto",
+		"bitand", "bitor", "bool", "break", "case", "catch",
+		"char", "char8_t", "char16_t", "char32_t", "class", "compl",
+		"concept", "const", "consteval", "constexpr", "constinit", "const_cast",
+		"continue", "co_await", "co_return", "co_yield", "decltype", "default",
+		"delete", "do", "double", "dynamic_cast", "else", "enum", "explicit",
+		"export", "extern", "false", "float", "for", "friend", "goto", "if",
+		"inline", "int", "long", "mutable", "namespace", "new", "noexcept",
+		"not", "not_eq", "nullptr", "operator", "or", "or_eq", "private",
+		"protected", "public", "register", "reinterpret_cast", "requires",
+		"return", "short", "signed", "sizeof", "static", "static_assert",
+		"static_cast", "struct", "switch", "template", "this", "thread_local",
+		"throw", "true", "try", "typedef", "typeid", "typename", "union",
+		"unsigned", "using", "virtual", "void", "volatile", "wchar_t", "while",
+		"xor", "xor_eq"
 	]
 	for word in keywords:
-		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
 
 	for command in _commands.COMMANDS:
-		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
+		highlighter.add_keyword_color(command.name, _syntax_color(Color(0.80, 0.60, 1.00)))
 
 	for sensor in _commands.SENSORS:
-		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+		highlighter.add_keyword_color(sensor.name, _syntax_color(Color(0.60, 0.90, 1.00)))
 
-	highlighter.number_color = Color(0.95, 0.65, 0.30)
-	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
-	highlighter.function_color = Color(0.95, 0.85, 0.45)
-	highlighter.member_variable_color = Color(0.85, 0.85, 0.85)
-	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("//", "", Color(0.50, 0.50, 0.50), true)
-	highlighter.add_color_region("/*", "*/", Color(0.50, 0.50, 0.50), false)
-	highlighter.add_keyword_color("include", Color(0.95, 0.45, 0.75))
-	highlighter.add_color_region("<", ">", Color(1.0, 0.6, 0.25), true)
+	highlighter.number_color = _syntax_color(Color(0.95, 0.65, 0.30))
+	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
+	highlighter.member_variable_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.add_keyword_color("include", _syntax_color(Color(0.95, 0.45, 0.75)))
 
+	highlighter.string_color = _syntax_color(Color(0.60, 0.90, 0.60))
+	highlighter.comment_color = _syntax_color(Color(0.50, 0.50, 0.50))
 	editor.syntax_highlighter = highlighter
 
 
@@ -396,29 +744,30 @@ func _setup_python_highlighting() -> void:
 	var highlighter := CodeHighlighter.new()
 
 	var keywords := [
-		"def", "if", "elif", "else", "while", "for", "in",
-		"return", "True", "False", "None", "and", "or", "not",
-		"pass", "break", "continue"
+		"False", "None", "True", "and", "as", "assert", "async", "await",
+		"break", "class", "continue", "def", "del", "elif", "else", "except",
+		"finally", "for", "global", "if", "in", "is", "lambda", "nonlocal",
+		"not", "or", "pass", "raise", "return", "try", "while", "with", "yield"
 	]
 	for word in keywords:
-		highlighter.add_keyword_color(word, Color(0.40, 0.70, 1.00))
+		highlighter.add_keyword_color(word, _syntax_color(Color(0.40, 0.70, 1.00)))
 
 	for command in _commands.COMMANDS:
-		highlighter.add_keyword_color(command.name, Color(0.80, 0.60, 1.00))
+		highlighter.add_keyword_color(command.name, _syntax_color(Color(0.80, 0.60, 1.00)))
 
 	for sensor in _commands.SENSORS:
-		highlighter.add_keyword_color(sensor.name, Color(0.60, 0.90, 1.00))
+		highlighter.add_keyword_color(sensor.name, _syntax_color(Color(0.60, 0.90, 1.00)))
 
-	highlighter.add_keyword_color("from", Color(0.95, 0.45, 0.75))
-	highlighter.add_keyword_color("import", Color(0.95, 0.45, 0.75))
-	highlighter.add_color_region("*", "", Color(0.95, 0.45, 0.75), true)
-	highlighter.number_color = Color(0.95, 0.65, 0.30)
-	highlighter.symbol_color = Color(0.85, 0.85, 0.85)
-	highlighter.function_color = Color(0.95, 0.85, 0.45)
-	highlighter.add_color_region("\"", "\"", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("'", "'", Color(0.60, 0.90, 0.60), false)
-	highlighter.add_color_region("#", "", Color(0.50, 0.50, 0.50), true)
-	highlighter.add_color_region("\"\"\"", "\"\"\"", Color(0.60, 0.90, 0.60), false)
+	highlighter.add_keyword_color("from", _syntax_color(Color(0.95, 0.45, 0.75)))
+	highlighter.add_keyword_color("import", _syntax_color(Color(0.95, 0.45, 0.75)))
+	highlighter.number_color = _syntax_color(Color(0.95, 0.65, 0.30))
+	highlighter.symbol_color = _syntax_color(Color(0.85, 0.85, 0.85))
+	highlighter.function_color = _syntax_color(Color(0.95, 0.85, 0.45))
+	highlighter.add_color_region("\"", "\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'", "'", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("#", "", _syntax_color(Color(0.50, 0.50, 0.50)), true)
+	highlighter.add_color_region("\"\"\"", "\"\"\"", _syntax_color(Color(0.60, 0.90, 0.60)), false)
+	highlighter.add_color_region("'''", "'''", _syntax_color(Color(0.60, 0.90, 0.60)), false)
 
 	editor.syntax_highlighter = highlighter
 
@@ -429,7 +778,7 @@ func _on_run_button_pressed() -> void:
 	if _ipc_active:
 		if _paused:
 			if _step_index < _cmd_history.size():
-				await _resume_after_step_back()
+				await _resume_after_step_back(_run_id)
 			else:
 				_paused = false
 				run_button.text = "❚❚ Pause"
@@ -441,6 +790,10 @@ func _on_run_button_pressed() -> void:
 			_set_status("Paused", "")
 		return
 
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	_paused = false
 	_run_pipeline()
 
@@ -449,7 +802,7 @@ func _on_run_button_pressed() -> void:
 # Replay cached commands at the user's selected speed to catch the world up,
 # so it looks like seamless continuation, then unblock the IPC loop.
 # Pause check between commands so the user can interrupt the catch-up.
-func _resume_after_step_back() -> void:
+func _resume_after_step_back(run_id: int) -> void:
 	_in_replay = false
 	_paused = false
 	run_button.text = "❚❚ Pause"
@@ -457,11 +810,11 @@ func _resume_after_step_back() -> void:
 	step_button.disabled = true
 	_set_status("Running...", "")
 
-	while _step_index < _cmd_history.size() and _ipc_active:
+	while _step_index < _cmd_history.size() and _ipc_active and _run_id == run_id:
 		var entry = _cmd_history[_step_index]
 		_step_index += 1
-		await _execute_cmd(entry.cmd, entry.src_line)
-		if not _ipc_active:
+		await _animate_command(entry.cmd, entry.src_line, run_id)
+		if _run_id != run_id or not _ipc_active:
 			return
 		if _paused:
 			# User pressed Pause mid-replay. Stop catching up.
@@ -473,8 +826,9 @@ func _resume_after_step_back() -> void:
 			step_button.disabled = false
 			prev_button.disabled = _step_index <= 0
 			return
-	
-	_resume.emit()
+
+	if _run_id == run_id and _ipc_active:
+		_resume.emit()
 
 
 func _on_step_button_pressed() -> void:
@@ -490,12 +844,16 @@ func _on_step_button_pressed() -> void:
 		step_button.disabled = true
 		prev_button.disabled = true
 		if _in_replay:
-			await _replay_step_forward()
+			await _replay_step_forward(_run_id)
 		else:
 			_resume.emit()	# loop executes one cmd then re-pauses
 		return
 
 	# start a fresh run, but begin paused so the first command is a single step
+	if not has_checked_code:
+		_set_status("Check your code before running.", "error")
+		return
+
 	_paused = true
 	_run_pipeline()
 
@@ -507,6 +865,7 @@ func _on_prev_button_pressed() -> void:
 	_step_index -= 1
 	_in_replay = true
 	_restore_snapshot(_cmd_history[_step_index].snap)
+	_refresh_level_limits()
 	if flat_grid_node != null and is_instance_valid(flat_grid_node):
 		# Build path: every snapshot up to and including the restored one is a
 		# (gx, gy, facing) point the player has actually stood at, oldest first
@@ -529,7 +888,7 @@ func _take_snapshot() -> Dictionary:
 		grid_x = player_node.grid_x,
 		grid_y = player_node.grid_y,
 		facing = player_node.facing,
-		carried_object = player_node.carried_object,
+		carried_object = player_node.carried_object.duplicate(),
 		object_data = obj_copy
 	}
 
@@ -541,7 +900,7 @@ func _restore_snapshot(snap: Dictionary) -> void:
 	player_node.grid_x = snap.grid_x
 	player_node.grid_y = snap.grid_y
 	player_node.facing = snap.facing
-	player_node.carried_object = snap.carried_object
+	player_node.carried_object = snap.carried_object.duplicate()
 	player_node.position = game_instance.player_grid_position(snap.grid_x, snap.grid_y)
 
 	player_node.update_animation(false)
@@ -553,11 +912,11 @@ func _restore_snapshot(snap: Dictionary) -> void:
 		_clear_editor_highlights()
 
 
-func _replay_step_forward() -> void:
+func _replay_step_forward(run_id: int) -> void:
 	var entry = _cmd_history[_step_index]
 	_step_index += 1
-	await _execute_cmd(entry.cmd, entry.src_line)
-	if not _ipc_active:
+	await _animate_command(entry.cmd, entry.src_line, run_id)
+	if _run_id != run_id or not _ipc_active:
 		return
 
 	log_line("✓ %s" % entry.cmd.to_lower())
@@ -590,10 +949,30 @@ func _clear_editor_highlights() -> void:
 
 func _on_reset_button_pressed() -> void:
 	_stop_execution()
+
+	# Reload the level before clearing the previous state.
+	var loaded: bool = _load_level_scene(false, true)
+
+	if not loaded:
+		# Execution has stopped, so restore the controls.
+		_set_controls_disabled(false)
+
+		run_button.text = "▶ Run"
+		run_button.disabled = not has_checked_code
+		step_button.disabled = false
+		reset_button.disabled = false
+		prev_button.disabled = true
+
+		_set_status("Reset failed. Level could not be reloaded.", "error")
+		log_error("Reset failed: could not reload the level.")
+		return
+
+	# Reset succeeded. Clear execution history.
 	_clear_editor_highlights()
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+
 	run_button.text = "▶ Run"
 	run_button.disabled = false
 	step_button.disabled = false
@@ -606,7 +985,6 @@ func _on_reset_button_pressed() -> void:
 	log_header("reset")
 	log_line("Level reloaded.")
 	_set_status("Ready", "")
-	_load_level_scene(false, true)
 
 func _on_speed_change(value: float) -> void:
 	exec_speed = value
@@ -627,22 +1005,24 @@ func _on_settings_button_pressed() -> void:
 
 
 # === funny lose messages ===
+# Message for a specific loss (e.g., trying to move into a wall) commented out for now
+# Maybe make separate arrays for the different lose conditions? (see TODO for get_funny_lose_message)
 const LOSE_MESSAGES := [
-	"Your player has left the chat.",
+# 	"Your player has left the chat.",     # walking off the map?
 	"Have you...tried turning it off and on again?",
-	"Your player took an unscheduled vacation.",
+#	"Your player took an unscheduled vacation.",     # stopping while on an empty tile
 	"Your player says: \"I quit.\"",
 	"404: Success not found.",
-	"Instructions unclear. Your player now in another dimension.",
-	"Your player walked into a wall. Impressive dedication!",
+#	"Instructions unclear. Your player now in another dimension.",     # walking off the map
+#	"Your player walked into a wall. Impressive dedication!",     # walking into a wall
 	"Your player has filed a complaint with HR.",
-	"Maybe try fewer walls next time?",
-	"Your player called in sick.",
+#	"Maybe try fewer walls next time?",     # walking into a wall
+#	"Your player called in sick.",     # idek what lose condition this should be
 	"The matrix has rejected your code.",
 	"Skill issue detected.",
 	"Your player tripped over their own code.",
 	"Your player is on strike. Have you tried negotiating?",
-	"Splat. Your player is now wall decor.",
+#	"Splat. Your player is now wall decor.",     # walking into a wall
 ]
 
 func _set_controls_disabled(disabled: bool) -> void:
@@ -656,11 +1036,14 @@ func _set_controls_disabled(disabled: bool) -> void:
 	rotate_right_btn.disabled = disabled
 	settings_button.disabled = disabled
 	library_button.disabled = disabled
+	level_button.disabled = _is_execution_busy()
+	
 	if disabled:
 		settings_overlay.hide()
 		library_overlay.hide()
 
 
+# TODO: Pick a message for the *specific* lose condition
 func _get_funny_lose_message() -> String:
 	return LOSE_MESSAGES[randi() % LOSE_MESSAGES.size()]
 
@@ -668,14 +1051,54 @@ func _get_funny_lose_message() -> String:
 func _trigger_move_limit_lose() -> void:
 	if _is_handling_lose:
 		return
+	
 	_is_handling_lose = true
 	_run_outcome = "move_limit"
+	_refresh_level_limits()
 	_stop_execution()
-
+		
+	$LoseSound.play()
 	log_header("lose")
-	log_error("Move Limit Reached")
+	log_error("Move limit reached (%d moves)" % _move_limit)
 	_set_status("You lost", "error")
+	
+	lose_message.text = _get_funny_lose_message()
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
 
+
+func _trigger_cmd_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	
+	_is_handling_lose = true
+	_run_outcome = "cmd_limit"
+	_refresh_level_limits()
+	_stop_execution()
+	
+	$LoseSound.play()
+	log_header("lose")
+	log_error("Command limit reached (%d commands)" % _cmd_limit)
+	_set_status("You lost", "error")
+	
+	lose_message.text = _get_funny_lose_message()
+	lose_overlay.visible = true
+	_set_controls_disabled(true)
+
+
+func _trigger_time_limit_lose() -> void:
+	if _is_handling_lose:
+		return
+	
+	_is_handling_lose = true
+	_run_outcome = "time_limit"
+	_refresh_level_limits()
+	_stop_execution()
+	$LoseSound.play()
+	log_header("lose")
+	log_error("Time limit reached (%.1f seconds)" % _time_limit_seconds)
+	_set_status("You lost", "error")
+	
 	lose_message.text = _get_funny_lose_message()
 	lose_overlay.visible = true
 	_set_controls_disabled(true)
@@ -689,8 +1112,10 @@ func _trigger_incomplete_lose(reason: String) -> void:
 		return
 	_is_handling_lose = true
 	_run_outcome = "incomplete"
+	_refresh_level_limits()
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -705,8 +1130,10 @@ func _on_player_lose(reason: String) -> void:
 		return
 	_is_handling_lose = true
 	_run_outcome = "lose"
+	_refresh_level_limits()
 	_stop_execution()
 
+	$LoseSound.play()
 	log_header("lose")
 	log_error(reason)
 	_set_status("You lost", "error")
@@ -717,8 +1144,22 @@ func _on_player_lose(reason: String) -> void:
 
 
 func _on_level_complete() -> void:
+	if _is_handling_lose or _run_outcome == "win":
+		return
+	$WinSound.play()
 	_run_outcome = "win"
 	_stop_execution()
+	var campaign_index := Campaign.index_for_path(SelectedLevel.path)
+	# Hide Next Level by default, including for custom levels.
+	campaign_next_button.visible = false	
+	if campaign_index >= 0:
+		var save_error := Campaign.mark_complete(SelectedLevel.path, campaign_progress_path)
+		if save_error != OK:
+			log_error("Could not save campaign progress. Replay this level to try again.")
+		campaign_next_button.visible = save_error == OK and campaign_index + 1 < Campaign.LEVELS.size()
+		if campaign_index == Campaign.LEVELS.size() - 1:
+			$WinOverlay/WinCard/WinContent/WinTitle.text = "Campaign Complete!"
+			$WinOverlay/WinCard/WinContent/WinMessage.text = "You completed all %d levels. Well done!" % Campaign.LEVELS.size()
 
 	log_header("level complete")
 	log_success("Your robot reached the goal!")
@@ -742,15 +1183,58 @@ func _on_win_retry() -> void:
 
 
 func _on_win_next() -> void:
-	win_overlay.visible = false
-	_set_controls_disabled(false)
-	log_header("info")
-	log_line("Next level coming soon!")
+	var next_index := Campaign.index_for_path(SelectedLevel.path) + 1
+
+	if next_index <= 0 or next_index >= Campaign.LEVELS.size():
+		return
+
+	if not Campaign.is_unlocked(
+		next_index,
+		Campaign.completed_ids(campaign_progress_path)
+	):
+		return
+
+	var next_path: String = Campaign.LEVELS[next_index].path
+
+	# The normal switch function saves the outgoing code.
+	SelectedLevel.path = next_path
+	_switch_level()
+	if _loaded_level_path == next_path:
+		run_button.text = "▶ Run"
+		run_button.disabled = false
+
+	# Restore normal victory text for future levels.
+	$WinOverlay/WinCard/WinContent/WinTitle.text = "Level Complete!"
+	$WinOverlay/WinCard/WinContent/WinMessage.text = "Your robot reached the goal!"
 
 
 func _on_go_to_menu() -> void:
 	get_tree().change_scene_to_file("res://main_menu/scenes/main_menu.tscn")
 
+
+func _cleanup_sandbox_run() -> void:
+	if _sandbox_run_id.is_empty() or _sandbox_cleanup_token.is_empty():
+		return
+
+	var cleanup: Dictionary = {}
+
+	for attempt in range(5):
+		cleanup = sandbox_worker.delete_run_directory(
+			_sandbox_run_id,
+			_sandbox_cleanup_token
+		)
+
+		if cleanup.ok:
+			_sandbox_run_id = ""
+			_sandbox_cleanup_token = ""
+			return
+
+		OS.delay_msec(250)
+
+	log_warning(
+		"Could not remove secure run folder after retries: "
+		+ cleanup.message
+	)
 
 # === pipeline execution ===
 
@@ -758,6 +1242,11 @@ func _stop_execution() -> void:
 	_paused = false
 	_ipc_active = false
 	_ipc_loop_running = false
+	_program_animating = false
+	_program_time_remaining = -1.0
+	_program_time_elapsed = 0.0
+	_run_id += 1  # invalidate every async continuation belonging to the old run
+	_run_pending = false
 
 	if _ipc_server != null:
 		_ipc_server.stop()
@@ -765,15 +1254,133 @@ func _stop_execution() -> void:
 	if _subprocess_pid != -1:
 		OS.kill(_subprocess_pid)
 		_subprocess_pid = -1
+	
+	_cleanup_sandbox_run()
 
 	# If IPC loop is paused waiting for a step, unblock it so it can exit cleanly
 	_resume.emit()
 
+const PROGRAM_TIME_REFRESH_SECONDS := 0.2
+const BASE_EXEC_SPEED := 0.5
+
+func _start_program_time_limit(pid: int) -> void:
+	var run_id := _run_id
+	_program_time_elapsed = 0.0
+
+	# The time limit is a program execution limit, measuring program runtime
+	# (not time spent in the level). Command animations are charged per command
+	# at their baseline-speed cost, and all other program runtime (startup,
+	# queries, student compute) accrues at wall-clock rate. So the budget is
+	# identical no matter which speed setting is selected. Elapsed program time
+	# is tracked even without a limit so the label can show time used.
+	var has_time_limit := _time_limit_seconds > 0.0
+	if has_time_limit:
+		_program_time_remaining = _time_limit_seconds
+	_show_level_limits(_program_time_remaining if has_time_limit else _time_limit_seconds)
+	var last_ms := Time.get_ticks_msec()
+	while _run_id == run_id and _subprocess_pid == pid:
+		var now_ms := Time.get_ticks_msec()
+		var elapsed := float(now_ms - last_ms) / 1000.0
+		last_ms = now_ms
+		if elapsed > 0.0 and not _paused and not _program_animating:
+			_program_time_elapsed += elapsed
+			if has_time_limit:
+				_program_time_remaining -= elapsed
+				_show_level_limits(maxf(0.0, _program_time_remaining))
+				if _program_time_remaining <= 0.0:
+					_trigger_time_limit_lose()
+					return
+			else:
+				_show_level_limits(_time_limit_seconds)
+		await get_tree().create_timer(PROGRAM_TIME_REFRESH_SECONDS).timeout
+
+
+# Flat per-command cost in program-seconds at the baseline exec speed.
+# Independent of exec_speed and of the animation's real duration.
+func _baseline_command_cost(cmd: String) -> float:
+	match cmd:
+		"MOVE":
+			return BASE_EXEC_SPEED
+		"TURN_LEFT", "TURN_RIGHT":
+			return BASE_EXEC_SPEED * 0.2
+	return 0.0
+
+
+func _charge_program_time(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	_program_time_elapsed += seconds
+	if _program_time_remaining < 0.0:
+		_show_level_limits(_time_limit_seconds)
+		return
+	_program_time_remaining -= seconds
+	_show_level_limits(maxf(0.0, _program_time_remaining))
+	if _program_time_remaining <= 0.0:
+		_trigger_time_limit_lose()
+
+
+# Runs one command's animation with _program_animating set so the program
+# clock does not double-count it. `live` commands also charge their baseline
+# cost — but only if this continuation still belongs to the active run.
+func _animate_command(cmd: String, src_line: int, run_id: int, live: bool = false) -> void:
+	_program_animating = true
+	await _execute_cmd(cmd, src_line)
+	if _run_id != run_id:
+		return
+	_program_animating = false
+	_refresh_level_limits()
+	if live and _ipc_active:
+		_charge_program_time(_baseline_command_cost(cmd))
+
+
+func _moves_used() -> int:
+	var count := 0
+	for i in range(mini(_step_index, _cmd_history.size())):
+		if _cmd_history[i].cmd == "MOVE":
+			count += 1
+	return count
+
+
+func _refresh_level_limits() -> void:
+	var time_left := _program_time_remaining
+	_show_level_limits(maxf(0.0, time_left) if time_left >= 0.0 else _time_limit_seconds)
+
+
+func _show_level_limits(time_remaining: float) -> void:
+	if campaign_limits == null:
+		return
+	campaign_limits.text = "LEVEL LIMITS  •  Moves: %s  •  Commands: %s  •  Time: %s" % [
+		_format_count_detail(_move_limit, _moves_used()),
+		_format_count_detail(_cmd_limit, _cmd_history.size()),
+		_format_time_detail(time_remaining)
+	]
 
 func _run_pipeline() -> void:
 	# Capture caller's intent BEFORE _stop_execution wipes _paused.
 	var start_paused: bool = _paused
 	_stop_execution()
+	_run_pending = true
+	
+	# Close level selection windows when execution begins.
+	if level_type_window != null:
+		level_type_window.hide()
+
+	if custom_levels_window != null:
+		custom_levels_window.hide()
+
+	if campaign_menu != null:
+		campaign_menu.hide()
+
+	var run_id := _run_id
+	_student_output_lines = 0
+	var source := checked_code
+
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
+		log_error("Source code is too large. Maximum size is 100,000 characters.")
+		_set_status("Validation failed", "error")
+		_re_enable_buttons()
+		return
+
 	reset_button.disabled = false
 	run_button.disabled = true
 	step_button.disabled = true
@@ -786,13 +1393,17 @@ func _run_pipeline() -> void:
 	_cmd_history.clear()
 	_step_index = 0
 	_in_replay = false
+	_refresh_level_limits()
 	_run_outcome = "incomplete"
 	_run_had_error = false
 	await get_tree().process_frame
+	if _run_id != run_id:
+		return
+
 
 	# Python path
 	if current_language == Language.PYTHON:
-		var v: Dictionary = py_pipeline.validate(editor.text)
+		var v: Dictionary = py_pipeline.validate(source)
 		if not v.ok:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
@@ -800,7 +1411,7 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 	else:
-		var v: Dictionary = validator.validate(editor.text)
+		var v: Dictionary = validator.validate(source)
 		if not v.ok:
 			for err in v.errors:
 				log_error("line %d: %s" % [err.line, err.message])
@@ -808,10 +1419,67 @@ func _run_pipeline() -> void:
 			_re_enable_buttons()
 			return
 
+
+	if current_language == Language.CPP:
+		if not compiler.is_platform_supported():
+			log_error("C++ execution is not supported on this OS or architecture.")
+			_set_status("C++ not supported on this platform", "error")
+			_re_enable_buttons()
+			return
+		if not compiler.detect_compiler():
+			log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
+			_set_status("C++ Compiler unavailable", "error")
+			_re_enable_buttons()
+			return
+
+	if current_language == Language.PYTHON and not py_pipeline.is_available():
+		log_error("The bundled Python runtime is unavailable for this platform.")
+		_set_status("Python runtime unavailable", "error")
+		_re_enable_buttons()
+		return
+
 	# start IPC server
 	var IPCServer = preload(Paths.IPC_SERVER)
 	_ipc_server = IPCServer.new()
-	if not _ipc_server.start():
+	var crypto := Crypto.new()
+
+	var sandbox_run_id := crypto.generate_random_bytes(16).hex_encode()
+	var sandbox_cleanup_token := crypto.generate_random_bytes(32).hex_encode()
+
+	var sandbox_run: Dictionary
+
+	if current_language == Language.PYTHON:
+		sandbox_run = sandbox_worker.prepare_python_run(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			runtime_assets.python_payload_path()
+		)
+	else:
+		sandbox_run = sandbox_worker.prepare_run(
+			sandbox_run_id,
+			sandbox_cleanup_token
+		)
+
+	if not sandbox_run.ok:
+		log_error("Could not prepare the secure run folder: " + sandbox_run.message)
+		_set_status("Sandbox setup failed", "error")
+		_re_enable_buttons()
+		return
+	
+	
+	log_line("Secure run folder prepared.")
+	_sandbox_run_id = sandbox_run_id
+	_sandbox_cleanup_token = sandbox_cleanup_token
+
+	var sandbox_ipc_endpoint := ""
+	if OS.get_name() == "Windows":
+		sandbox_ipc_endpoint = "\\\\.\\pipe\\CodeAndConquer-" + sandbox_run_id
+	else:
+		sandbox_ipc_endpoint = str(sandbox_run.get("path", "")).path_join("student.sock")
+
+	var ipc_token := crypto.generate_random_bytes(32).hex_encode()
+	
+	if not _ipc_server.start(ipc_token):
 		log_error("Could not open a local TCP port for IPC. Is the port range 27015-27115 blocked?")
 		_set_status("IPC failed", "error")
 		_re_enable_buttons()
@@ -819,40 +1487,123 @@ func _run_pipeline() -> void:
 
 	# C++ path
 	if current_language == Language.CPP:
-		var generated: Dictionary = generator.generate(editor.text)
-		current_line_offset = generated.line_offset
-		compiler.prepare_build_files(generated.generated_source, _ipc_server.port)
-
-		var build: Dictionary = compiler.compile_program()
-		if not build.ok:
-			log_error(compiler.remap_diagnostics(build.output, generated.line_offset))
-			_set_status("Compile failed", "error")
+		if checked_cpp_executable.is_empty() or not FileAccess.file_exists(checked_cpp_executable):
+			log_error("Check Code must compile your C++ program before you can run it.")
+			_set_status("No checked C++ build", "error")
 			_ipc_server.stop()
 			_ipc_server = null
 			_re_enable_buttons()
 			return
-		_set_status("Compiled - launching...", "")
-		_subprocess_pid = compiler.start_program()
+
+		current_line_offset = checked_cpp_line_offset
+
+		var run_folder := str(sandbox_run.get("path", ""))
+		var executable_destination := run_folder.path_join(checked_cpp_executable.get_file())
+
+		var copy_error := DirAccess.copy_absolute(
+			checked_cpp_executable,
+			executable_destination
+		)
+
+		if copy_error != OK:
+			log_error("Could not copy the checked C++ program into the secure run folder.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		var connection_file := FileAccess.open(
+			run_folder.path_join("connection.txt"),
+			FileAccess.WRITE
+		)
+
+		if connection_file == null:
+			log_error("Could not create the secure program connection.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		connection_file.store_string(sandbox_ipc_endpoint)
+		connection_file.close()
+		
+		_set_status("Launching checked C++ program...", "")
+
+		var launch: Dictionary = sandbox_worker.start_cpp_runner(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			_ipc_server.port,
+			ipc_token
+		)
+
+		if not launch.ok:
+			log_error("Could not start secure C++ runner: " + launch.message)
+			_set_status("Secure launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+		_subprocess_pid = int(launch.pid)
 	else:
 		current_line_offset = 0
-		_subprocess_pid = py_pipeline.start(editor.text, _ipc_server.port)
+		var python_build: Dictionary = py_pipeline.prepare_sandbox_files(
+			source,
+			str(sandbox_run.get("path", "")),
+			sandbox_ipc_endpoint
+		)
 
-	if _subprocess_pid == -1:
-		log_error("Failed to launch subprocess.")
-		_set_status("Launch failed", "error")
-		_ipc_server.stop()
-		_ipc_server = null
-		_re_enable_buttons()
-		return
+		if not python_build.ok:
+			log_error("Could not prepare secure Python code: " + python_build.message)
+			_set_status("Python setup failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_cleanup_sandbox_run()
+			_re_enable_buttons()
+			return
+
+		var launch: Dictionary = sandbox_worker.start_python_runner(
+			sandbox_run_id,
+			sandbox_cleanup_token,
+			_ipc_server.port,
+			ipc_token
+		)
+
+		if not launch.ok:
+			log_error("Could not start secure Python runner: " + launch.message)
+			_set_status("Secure Python launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_cleanup_sandbox_run()
+			_re_enable_buttons()
+			return
+
+		_subprocess_pid = int(launch.pid)
+		if _subprocess_pid == -1:
+			log_error("Failed to launch subprocess.")
+			_set_status("Launch failed", "error")
+			_ipc_server.stop()
+			_ipc_server = null
+			_re_enable_buttons()
+			return
+
+	if _subprocess_pid != -1:
+		_start_program_time_limit(_subprocess_pid)
 
 	_set_status("Running...", "")
 	if not await _ipc_server.wait_for_connection(get_tree()):
+		if _run_id != run_id:
+			return
 		log_error("Subprocess did not connect within 5 seconds.")
 		_set_status("Timeout", "error")
 		_stop_execution()
 		_re_enable_buttons()
 		return
 
+	if _run_id != run_id:
+		return
 	_ipc_active = true
 	_paused = start_paused
 	log_header("executing")
@@ -863,19 +1614,26 @@ func _run_pipeline() -> void:
 		_set_status("Paused", "")
 	else:
 		run_button.text = "❚❚ Pause"
-	await _run_ipc_loop()
+	await _run_ipc_loop(run_id)
 
 
-func _run_ipc_loop() -> void:
-	while _ipc_active:
+func _run_ipc_loop(run_id: int) -> void:
+	while _ipc_active and _run_id == run_id:
 		var line: String = await _ipc_server.read_line(get_tree())
 
-		if not _ipc_active:
+		if _run_id != run_id or not _ipc_active:
 			break
 
 		if line == "[CANCELLED]" or line == "[DISCONNECT]":
 			break
 
+		if line == "[AUTH_FAILED]" or line == "[PROTOCOL_ERROR]":
+			log_error("Security error: student program failed IPC authentication.")
+			_run_had_error = true
+			_set_status("Security error", "error")
+			_stop_execution()
+			_re_enable_buttons()
+			return
 		if line.begins_with("[CMD]"):
 			var cmd := line.trim_prefix("[CMD] ")
 			var src_line := -1
@@ -884,17 +1642,25 @@ func _run_ipc_loop() -> void:
 				cmd = parts[0].strip_edges()
 				src_line = int(parts[1].strip_edges())
 
-			if _cmd_history.size() >= CMD_LIMIT:
-				_trigger_move_limit_lose()
+			if not ALLOWED_IPC_COMMANDS.has(cmd):
+				log_error("Security error: unrecognized robot command.")
+				_run_had_error = true
+				_set_status("Security error", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return 
+
+			if _cmd_limit > 0 and _cmd_history.size() >= _cmd_limit:
+				_trigger_cmd_limit_lose()
 				break
 
 			var snap = _take_snapshot()
 			_cmd_history.append({cmd = cmd, src_line = src_line, snap = snap})
 			_step_index = _cmd_history.size()
 
-			await _execute_cmd(cmd, src_line)
+			await _animate_command(cmd, src_line, run_id, true)
 
-			if not _ipc_active:
+			if _run_id != run_id or not _ipc_active:
 				break
 
 			if _paused:
@@ -903,7 +1669,7 @@ func _run_ipc_loop() -> void:
 				step_button.disabled = false
 				prev_button.disabled = false
 				await _resume
-				if not _ipc_active:
+				if _run_id != run_id or not _ipc_active:
 					break
 			_ipc_server.send("OK")
 
@@ -911,11 +1677,25 @@ func _run_ipc_loop() -> void:
 			var query := line.trim_prefix("[QUERY] ")
 			if " [LINE] " in query:
 				query = query.split(" [LINE] ")[0].strip_edges()
+
+			if not ALLOWED_IPC_QUERIES.has(query):
+				log_error("Security error: unrecognized robot query.")
+				_run_had_error = true
+				_set_status("Security error", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return 
+	
 			var answer := _answer_query(query)
 			_ipc_server.send(answer)
 
 		elif line.begins_with("[PRINT]"):
-			log_line(line.trim_prefix("[PRINT] "))
+			if _student_output_lines < MAX_STUDENT_OUTPUT_LINES:
+				log_line(line.trim_prefix("[PRINT] "))
+			elif _student_output_lines == MAX_STUDENT_OUTPUT_LINES:
+				log_warning("Output limit reached; further student output is hidden.")
+
+			_student_output_lines += 1
 
 		elif line.begins_with("[ERROR]"):
 			log_error(line.trim_prefix("[ERROR] "))
@@ -925,15 +1705,21 @@ func _run_ipc_loop() -> void:
 			break
 
 	_ipc_loop_running = false
-	if _ipc_active:
+	if _ipc_active and _run_id == run_id:
 		# Loop exited naturally (subprocess sent [DONE] or disconnected) without a
 		# win or crash.
 		if _run_outcome == "incomplete" and not _is_handling_lose and not _run_had_error:
-			if _level_has_win_condition():
-				_trigger_incomplete_lose("Did not reach the goal.")
-			else:
-				_on_execution_done()
-				return
+			# Check win condition one final time after all commands complete
+			if game_instance != null and game_instance.has_method("check_win_condition"):
+				game_instance.check_win_condition(player_node.grid_x, player_node.grid_y)
+			
+			# If still incomplete after final check, trigger lose
+			if _run_outcome == "incomplete":
+				if _level_has_win_condition():
+					_trigger_incomplete_lose("Did not reach the goal.")
+				else:
+					_on_execution_done()
+					return
 		else:
 			_stop_execution()
 
@@ -947,6 +1733,8 @@ func _run_ipc_loop() -> void:
 
 
 func _on_execution_done() -> void:
+	if _is_handling_lose or _run_outcome == "done":
+		return
 	_run_outcome = "done"
 	_stop_execution()
 	run_button.text = "▶ Run"
@@ -986,14 +1774,33 @@ func _execute_cmd(cmd: String, src_line: int) -> void:
 		return
 	match cmd:
 		"MOVE":
-			var moves_so_far := 0
-			for i in range(min(_step_index, _cmd_history.size())):
-				if _cmd_history[i].cmd == "MOVE":
-					moves_so_far += 1
-			if moves_so_far > MOVE_LIMIT:
+			var moves_so_far := _moves_used()
+			if _move_limit > 0 and moves_so_far > _move_limit:
 				_trigger_move_limit_lose()
 				return
-			await player_node.move_forward(exec_speed)
+			# Wait for move_finished so a void fall (a second tween inside
+			# move_forward) completes before the next command runs — otherwise
+			# the IPC loop would acknowledge and execute commands after the
+			# fatal step. The loop also exits if the player is freed mid-run
+			# (level reload/reset) or execution is stopped, and a generous
+			# timeout covers a killed tween whose coroutine never resumes.
+			var move_done := [false]
+			player_node.move_finished.connect(func(): move_done[0] = true, CONNECT_ONE_SHOT)
+			player_node.move_forward(exec_speed)
+			var waited := 0.0
+			var move_timeout := exec_speed * 3.0 + 0.5
+			while is_instance_valid(player_node) and _ipc_active and not move_done[0] and waited < move_timeout:
+				await get_tree().create_timer(0.05).timeout
+				waited += 0.05
+			if _ipc_active and is_instance_valid(player_node) and not move_done[0]:
+				# The move never finished (stuck/killed tween). Treat it as a
+				# failed run rather than acknowledging the command and letting
+				# later commands execute before movement or loss handling ends.
+				log_error("Movement did not complete; stopping execution.")
+				_set_status("Execution stopped", "error")
+				_stop_execution()
+				_re_enable_buttons()
+				return
 		"TURN_LEFT":
 			player_node.turn_left()
 			await get_tree().create_timer(exec_speed * 0.2).timeout
@@ -1027,6 +1834,8 @@ func _answer_query(query: String) -> String:
 			return _bool(facing == "north")
 		"IS_FACING_EAST":
 			return _bool(facing == "east")
+		"IS_FACING_SOUTH":
+			return _bool(facing == "south")
 		"IS_FACING_WEST":
 			return _bool(facing == "west")
 		"AT_GOAL":
@@ -1034,7 +1843,7 @@ func _answer_query(query: String) -> String:
 		"OBJECT_HERE":
 			return _bool(game_instance.tile_has_any_object(player_node.grid_x, player_node.grid_y))
 		"CARRIES_OBJECT":
-			return _bool(player_node.carried_object != "")
+			return _bool(not player_node.carried_object.is_empty())
 	return "false"
 
 
@@ -1102,6 +1911,7 @@ func _set_status(text: String, state: String) -> void:
 
 
 func _re_enable_buttons() -> void:
+	_run_pending = false
 	_paused = false
 	run_button.text = "▶ Run"
 	run_button.disabled = false
@@ -1308,7 +2118,7 @@ func _build_report() -> String:
 	report += "\n"
 	report += "SEQUENCE LETTERS\n"
 	report += "  M  move forward\n"
-	report += "  T  turn left\n"
+	report += "  L  turn left\n"
 	report += "  U  pick up object\n"
 	report += "  D  put down object\n"
 	report += "\n"
@@ -1316,7 +2126,9 @@ func _build_report() -> String:
 	report += "  !  win\n"
 	report += "  ?  lose (collision or did not reach goal)\n"
 	report += "  .  finished — no win condition on this level\n"
-	report += "  #  command/move limit hit (%d moves)\n" % MOVE_LIMIT
+	report += "  #  move limit hit (%d moves)\n" % _move_limit
+	report += "  @  command limit hit (%d commands)\n" % _cmd_limit
+	report += "  T  time limit hit (%.1f seconds)\n" % _time_limit_seconds
 	report += "\n"
 	report += "OBJECT LETTERS\n"
 	report += "  A  apple\n"
@@ -1326,6 +2138,7 @@ func _build_report() -> String:
 	report += "  K  token\n"
 	report += "\n"
 	report += "GRID CELLS  (each cell = one tile, letter + count)\n"
+	report += "   ~    void (no floor)\n"
 	report += "  (Xn)  deposit zone needs n of X — not yet satisfied\n"
 	report += "  [Xn]  deposit zone needs n of X — satisfied\n"
 	report += "   Xn   n of object X on the floor\n"
@@ -1339,7 +2152,7 @@ func _cmd_to_report_letter(cmd: String) -> String:
 		"MOVE":
 			return "M"
 		"TURN_LEFT":
-			return "T"
+			return "L"
 		"PICK_OBJECT":
 			return "U"
 		"PUT_OBJECT":
@@ -1357,6 +2170,10 @@ func _run_outcome_marker() -> String:
 			return "."
 		"move_limit":
 			return "#"
+		"cmd_limit":
+			return "@"
+		"time_limit":
+			return "T"
 		_:
 			return "?"
 
@@ -1414,6 +2231,8 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 			var glyph: String
 			if col == px and row == py:
 				glyph = " %s  " % _facing_arrow(facing)
+			elif preload("res://map/scripts/void_tiles.gd").contains(current_level_definition, col, row):
+				glyph = " ~  "
 			elif deposit_zones.has(key) and typeof(deposit_zones[key]) == TYPE_DICTIONARY and not deposit_zones[key].is_empty():
 				var obj_name: String = deposit_zones[key].keys()[0]
 				var required: int = int(deposit_zones[key][obj_name])
@@ -1449,7 +2268,7 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 	var label := "    "
 	for col in range(1, cols + 1):
 		var c := str(col)
-		var pad_l := (4 - c.length()) / 2
+		var pad_l := int((4 - c.length()) / 2)
 		label += " ".repeat(pad_l) + c + " ".repeat(4 - c.length() - pad_l)
 		if col < cols:
 			label += " "
@@ -1461,3 +2280,293 @@ func _render_world_text(cols: int, rows: int, walls: Dictionary, px: int, py: in
 
 func _on_player_facing_changed(facing_index: int) -> void:
 	compass.texture = COMPASS_TEXTURES[facing_index]
+
+
+func _on_editor_text_changed() -> void:
+	has_checked_code = false
+	if not _ipc_active:
+		run_button.disabled = true
+	checked_cpp_executable = ""
+
+func _on_check_button_pressed() -> void:
+	if _ipc_active:
+		_set_status("Stop the current program before checking code.", "error")
+		return
+
+	var source := editor.text
+
+	if source.length() > MAX_STUDENT_SOURCE_CHARS:
+		output_box.clear()
+		log_error("Source code is too large. Maximum size is 100,000 characters.")
+		_set_status("Check failed", "error")
+		return
+
+	output_box.clear()
+	log_header("check code")
+
+	# Python: validate only.
+	if current_language == Language.PYTHON:
+		var python_validation: Dictionary = py_pipeline.validate(source)
+		if not python_validation.ok:
+			for err in python_validation.errors:
+				log_error("line %d: %s" % [err.line, err.message])
+			_set_status("Check failed", "error")
+			return
+
+		checked_code = source
+		has_checked_code = true
+		run_button.disabled = false
+		_set_status("Python code is valid — ready to run.", "")
+		log_line("Python validation passed.")
+		return
+
+	# C++: validate first.
+	var cpp_validation: Dictionary = validator.validate(source)
+	if not cpp_validation.ok:
+		for err in cpp_validation.errors:
+			log_error("line %d: %s" % [err.line, err.message])
+		_set_status("Check failed", "error")
+		return
+
+	# Probe the compiler on the main thread so the background compile only reads the cached result.
+	if _compile_thread != null:
+		return
+
+	if compiler.is_platform_supported() and not compiler.detect_compiler():
+		log_error("A C++ compiler was not found. Please install a C++ compiler first, then restart the game.")
+		_set_status("C++ Compiler unavailable", "error")
+		return
+
+	var generated: Dictionary = generator.generate(source)
+	var check_build_dir := ProjectSettings.globalize_path("user://checked_build")
+
+	check_button.disabled = true
+	run_button.disabled = true
+	editor.editable = false
+	language_selector.disabled = true
+	_set_status("Compiling C++...", "")
+
+	_compile_thread = Thread.new()
+
+	var thread_error := _compile_thread.start(
+		_compile_cpp_in_background.bind(
+			generated.generated_source,
+			check_build_dir
+		)
+	)
+
+	if thread_error != OK:
+		_compile_thread = null
+		check_button.disabled = false
+		editor.editable = true
+		language_selector.disabled = false
+		log_error("Could not start the C++ compiler thread.")
+		_set_status("Compile failed", "error")
+		return
+
+	await _finish_cpp_check(source, generated.line_offset)
+
+
+func _populate_custom_levels() -> void:
+	custom_levels.clear()
+
+	for folder in LEVEL_DIRECTORIES:
+		var directory := DirAccess.open(folder)
+		if directory == null:
+			continue
+
+		var files := directory.get_files()
+		files.sort()
+
+		for file_name in files:
+			if not file_name.to_lower().ends_with(".json"):
+				continue
+
+			var path: String = folder.path_join(file_name)
+			var result: Dictionary = level_definition.load(path)
+			var is_valid: bool = result.get("ok", false)
+
+			var display_name: String = file_name.get_basename()
+
+			if is_valid:
+				var definition: Dictionary = result["definition"]
+				display_name = str(definition.get("name", display_name))
+			else:
+				print("INVALID CUSTOM LEVEL: ", path)
+
+			custom_levels.append({
+				"name": display_name,
+				"path": path,
+				"valid": is_valid
+			})
+
+
+func _show_custom_levels_window() -> void:
+	_populate_custom_levels()
+
+	for child in custom_levels_list.get_children():
+		custom_levels_list.remove_child(child)
+		child.queue_free()
+
+	if custom_levels.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "No custom levels found."
+		custom_levels_list.add_child(empty_label)
+	else:
+		for index in range(custom_levels.size()):
+			var level: Dictionary = custom_levels[index]
+			var button := Button.new()
+
+			button.text = str(level["name"])
+			button.custom_minimum_size.y = 48
+
+			if not level.get("valid", false):
+				button.disabled = true
+				button.text += " (Invalid)"
+				button.tooltip_text = "Invalid or broken level file."
+			else:
+				button.pressed.connect(
+					_on_custom_level_selected.bind(index)
+				)
+
+			custom_levels_list.add_child(button)
+
+	custom_levels_window.popup_centered()
+
+
+func _on_campaign_level_selected(path: String) -> void:
+	if _is_execution_busy():
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	var result: Dictionary = level_definition.load(path)
+
+	if not result.get("ok", false):
+		_set_status("Invalid level", "The selected campaign level could not be loaded.")
+		return
+
+	SelectedLevel.path = path
+	_switch_level()
+
+func _on_level_button_pressed() -> void:
+	if _is_execution_busy():
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	level_type_window.popup_centered()
+
+
+func _on_custom_level_selected(index: int) -> void:
+	if _is_execution_busy():
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	if index < 0 or index >= custom_levels.size():
+		return
+
+	var new_path: String = str(custom_levels[index]["path"])
+	var result: Dictionary = level_definition.load(new_path)
+
+	if not result.get("ok", false):
+		push_warning("Invalid custom level: " + new_path)
+		_set_status("Invalid level", "The selected level could not be loaded.")
+		return
+
+	SelectedLevel.path = new_path
+	_switch_level()
+	custom_levels_window.hide()
+
+
+func _switch_level() -> void:
+	if _is_execution_busy():
+		SelectedLevel.path = _loaded_level_path
+		_set_status("Stop the current program before switching levels.", "error")
+		return
+
+	var new_path: String = SelectedLevel.path.strip_edges()
+	var result: Dictionary = level_definition.load(new_path)
+
+	if not result.get("ok", false):
+		SelectedLevel.path = _loaded_level_path
+		_set_status("The selected level could not be loaded.", "error")
+		return
+
+	# Save the previous level's code before switching.
+	_save_current_level_code()
+
+	print("Selected level path: ", new_path)
+
+	var loaded: bool = _load_level_scene(true, false)
+
+	if not loaded:
+		SelectedLevel.path = _loaded_level_path
+		_set_status("Level switch failed.", "error")
+		return
+
+	# Commit the new level only after successful loading.
+	_loaded_level_path = new_path
+	_restore_level_code(new_path)
+
+	# Reset execution history for the new level.
+	_cmd_history.clear()
+	_step_index = 0
+	_in_replay = false
+	_is_handling_lose = false
+	_run_outcome = "incomplete"
+	_run_had_error = false
+
+	output_box.clear()
+	_clear_editor_highlights()
+
+	# Hide previous result screens.
+	win_overlay.hide()
+	lose_overlay.hide()
+	done_overlay.hide()
+	campaign_next_button.hide()
+
+	# Restore workstation controls.
+	_set_controls_disabled(false)
+	run_button.text = "▶ Run"
+	run_button.disabled = true
+	prev_button.disabled = true
+
+	# Previously checked code must not carry into a new level.
+	has_checked_code = false
+	checked_code = ""
+	checked_cpp_executable = ""
+
+	_set_status("Ready", "")
+	editor.grab_focus()
+
+
+func _is_execution_busy() -> bool:
+	var busy: bool = (
+		_run_pending
+		or _ipc_active
+		or _ipc_loop_running
+		or _subprocess_pid != -1
+	)
+
+	print(
+		"Execution busy: ", busy,
+		" | Pending: ", _run_pending,
+		" | IPC: ", _ipc_active,
+		" | PID: ", _subprocess_pid
+	)
+
+	return busy
+
+
+func _save_current_level_code() -> void:
+	if _loaded_level_path.is_empty():
+		return
+
+	var key := _loaded_level_path + "|" + str(int(current_language))
+	_level_code_cache[key] = editor.text
+
+
+func _restore_level_code(level_path: String) -> void:
+	var key := level_path + "|" + str(int(current_language))
+
+	if _level_code_cache.has(key):
+		editor.text = str(_level_code_cache[key])

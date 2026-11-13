@@ -36,6 +36,7 @@ var camera_pan_max := Vector2.ZERO
 var camera_bounds_ready := false
 var camera_dragging := false
 var _pending_camera_restore: Dictionary = {}
+var backdrop: Node2D
 # =======================================
 
 
@@ -47,6 +48,11 @@ const chunk_size = 2
 # runs when this scene is instantiated into the tree
 # this scene owns the camera, so it configures it here
 func _ready() -> void:
+	backdrop = preload("res://map/scripts/world_backdrop.gd").new()
+	backdrop.floor_layer = FloorTiles
+	backdrop.z_index = -2
+	add_child(backdrop)
+	get_viewport().size_changed.connect(func(): call_deferred("_fit_camera_to_level"))
 	EventManager.rotate_camera_left.connect(rotate_world_left)
 	EventManager.rotate_camera_right.connect(rotate_world_right)
 
@@ -251,6 +257,7 @@ func _rotate_world():
 		_build_goal_cells(data, cols, rows)
 		
 		_build_objects()
+		call_deferred("_fit_camera_to_level")
 	else:
 		push_warning("JSON loaded, but 'cols' or 'rows' keys were missing!")
 
@@ -290,9 +297,12 @@ func _build_floor(cols: int,rows: int) -> void:
 	# Loop through every x (column) and y (row) to fill the grid
 	for x in range(cols):
 		for y in range(rows):
-			var grid_pos := _rotate_floor_cell(x, y, cols, rows)
+			if is_void(x + 1, y + 1):
+				continue
+			var grid_pos := _rotate_goal_cell(x + 1, y + 1, cols, rows)
 			# Draw your floor tile (Assuming source_id 0 and atlas coords 0,0)
 			FloorTiles.set_cell(grid_pos, 8, Vector2i(0, 1))
+	backdrop.queue_redraw()
 
 ## This builds the walls given its coordinate and face
 func _build_walls(data: Dictionary, cols: int, rows: int) -> void:
@@ -581,8 +591,8 @@ func _fit_camera_to_level() -> void:
 	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
 		return
 
-	var map_width: float = maxf(max_local.x - min_local.x, 1.0)
-	var map_height: float = maxf(max_local.y - min_local.y, 1.0)
+	var map_width: float = maxf(camera_bounds_max.x - camera_bounds_min.x, 1.0)
+	var map_height: float = maxf(camera_bounds_max.y - camera_bounds_min.y, 1.0)
 	var fit_zoom_x: float = viewport_size.x / map_width
 	var fit_zoom_y: float = viewport_size.y / map_height
 	var fit_zoom: float = minf(fit_zoom_x, fit_zoom_y)
@@ -603,7 +613,7 @@ func _compute_level_pixel_bounds() -> Dictionary:
 	var max_local := Vector2(-INF, -INF)
 	var found := false
 
-	var half_floor := Vector2(FloorTiles.tile_set.tile_size) * FloorTiles.scale / 2.0
+	var half_floor := Vector2(FloorTiles.tile_set.tile_size) / 2.0
 	for cell in FloorTiles.get_used_cells():
 		found = true
 		var center := FloorTiles.map_to_local(cell)
@@ -684,10 +694,27 @@ func player_grid_position(x_pos: int, y_pos: int) -> Vector2:
 func is_in_bounds(gx: int, gy: int) -> bool:
 	return gx >= 1 and gx <= world_x_size and gy >= 1 and gy <= world_y_size
 
+
+func is_void(gx: int, gy: int) -> bool:
+	return preload("res://map/scripts/void_tiles.gd").contains(level_data, gx, gy)
+
 ## Check if movement in dir from (gx,gy) is blocked by a wall.
 ## Walls are stored as "east" and "north" only (Reborg format).
 ## Moving west/south requires checking the adjacent cell's east/north wall.
 func is_move_blocked(gx: int, gy: int, dir: String) -> bool:
+	# Check if moving would go out of bounds
+	# (Map edges are treated as walls)
+	var next_x := gx
+	var next_y := gy
+	match dir:
+		"east": next_x += 1
+		"west": next_x -= 1
+		"north": next_y += 1
+		"south": next_y -= 1
+	
+	if not is_in_bounds(next_x, next_y):
+		return true
+	
 	# Check if wall even exist
 	if not level_data.has("walls"):
 		return false
@@ -787,12 +814,29 @@ func check_win_condition(gx: int, gy: int) -> void:
 	if not at_position:
 		return
 
+	# --- object carry check ---
+	var carry_requirement := _get_carry_requirement()
+	for object_name in carry_requirement:
+		var required_count: int = carry_requirement[object_name]
+		var carried_count: int = int(player.carried_object.get(object_name, 0))
+		if carried_count < required_count:
+			level_incomplete.emit("Reached the goal without carrying all required " + object_name + "s.")
+			return
+
 	# --- object goal check ---
 	if not are_goal_objects_satisfied():
 		level_incomplete.emit("Reached the goal without completing all the objectives.")
 		return
 
 	level_complete.emit()
+
+
+## Returns the minimum number of each object that must be carried at the finish.
+## `require_carry` is a Dictionary of {object_name: count}.
+func _get_carry_requirement() -> Dictionary:
+	if not level_data.has("goal"):
+		return {}
+	return preload("res://map/scripts/carry_requirements.gd").normalize(level_data["goal"].get("require_carry", {}))
 
 
 # === objects ===
@@ -854,12 +898,23 @@ func _build_objects() -> void:
 		if not is_goal_tile:
 			_add_object_count_label(gx, gy, tile_objects)
 
+## Computes a uniform sprite scale so any object texture renders at roughly
+## one tile-sized visual (200px), without shrinking already-small icons.
+func _object_sprite_scale(tex: Texture2D) -> float:
+	var largest_side := maxf(float(tex.get_width()), float(tex.get_height()))
+	return minf(5.0, 200.0 / maxf(largest_side, 1.0))
+
+
 func _spawn_object(object_name: String, gx: int, gy: int) -> void:
 	var sprite := Sprite2D.new()
-	var tex = load("res://assets/objects/" + object_name + ".png")
-	if tex:
+	var tex := load("res://assets/objects/" + object_name + ".png") as Texture2D
+	if tex != null:
 		sprite.texture = tex
-	sprite.scale = Vector2(5.0, 5.0)
+		# Old object art was tiny, while the new token icon is high-resolution.
+		# Cap every object at one tile-sized visual without making old icons smaller.
+		sprite.scale = Vector2.ONE * _object_sprite_scale(tex)
+	else:
+		sprite.scale = Vector2(5.0, 5.0)
 	var grid_pos = object_grid_position(gx, gy + 1)
 	sprite.position = Vector2i(int(grid_pos[0] + offset_x), int(grid_pos[1] + offset_y))
 	sprite.z_index = 0
@@ -895,10 +950,12 @@ func _build_goal_object_markers() -> void:
 ## satisfied = the matching object has already been placed here.
 func _spawn_goal_marker(object_name: String, gx: int, gy: int, satisfied: bool) -> void:
 	var sprite := Sprite2D.new()
-	var tex = load("res://assets/objects/" + object_name + "_goal.png")
-	if tex:
+	var tex := load("res://assets/objects/" + object_name + "_goal.png") as Texture2D
+	if tex != null:
 		sprite.texture = tex
-	sprite.scale = Vector2(4.8, 4.8)
+		sprite.scale = Vector2.ONE * _object_sprite_scale(tex)
+	else:
+		sprite.scale = Vector2(4.8, 4.8)
 
 	if satisfied:
 		sprite.modulate = Color(0.35, 0.9, 0.45, 0.55)

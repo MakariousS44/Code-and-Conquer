@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" uid="uid://bxsylh2k4ftjb" path="res://assets/images/CClogo.png" id="3_1bmh4"]
 [ext_resource type="FontFile" uid="uid://cfsloh5sw0byb" path="res://assets/fonts/ttf/FiraCode-Regular.ttf" id="3_hu8hj"]
 [ext_resource type="Texture2D" uid="uid://djbi7c38k38jv" path="res://assets/images/compass_east.png" id="6_1bmh4"]
+[ext_resource type="AudioStream" uid="uid://cosw7b2gsbra7" path="res://assets/audio/losesound.mp3" id="lose_sound_ref"]
+[ext_resource type="AudioStream" uid="uid://b82side3ocox6" path="res://assets/audio/winsound.mp3" id="win_sound_ref"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
 content_margin_left = 8.0
@@ -112,6 +114,38 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_teal"]
+content_margin_left = 20.0
+content_margin_top = 8.0
+content_margin_right = 20.0
+content_margin_bottom = 8.0
+bg_color = Color(0.07, 0.2, 0.28, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.28, 0.78, 0.92, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_teal_hover"]
+content_margin_left = 20.0
+content_margin_top = 8.0
+content_margin_right = 20.0
+content_margin_bottom = 8.0
+bg_color = Color(0.12, 0.3, 0.42, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.9, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_d3vpp"]
 bg_color = Color(0.1882353, 0.1882353, 0.22352941, 1)
 border_width_left = 1
@@ -179,38 +213,6 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.6392157, 0.6392157, 0.6392157, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_teal"]
-content_margin_left = 20.0
-content_margin_top = 8.0
-content_margin_right = 20.0
-content_margin_bottom = 8.0
-bg_color = Color(0.07, 0.2, 0.28, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.28, 0.78, 0.92, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_btn_teal_hover"]
-content_margin_left = 20.0
-content_margin_top = 8.0
-content_margin_right = 20.0
-content_margin_bottom = 8.0
-bg_color = Color(0.12, 0.3, 0.42, 1)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.4, 0.9, 1, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -469,6 +471,10 @@ theme_override_styles/pressed = SubResource("StyleBoxFlat_reset")
 theme_override_styles/hover = SubResource("StyleBoxFlat_reset_hover")
 text = "Reset"
 
+[node name="CheckButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/LeftButtons" unique_id=41859291]
+layout_mode = 2
+text = "Check Code"
+
 [node name="StatusLabel" type="Label" parent="RootMargin/MainColumn/TopBarPanel/TopBar" unique_id=341284063]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -480,6 +486,17 @@ text = "Ready"
 layout_mode = 2
 theme_override_constants/separation = 6
 alignment = 2
+
+[node name="LevelButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=344874324]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 18
+theme_override_styles/normal = SubResource("StyleBoxFlat_btn_teal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_teal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_teal_hover")
+text = "Change Level"
 
 [node name="LeftRotateButton" type="Button" parent="RootMargin/MainColumn/TopBarPanel/TopBar/RightButtons" unique_id=1748109493]
 custom_minimum_size = Vector2(120, 0)
@@ -912,6 +929,7 @@ object_here()
 carries_object()
 is_facing_north()
 is_facing_east()
+is_facing_south()
 is_facing_west()"
 
 [node name="Compass" type="TextureRect" parent="." unique_id=532882177]
@@ -1000,6 +1018,12 @@ theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 1)
 theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_gray")
 text = "Main Menu"
+
+[node name="LoseSound" type="AudioStreamPlayer" parent="." unique_id=824871286]
+stream = ExtResource("lose_sound_ref")
+
+[node name="WinSound" type="AudioStreamPlayer" parent="." unique_id=909430717]
+stream = ExtResource("win_sound_ref")
 
 [node name="WinOverlay" type="Control" parent="." unique_id=900000001]
 visible = false
